@@ -47,6 +47,9 @@ $base_url = '/sistema_resoluciones/';
             <a href="<?php echo $base_url; ?>admin/dashboard.php" class="flex items-center px-4 py-3 rounded-lg transition-colors <?php echo ($paginaActual == 'dashboard.php') ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-800 hover:text-white'; ?>">
                 <i class="fas fa-home w-6"></i><span>Inicio</span>
             </a>
+            <a href="<?php echo $base_url; ?>admin/turnos.php" class="flex items-center px-4 py-3 rounded-lg transition-colors <?php echo ($paginaActual == 'turnos.php') ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-800 hover:text-white'; ?>">
+                <i class="fas fa-clock w-6"></i><span>Turnos del Día</span>
+            </a>
             <a href="<?php echo $base_url; ?>admin/usuarios.php" class="flex items-center px-4 py-3 rounded-lg transition-colors <?php echo ($paginaActual == 'usuarios.php') ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-800 hover:text-white'; ?>">
                 <i class="fas fa-users w-6"></i><span>Personal y Permisos</span>
             </a>

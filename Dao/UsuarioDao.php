@@ -9,7 +9,13 @@ class UsuarioDao {
     }
 
     public function obtenerPorCedula($cedula) {
-        $sql = "SELECT * FROM usuarios WHERE cedula = :cedula AND estado = 1";
+        $sql = "SELECT u.id, u.cedula, u.nombres, u.apellidos,
+                       CONCAT(u.nombres, ' ', u.apellidos) AS nombre,
+                       r.nombre AS rol, u.activo, u.rol_id, u.estado_usuario_id
+                FROM usuario u
+                INNER JOIN rol r ON u.rol_id = r.id
+                INNER JOIN estado_usuario eu ON u.estado_usuario_id = eu.id
+                WHERE u.cedula = :cedula AND u.activo = 1 AND eu.activo = 1 AND r.activo = 1";
         $stmt = $this->conexion->prepare($sql);
         $stmt->bindParam(':cedula', $cedula, PDO::PARAM_STR);
         $stmt->execute();
@@ -17,8 +23,12 @@ class UsuarioDao {
     }
 
     public function obtenerTodos() {
-        // Obtenemos todos los usuarios ordenados por rol y nombre
-        $sql = "SELECT id, cedula, nombre, rol, estado, debe_cambiar_clave FROM usuarios ORDER BY rol, nombre";
+        $sql = "SELECT u.id, u.cedula, CONCAT(u.nombres, ' ', u.apellidos) AS nombre,
+                       r.nombre AS rol, eu.id AS estado, u.activo, u.nombres, u.apellidos, u.rol_id
+                FROM usuario u
+                INNER JOIN rol r ON u.rol_id = r.id
+                INNER JOIN estado_usuario eu ON u.estado_usuario_id = eu.id
+                ORDER BY r.nombre, u.nombres";
         $stmt = $this->conexion->prepare($sql);
         $stmt->execute();
         return $stmt->fetchAll();

@@ -2,13 +2,14 @@
 // index.php
 session_start();
 if (isset($_SESSION['usuario_id'])) {
-    if ($_SESSION['rol'] === 'admin') {
-        header("Location: admin/usuarios.php");
-    } elseif ($_SESSION['rol'] === 'secretaria' || $_SESSION['rol'] === 'gerente') {
-        header("Location: secretaria/gestion_resoluciones.php");
-    } else {
-        header("Location: operador/ingreso_resolucion.php");
-    }
+    $destino = match ($_SESSION['rol'] ?? '') {
+        'admin' => 'admin/turnos.php',
+        'secretaria' => 'secretaria/gestion_resoluciones.php',
+        'operativo' => 'operador/ingreso_resolucion.php',
+        'socio' => 'admin/socios.php',
+        default => 'App/conductor/dashboard.php',
+    };
+    header("Location: $destino");
     exit;
 }
 ?>
@@ -48,6 +49,7 @@ if (isset($_SESSION['usuario_id'])) {
                 class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200">
                 Ingresar
             </button>
+            <p class="mt-4 text-xs text-gray-500 text-center">Ingrese su número de cédula en ambos campos.</p>
         </form>
     </div>
 
