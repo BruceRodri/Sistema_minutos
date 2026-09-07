@@ -1,0 +1,42 @@
+services:
+  db:
+    image: mysql:8.4
+    # CAMBIO: Nombre del contenedor único
+    container_name: sistema_minutos_db
+    environment:
+      - MYSQL_ROOT_PASSWORD=minutos.2026*
+      - MYSQL_DATABASE=sistema_minutos_db
+    volumes:
+      # CAMBIO: Nombre del volumen único para los datos
+      - sistema_minutos_db_data:/var/lib/mysql
+    ports:
+      - "3308:3306"
+  web:
+    build: .
+    # CAMBIO: Nombre del contenedor único
+    container_name: sistema_minutos_php
+    ports:
+      # CAMBIO: Nuevo puerto para acceder a esta aplicación
+      - "8082:80"
+    volumes:
+      - .:/var/www/html
+    depends_on:
+      - db
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    # CAMBIO: Nombre del contenedor único
+    container_name: sistema_minutos_pma
+    environment:
+      - PMA_HOST=db
+      - PMA_USER=root
+      - PMA_PASSWORD=minutos.2026*
+    ports:
+      # CAMBIO: Nuevo puerto para acceder a este phpMyAdmin
+      - "8081:80"
+    depends_on:
+      - db
+
+volumes:
+  # CAMBIO: Definición del nuevo volumen
+  sistema_minutos_db_data:
