@@ -29,10 +29,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $_SESSION['permisos'] = [];
 
         $redirect = match ($usuario['rol']) {
-            'admin' => 'admin/turnos.php',
+            'admin' => 'Web/admin/turnos.php',
             'secretaria' => 'secretaria/gestion_resoluciones.php',
             'operativo' => 'operador/ingreso_resolucion.php',
-            'socio' => 'admin/socios.php',
+            'socio' => 'Web/admin/socios.php',
             default => 'App/conductor/dashboard.php',
         };
 

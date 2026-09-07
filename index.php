@@ -3,10 +3,10 @@
 session_start();
 if (isset($_SESSION['usuario_id'])) {
     $destino = match ($_SESSION['rol'] ?? '') {
-        'admin' => 'admin/turnos.php',
+        'admin' => 'Web/admin/turnos.php',
         'secretaria' => 'secretaria/gestion_resoluciones.php',
         'operativo' => 'operador/ingreso_resolucion.php',
-        'socio' => 'admin/socios.php',
+        'socio' => 'Web/admin/socios.php',
         default => 'App/conductor/dashboard.php',
     };
     header("Location: $destino");
