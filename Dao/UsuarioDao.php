@@ -160,5 +160,75 @@ class UsuarioDao {
         $stmt = $this->conexion->prepare($sql);
         return $stmt->execute([':uid' => $usuario_id]);
     }
+
+    // ==================== BD NUEVA (sistema_minutos_db) ====================
+
+    public function generarCodigoConductor() {
+        $sql = "SELECT MAX(CAST(codigo_conductor AS UNSIGNED)) FROM usuario WHERE codigo_conductor IS NOT NULL";
+        $stmt = $this->conexion->prepare($sql);
+        $stmt->execute();
+        $maximo = $stmt->fetchColumn();
+        $siguiente = $maximo ? ($maximo + 1) : 1;
+        return str_pad((string)$siguiente, 3, '0', STR_PAD_LEFT);
+    }
+
+    public function generarCodigoSocio() {
+        $sql = "SELECT MAX(CAST(codigo_socio AS UNSIGNED)) FROM usuario WHERE codigo_socio IS NOT NULL";
+        $stmt = $this->conexion->prepare($sql);
+        $stmt->execute();
+        $maximo = $stmt->fetchColumn();
+        $siguiente = $maximo ? ($maximo + 1) : 1;
+        return str_pad((string)$siguiente, 3, '0', STR_PAD_LEFT);
+    }
+
+    public function registrarUsuario($nombres, $apellidos, $fechaNacimiento, $cedula, $rolNombre) {
+        try {
+            $codigoConductor = null;
+            $codigoSocio = null;
+            $rolNombreBajado = strtolower($rolNombre);
+
+            if ($rolNombreBajado === 'conductor') {
+                $codigoConductor = $this->generarCodigoConductor();
+            } elseif ($rolNombreBajado === 'socio') {
+                $codigoSocio = $this->generarCodigoSocio();
+            }
+
+            $sql = "INSERT INTO usuario (nombres, apellidos, fecha_nacimiento, cedula, codigo_conductor, codigo_socio, rol_id, estado_usuario_id, activo)
+                    VALUES (:nombres, :apellidos, :fecha, :cedula, :codigo_conductor, :codigo_socio,
+                            (SELECT id FROM rol WHERE nombre = :rol),
+                            (SELECT id FROM estado_usuario WHERE nombre = 'habilitado'), 1)";
+            $stmt = $this->conexion->prepare($sql);
+            $stmt->execute([
+                ':nombres' => $nombres,
+                ':apellidos' => $apellidos,
+                ':fecha' => $fechaNacimiento,
+                ':cedula' => $cedula,
+                ':codigo_conductor' => $codigoConductor,
+                ':codigo_socio' => $codigoSocio,
+                ':rol' => $rolNombre
+            ]);
+            return [
+                'id' => $this->conexion->lastInsertId(),
+                'codigo_conductor' => $codigoConductor,
+                'codigo_socio' => $codigoSocio
+            ];
+        } catch (PDOException $e) {
+            return ($e->errorInfo[1] == 1062) ? 'duplicado' : false;
+        }
+    }
+
+    public function obtenerPorCedulaNuevo($cedula) {
+        $sql = "SELECT u.id, u.cedula, u.codigo_conductor, u.codigo_socio, u.nombres, u.apellidos,
+                       CONCAT(u.nombres, ' ', u.apellidos) AS nombre,
+                       r.nombre AS rol
+                FROM usuario u
+                INNER JOIN rol r ON u.rol_id = r.id
+                INNER JOIN estado_usuario eu ON u.estado_usuario_id = eu.id
+                WHERE u.cedula = :cedula AND u.activo = 1 AND eu.activo = 1 AND r.activo = 1";
+        $stmt = $this->conexion->prepare($sql);
+        $stmt->bindParam(':cedula', $cedula, PDO::PARAM_STR);
+        $stmt->execute();
+        return $stmt->fetch();
+    }
 }
 ?>

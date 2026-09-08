@@ -32,6 +32,8 @@ CREATE TABLE usuario (
     apellidos VARCHAR(100) NOT NULL,
     fecha_nacimiento DATE NOT NULL,
     cedula VARCHAR(20) UNIQUE NOT NULL,
+    codigo_conductor VARCHAR(10) NULL UNIQUE COMMENT 'Codigo correlativo 001, 002... solo para conductores',
+    codigo_socio VARCHAR(10) NULL UNIQUE COMMENT 'Codigo correlativo 001, 002... solo para socios',
     rol_id INT NOT NULL,
     estado_usuario_id INT NOT NULL,
     activo TINYINT(1) DEFAULT 1,
