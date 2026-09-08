@@ -66,7 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await response.json();
             mostrarAlerta(alerta, data.status === 'success' ? 'success' : 'error', data.message);
             if (data.status === 'success') {
-                setTimeout(() => window.location.reload(), 1800);
+                quitarPagados(idsAPagar);
             }
         } catch (error) {
             console.error(error);
@@ -76,6 +76,22 @@ document.addEventListener('DOMContentLoaded', () => {
             flujoActivo = null;
             idsAPagar = [];
         }
+    }
+
+    function quitarPagados(ids) {
+        const pagados = new Set(ids.map((id) => String(id)));
+        if (carrusel) {
+            carrusel.querySelectorAll('.cardPagar').forEach((card) => {
+                if (pagados.has(String(card.dataset.id))) card.remove();
+            });
+            todasLasTarjetas = [...carrusel.querySelectorAll('.cardPagar')];
+        }
+        document.querySelectorAll('.checkDia').forEach((check) => {
+            if (pagados.has(String(check.value))) check.closest('.checkDiaFila')?.remove();
+        });
+        aplicarFiltro();
+        renderCarrusel();
+        calcularTotal();
     }
 
     // ---------- Referencias DOM ----------
@@ -104,7 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalCancelar = document.getElementById('modalCancelar');
     const modalAceptar = document.getElementById('modalAceptar');
 
-    const todasLasTarjetas = carrusel ? [...carrusel.querySelectorAll('.cardPagar')] : [];
+    let todasLasTarjetas = carrusel ? [...carrusel.querySelectorAll('.cardPagar')] : [];
 
     function tarjetasFiltradas() {
         return todasLasTarjetas.filter((c) => !filtroDisco || discCoincide(c.dataset.disco, filtroDisco));
@@ -348,6 +364,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const ids = [...idsAPagar];
             cerrarModal();
             if (!flujo || !ids.length) return;
+            flujoActivo = flujo;
+            idsAPagar = ids;
             [alertaTarjetas, alertaVarios].forEach((a) => { if (a) a.classList.add('hidden'); });
             inputComprobante.click();
         });

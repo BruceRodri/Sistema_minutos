@@ -44,7 +44,24 @@ class PagoDao {
                 ORDER BY p.fecha_pago DESC, p.id DESC";
         $stmt = $this->conexion->prepare($sql);
         $stmt->execute([':usuario_id' => $usuarioId]);
-        return $stmt->fetchAll();
+        $pagos = $stmt->fetchAll();
+
+        $stmtFechas = $this->conexion->prepare(
+            "SELECT t.fecha, b.disco FROM turno t
+             INNER JOIN bus b ON t.bus_id = b.id
+             WHERE t.pago_id = ?
+             UNION
+             SELECT fecha, disco FROM obligacion_pago WHERE pago_id = ?
+             ORDER BY fecha"
+        );
+        foreach ($pagos as $i => $pago) {
+            $stmtFechas->execute([$pago['id'], $pago['id']]);
+            $filas = $stmtFechas->fetchAll();
+            $pagos[$i]['fechas'] = array_map(static fn($fila) => $fila['fecha'], $filas);
+            $pagos[$i]['discos'] = array_values(array_unique(array_map(static fn($fila) => $fila['disco'], $filas)));
+        }
+
+        return $pagos;
     }
 
     public function obtenerTodosDiscos($q = '') {

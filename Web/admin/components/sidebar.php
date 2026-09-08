@@ -42,6 +42,10 @@ $rolesAdmin = ['admin', 'secretaria', 'operativo'];
         <?php if(in_array($rol, $rolesAdmin)): ?>
         <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 mt-4 px-4">Administración</p>
 
+            <a href="dashboard.php" class="flex items-center px-4 py-3 rounded-lg transition-colors <?php echo ($paginaActual == 'dashboard.php') ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-800 hover:text-white'; ?>">
+                <i class="fas fa-chart-line w-6"></i><span>Dashboard</span>
+            </a>
+
             <a href="buses.php" class="flex items-center px-4 py-3 rounded-lg transition-colors <?php echo (in_array($paginaActual, ['buses.php', 'crear_bus.php'])) ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-800 hover:text-white'; ?>">
                 <i class="fas fa-bus w-6"></i><span>Buses</span>
             </a>

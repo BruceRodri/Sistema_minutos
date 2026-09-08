@@ -20,6 +20,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 function guardarComprobante($usuarioId) {
     $archivo = $_FILES['archivo'] ?? null;
     if (!$archivo || $archivo['error'] !== UPLOAD_ERR_OK) {
+        if ($archivo && $archivo['error'] === UPLOAD_ERR_INI_SIZE) {
+            return ['status' => 'muy_grande'];
+        }
         return ['status' => 'sin_archivo'];
     }
     if ($archivo['size'] > 5 * 1024 * 1024) {

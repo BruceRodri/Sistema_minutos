@@ -14,6 +14,7 @@ $dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sába
 
 $pagoDao = new PagoDao($conexion);
 $pagos = $pagoDao->obtenerPagosConductor($_SESSION['usuario_id']);
+$discosTodos = $pagoDao->obtenerTodosDiscos();
 
 function formatearFechaPago($fecha) {
     global $dias;
@@ -54,18 +55,29 @@ function formatearFechaPago($fecha) {
     <div class="flex flex-col min-h-screen max-w-7xl mx-auto px-4 pt-6 lg:px-10 lg:pt-20 pb-32 lg:pb-16">
 
         <!-- Encabezado -->
-        <header class="lg:mt-8 mb-6 lg:mb-12 flex items-center justify-between gap-3">
+        <header class="lg:mt-8 mb-6 lg:mb-12 flex flex-wrap items-center justify-between gap-4">
             <div>
                 <p class="text-lg lg:text-2xl text-gray-500">Hola,</p>
                 <h1 class="text-3xl lg:text-5xl font-bold text-gray-800 truncate"><?php echo htmlspecialchars($nombreCorto); ?></h1>
             </div>
-            <i class="fas fa-receipt text-blue-600 text-5xl lg:text-6xl"></i>
+            <div class="relative flex items-center gap-3 bg-white rounded-2xl border-2 border-blue-200 shadow-sm px-5 py-3 lg:py-4">
+                <label for="buscarDisco" class="text-lg lg:text-2xl font-bold text-gray-600 whitespace-nowrap">
+                    <i class="fas fa-compact-disc text-blue-600 mr-1.5"></i>Disco
+                </label>
+                <input type="text" id="buscarDisco" name="buscarDisco" inputmode="numeric" autocomplete="off" maxlength="6"
+                    placeholder="Buscar…"
+                    class="w-24 lg:w-44 text-2xl lg:text-4xl font-extrabold text-blue-700 outline-none bg-transparent placeholder:font-normal placeholder:text-gray-400">
+                <button id="limpiarDisco" type="button" title="Limpiar" class="hidden text-gray-400 hover:text-red-500 transition-colors">
+                    <i class="fas fa-times-circle text-2xl"></i>
+                </button>
+                <div id="listaDiscos" class="hidden absolute left-0 right-0 top-full mt-2 bg-white border-2 border-blue-100 rounded-2xl shadow-2xl overflow-hidden z-20"></div>
+            </div>
         </header>
 
         <div class="mt-4 lg:mt-6">
             <h2 class="text-center text-2xl lg:text-3xl font-bold text-gray-600 mb-6 lg:mb-8">Pagos realizados</h2>
 
-            <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
+            <div id="grillaPagos" class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
                 <?php if (empty($pagos)): ?>
                     <div class="lg:col-span-full bg-white rounded-3xl p-10 text-center shadow-sm border border-gray-200">
                         <i class="fas fa-receipt text-gray-300 text-6xl mb-4"></i>
@@ -73,13 +85,24 @@ function formatearFechaPago($fecha) {
                     </div>
                 <?php else: ?>
                     <?php foreach ($pagos as $p): ?>
-                    <div class="bg-white rounded-3xl p-6 lg:p-7 shadow-sm border border-gray-200">
+                    <div class="cardPago bg-white rounded-3xl p-6 lg:p-7 shadow-sm border border-gray-200" data-discos="<?php echo htmlspecialchars(implode(' ', $p['discos'] ?? [])); ?>">
                         <div class="flex items-center justify-between gap-3 mb-3">
-                            <p class="text-xl lg:text-2xl font-bold text-gray-800"><?php echo formatearFechaPago($p['fecha_pago']); ?></p>
+                            <p class="text-xl lg:text-2xl font-bold text-gray-800">
+                                <?php
+                                $fechasPagos = !empty($p['fechas']) ? $p['fechas'] : [$p['fecha_pago']];
+                                echo implode(' · ', array_map('formatearFechaPago', $fechasPagos));
+                                ?>
+                            </p>
                             <span class="bg-green-100 text-green-700 text-lg font-bold px-4 py-1.5 rounded-full flex items-center gap-2 shrink-0">
                                 <i class="fas fa-check-circle"></i> Pagado
                             </span>
                         </div>
+                        <p class="text-xs lg:text-sm text-gray-400">
+                            <?php if (!empty($p['discos'])): ?>
+                            <span class="inline-flex items-center gap-1 mr-2 font-bold text-blue-700"><i class="fas fa-compact-disc"></i>Disco <?php echo htmlspecialchars(implode(' · ', $p['discos'])); ?></span>
+                            <?php endif; ?>
+                            Pagado el <?php echo formatearFechaPago($p['fecha_pago']); ?>
+                        </p>
                         <hr class="border-gray-100 my-3">
                         <div class="flex items-center justify-between gap-3">
                             <p class="text-lg lg:text-xl text-gray-500">
@@ -91,6 +114,8 @@ function formatearFechaPago($fecha) {
                     <?php endforeach; ?>
                 <?php endif; ?>
             </div>
+
+            <p id="sinResultados" class="hidden mt-6 text-center text-xl lg:text-2xl text-blue-700 italic">Selecciona un disco para ver tu historial.</p>
         </div>
     </div>
 
@@ -111,5 +136,10 @@ function formatearFechaPago($fecha) {
             </a>
         </div>
     </nav>
+
+    <script id="datosDiscos" type="application/json">
+    <?php echo json_encode($discosTodos, JSON_UNESCAPED_UNICODE); ?>
+    </script>
+    <script src="../../Assets/js/pagos.js"></script>
 </body>
 </html>
