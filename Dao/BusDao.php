@@ -15,6 +15,31 @@ class BusDao {
         return $stmt->fetchAll();
     }
 
+    public function obtenerFiltrados($disco = '', $placa = '') {
+        $condiciones = [];
+        $parametros = [];
+
+        if ($disco !== '') {
+            if (ctype_digit($disco)) {
+                $condiciones[] = 'CAST(disco AS UNSIGNED) = :disco';
+                $parametros[':disco'] = (int)$disco;
+            } else {
+                $condiciones[] = 'disco LIKE :disco';
+                $parametros[':disco'] = '%' . $disco . '%';
+            }
+        }
+        if ($placa !== '') {
+            $condiciones[] = 'placa LIKE :placa';
+            $parametros[':placa'] = '%' . $placa . '%';
+        }
+
+        $where = $condiciones ? 'WHERE ' . implode(' AND ', $condiciones) : '';
+        $sql = "SELECT * FROM bus {$where} ORDER BY CAST(disco AS UNSIGNED), disco";
+        $stmt = $this->conexion->prepare($sql);
+        $stmt->execute($parametros);
+        return $stmt->fetchAll();
+    }
+
     public function obtenerPorId($id) {
         $sql = "SELECT * FROM bus WHERE id = :id";
         $stmt = $this->conexion->prepare($sql);

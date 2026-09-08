@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function ejecutarPago() {
         const formData = new FormData();
         formData.append('accion', 'pagar_varios');
-        idsAPagar.forEach((id) => formData.append('turnos_ids[]', id));
+        idsAPagar.forEach((id) => formData.append('obligaciones_ids[]', id));
         const archivo = inputComprobante.files[0];
         if (!archivo) return;
         formData.append('archivo', archivo);
@@ -356,7 +356,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ---------- Tarjeta del carrusel: confirmar y luego subir comprobante ----------
     todasLasTarjetas.forEach((card) => {
         card.addEventListener('click', () => {
-            const mensaje = `¿Está seguro de registrar el pago del turno del disco ${card.dataset.disco} del ${card.dataset.fecha} por $ ${card.dataset.valor}?`;
+            const mensaje = `¿Está seguro de registrar el pago pendiente del disco ${card.dataset.disco} del ${card.dataset.fecha} por $ ${card.dataset.valor}?`;
             abrirModal(mensaje, 'card', [card.dataset.id]);
         });
     });

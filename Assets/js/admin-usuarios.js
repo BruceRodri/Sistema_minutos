@@ -10,7 +10,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const titulo = document.getElementById('tituloFormularioUsuario');
     const textoGuardar = document.getElementById('textoGuardarUsuario');
     const cancelarEdicion = document.getElementById('btnCancelarEdicion');
+    const modal = document.getElementById('modalUsuario');
+    const abrirCreacion = document.getElementById('btnNuevoUsuario');
+    const cerrarModalBoton = document.getElementById('btnCerrarModalUsuario');
     const token = form?.querySelector('[name="csrf_token"]')?.value || '';
+
+    const abrirModal = () => {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    };
+
+    const cerrarModal = () => {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    };
 
     const mostrarAlerta = (mensaje, tipo) => {
         alerta.textContent = mensaje;
@@ -25,9 +38,23 @@ document.addEventListener('DOMContentLoaded', () => {
         usuarioId.value = '';
         titulo.innerHTML = '<i class="fas fa-user-plus mr-2"></i>Crear nuevo usuario';
         textoGuardar.textContent = 'Guardar usuario';
-        cancelarEdicion.classList.add('hidden');
         alerta.classList.add('hidden');
     };
+
+    abrirCreacion?.addEventListener('click', () => {
+        prepararCreacion();
+        abrirModal();
+        window.setTimeout(() => document.getElementById('nombres')?.focus(), 50);
+    });
+
+    cerrarModalBoton?.addEventListener('click', cerrarModal);
+    cancelarEdicion?.addEventListener('click', cerrarModal);
+    modal?.addEventListener('click', (evento) => {
+        if (evento.target === modal) cerrarModal();
+    });
+    document.addEventListener('keydown', (evento) => {
+        if (evento.key === 'Escape' && !modal?.classList.contains('hidden')) cerrarModal();
+    });
 
     if (form) {
         form.addEventListener('submit', async (evento) => {
@@ -68,13 +95,10 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('rol').value = botonEditar.dataset.rol;
             titulo.innerHTML = '<i class="fas fa-user-pen mr-2"></i>Editar usuario';
             textoGuardar.textContent = 'Guardar cambios';
-            cancelarEdicion.classList.remove('hidden');
             alerta.classList.add('hidden');
-            form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            abrirModal();
         });
     });
-
-    cancelarEdicion?.addEventListener('click', prepararCreacion);
 
     document.querySelectorAll('.btn-estado-usuario').forEach((botonEstado) => {
         botonEstado.addEventListener('click', async () => {

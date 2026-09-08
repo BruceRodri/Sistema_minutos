@@ -42,78 +42,20 @@ function etiquetaRolUsuario($rol) {
     <?php include 'components/sidebar.php'; ?>
 
     <main class="flex-1 flex flex-col overflow-y-auto mt-16 md:mt-0 w-full">
-        <header class="min-h-16 bg-white shadow-sm flex items-center px-4 py-3 md:px-8 border-b border-gray-200">
+        <header class="min-h-16 bg-white shadow-sm flex flex-col gap-3 px-4 py-3 md:flex-row md:items-center md:justify-between md:px-8 border-b border-gray-200">
             <div>
                 <h2 class="text-xl md:text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-700 to-gray-800">
                     Administración de usuarios
                 </h2>
                 <p class="text-xs text-gray-500">Registro de conductores, socios y personal del sistema</p>
             </div>
+            <button id="btnNuevoUsuario" type="button"
+                    class="inline-flex w-full items-center justify-center rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow hover:bg-blue-700 transition-colors md:w-auto">
+                <i class="fas fa-user-plus mr-2"></i>Crear usuario
+            </button>
         </header>
 
         <div class="p-4 md:p-8 w-full max-w-7xl mx-auto">
-            <section class="bg-white rounded-2xl border border-gray-100 shadow-md overflow-hidden mb-8">
-                <div class="bg-gradient-to-r from-blue-700 to-blue-900 px-6 py-5 text-white">
-                    <h3 id="tituloFormularioUsuario" class="text-lg font-bold"><i class="fas fa-user-plus mr-2"></i>Crear nuevo usuario</h3>
-                    <p class="text-sm text-blue-100 mt-1">Los códigos de conductor y socio se generan automáticamente.</p>
-                </div>
-
-                <form id="formCrearUsuario" class="p-6">
-                    <input id="accionUsuario" type="hidden" name="accion" value="crear_usuario">
-                    <input id="usuarioId" type="hidden" name="usuario_id" value="">
-                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_admin_usuarios']); ?>">
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                        <div>
-                            <label for="nombres" class="block text-sm font-bold text-gray-700 mb-2">Nombres <span class="text-red-500">*</span></label>
-                            <input id="nombres" name="nombres" type="text" maxlength="100" required autocomplete="given-name"
-                                   class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
-                                   placeholder="Nombres">
-                        </div>
-                        <div>
-                            <label for="apellidos" class="block text-sm font-bold text-gray-700 mb-2">Apellidos <span class="text-red-500">*</span></label>
-                            <input id="apellidos" name="apellidos" type="text" maxlength="100" required autocomplete="family-name"
-                                   class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
-                                   placeholder="Apellidos">
-                        </div>
-                        <div>
-                            <label for="fechaNacimiento" class="block text-sm font-bold text-gray-700 mb-2">Fecha de nacimiento <span class="text-red-500">*</span></label>
-                            <input id="fechaNacimiento" name="fecha_nacimiento" type="date" max="<?php echo date('Y-m-d'); ?>" required
-                                   class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-center focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none">
-                        </div>
-                        <div>
-                            <label for="cedula" class="block text-sm font-bold text-gray-700 mb-2">Cédula <span class="text-red-500">*</span></label>
-                            <input id="cedula" name="cedula" type="text" inputmode="numeric" pattern="[0-9]{10}" minlength="10" maxlength="10" required autocomplete="off"
-                                   class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-center font-mono focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
-                                   placeholder="10 números">
-                        </div>
-                        <div>
-                            <label for="rol" class="block text-sm font-bold text-gray-700 mb-2">Rol <span class="text-red-500">*</span></label>
-                            <select id="rol" name="rol" required class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none">
-                                <option value="">Seleccione...</option>
-                                <?php foreach ($roles as $rol): ?>
-                                    <option value="<?php echo htmlspecialchars($rol); ?>"><?php echo htmlspecialchars(etiquetaRolUsuario($rol)); ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="mt-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                        <p class="text-sm text-gray-500"><i class="fas fa-key mr-1 text-amber-500"></i>La contraseña inicial será el número de cédula.</p>
-                        <div class="flex flex-wrap justify-end gap-3">
-                            <button id="btnCancelarEdicion" type="button" class="hidden inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-bold text-gray-700 hover:bg-gray-50 transition-colors">
-                                <i class="fas fa-times mr-2"></i>Cancelar edición
-                            </button>
-                            <button id="btnGuardarUsuario" type="submit" class="inline-flex items-center justify-center rounded-lg bg-blue-600 px-6 py-2.5 text-sm font-bold text-white shadow hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 transition-colors">
-                                <i class="fas fa-save mr-2"></i><span id="textoGuardarUsuario">Guardar usuario</span>
-                            </button>
-                        </div>
-                    </div>
-
-                    <div id="alertaUsuario" class="hidden mt-5 rounded-xl border px-4 py-3 text-sm font-bold" role="alert"></div>
-                </form>
-            </section>
-
             <section>
                 <div class="mb-4 flex flex-col md:flex-row md:items-end md:justify-between gap-3">
                     <div>
@@ -204,6 +146,66 @@ function etiquetaRolUsuario($rol) {
         </div>
     </main>
 
-    <script src="../../Assets/js/admin-usuarios.js"></script>
+    <div id="modalUsuario" class="fixed inset-0 z-50 hidden items-center justify-center bg-gray-900/60 p-4" role="dialog" aria-modal="true" aria-labelledby="tituloFormularioUsuario">
+        <div class="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div class="flex items-start justify-between bg-gradient-to-r from-blue-700 to-blue-900 px-5 py-4 text-white md:px-6">
+                <div>
+                    <h3 id="tituloFormularioUsuario" class="text-lg font-bold"><i class="fas fa-user-plus mr-2"></i>Crear nuevo usuario</h3>
+                    <p class="mt-1 text-sm text-blue-100">Los códigos de conductor y socio se generan automáticamente.</p>
+                </div>
+                <button id="btnCerrarModalUsuario" type="button" class="ml-4 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-blue-100 hover:bg-white/15 hover:text-white" aria-label="Cerrar formulario">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <form id="formCrearUsuario" class="overflow-y-auto p-5 md:p-6">
+                <input id="accionUsuario" type="hidden" name="accion" value="crear_usuario">
+                <input id="usuarioId" type="hidden" name="usuario_id" value="">
+                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_admin_usuarios']); ?>">
+
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div>
+                        <label for="nombres" class="mb-2 block text-sm font-bold text-gray-700">Nombres <span class="text-red-500">*</span></label>
+                        <input id="nombres" name="nombres" type="text" maxlength="100" required autocomplete="given-name" class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200" placeholder="Nombres">
+                    </div>
+                    <div>
+                        <label for="apellidos" class="mb-2 block text-sm font-bold text-gray-700">Apellidos <span class="text-red-500">*</span></label>
+                        <input id="apellidos" name="apellidos" type="text" maxlength="100" required autocomplete="family-name" class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200" placeholder="Apellidos">
+                    </div>
+                    <div>
+                        <label for="fechaNacimiento" class="mb-2 block text-sm font-bold text-gray-700">Fecha de nacimiento <span class="text-red-500">*</span></label>
+                        <input id="fechaNacimiento" name="fecha_nacimiento" type="date" max="<?php echo date('Y-m-d'); ?>" required class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-center outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
+                    </div>
+                    <div>
+                        <label for="cedula" class="mb-2 block text-sm font-bold text-gray-700">Cédula <span class="text-red-500">*</span></label>
+                        <input id="cedula" name="cedula" type="text" inputmode="numeric" pattern="[0-9]{10}" minlength="10" maxlength="10" required autocomplete="off" class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-center font-mono outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200" placeholder="10 números">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label for="rol" class="mb-2 block text-sm font-bold text-gray-700">Rol <span class="text-red-500">*</span></label>
+                        <select id="rol" name="rol" required class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
+                            <option value="">Seleccione...</option>
+                            <?php foreach ($roles as $rol): ?>
+                                <option value="<?php echo htmlspecialchars($rol); ?>"><?php echo htmlspecialchars(etiquetaRolUsuario($rol)); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                </div>
+
+                <p class="mt-5 text-sm text-gray-500"><i class="fas fa-key mr-1 text-amber-500"></i>La contraseña inicial será el número de cédula.</p>
+                <div id="alertaUsuario" class="hidden mt-5 rounded-xl border px-4 py-3 text-sm font-bold" role="alert"></div>
+
+                <div class="mt-6 flex flex-col-reverse justify-end gap-3 border-t border-gray-100 pt-5 sm:flex-row">
+                    <button id="btnCancelarEdicion" type="button" class="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-bold text-gray-700 hover:bg-gray-50 transition-colors">
+                        <i class="fas fa-times mr-2"></i>Cancelar
+                    </button>
+                    <button id="btnGuardarUsuario" type="submit" class="inline-flex items-center justify-center rounded-lg bg-blue-600 px-6 py-2.5 text-sm font-bold text-white shadow hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 transition-colors">
+                        <i class="fas fa-save mr-2"></i><span id="textoGuardarUsuario">Guardar usuario</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="../../Assets/js/admin-usuarios.js?v=2"></script>
 </body>
 </html>

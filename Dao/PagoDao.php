@@ -35,15 +35,120 @@ class PagoDao {
 
     public function obtenerPagosConductor($usuarioId) {
         $sql = "SELECT p.id, p.monto_total AS monto, p.fecha_pago, p.comprobante,
-                       COUNT(t.id) AS dias
+                       COUNT(DISTINCT t.id) + COUNT(DISTINCT o.id) AS dias
                 FROM pago p
                 LEFT JOIN turno t ON t.pago_id = p.id
+                LEFT JOIN obligacion_pago o ON o.pago_id = p.id
                 WHERE p.usuario_id = :usuario_id AND p.activo = 1
                 GROUP BY p.id, p.monto_total, p.fecha_pago, p.comprobante
                 ORDER BY p.fecha_pago DESC, p.id DESC";
         $stmt = $this->conexion->prepare($sql);
         $stmt->execute([':usuario_id' => $usuarioId]);
         return $stmt->fetchAll();
+    }
+
+    public function obtenerTodosDiscos($q = '') {
+        $sql = "SELECT DISTINCT discos.disco
+                FROM (
+                    SELECT disco FROM bus WHERE activo = 1
+                    UNION
+                    SELECT disco FROM obligacion_pago WHERE activo = 1
+                ) discos
+                WHERE 1 = 1";
+        $parametros = [];
+        $q = preg_replace('/\D+/', '', (string)$q);
+
+        if ($q !== '') {
+            $normalizado = ltrim($q, '0');
+            $sql .= " AND CAST(discos.disco AS UNSIGNED) LIKE :q";
+            $parametros[':q'] = ($normalizado === '' ? '0' : $normalizado) . '%';
+        }
+
+        $sql .= " ORDER BY CAST(discos.disco AS UNSIGNED), discos.disco";
+        $stmt = $this->conexion->prepare($sql);
+        $stmt->execute($parametros);
+        return array_map(static fn($fila) => $fila['disco'], $stmt->fetchAll());
+    }
+
+    public function obtenerObligacionesPendientes() {
+        $sql = "SELECT id, disco, fecha, valor, ruta
+                FROM obligacion_pago
+                WHERE pagado = 0 AND activo = 1 AND valor > 0
+                ORDER BY fecha ASC, CAST(disco AS UNSIGNED), id";
+        $stmt = $this->conexion->prepare($sql);
+        $stmt->execute();
+        return $stmt->fetchAll();
+    }
+
+    public function registrarPagoObligaciones($usuarioId, array $obligacionesIds, $comprobante) {
+        $obligacionesIds = array_values(array_unique(array_filter(array_map('intval', $obligacionesIds))));
+        if (empty($obligacionesIds)) {
+            return ['status' => 'sin_obligaciones'];
+        }
+
+        $manejaTransaccion = !$this->conexion->inTransaction();
+        if ($manejaTransaccion) {
+            $this->conexion->beginTransaction();
+        }
+        try {
+            $placeholders = implode(',', array_fill(0, count($obligacionesIds), '?'));
+            $stmt = $this->conexion->prepare(
+                "SELECT id, valor
+                 FROM obligacion_pago
+                 WHERE id IN ({$placeholders}) AND pagado = 0 AND activo = 1 AND valor > 0
+                 FOR UPDATE"
+            );
+            $stmt->execute($obligacionesIds);
+            $obligaciones = $stmt->fetchAll();
+
+            if (count($obligaciones) !== count($obligacionesIds)) {
+                if ($manejaTransaccion) {
+                    $this->conexion->rollBack();
+                }
+                return ['status' => 'obligaciones_invalidas'];
+            }
+
+            $montoTotal = array_reduce(
+                $obligaciones,
+                static fn($total, $obligacion) => $total + (float)$obligacion['valor'],
+                0.0
+            );
+
+            $stmt = $this->conexion->prepare(
+                "INSERT INTO pago (usuario_id, monto_total, fecha_pago, comprobante, activo)
+                 VALUES (:usuario_id, :monto, CURDATE(), :comprobante, 1)"
+            );
+            $stmt->execute([
+                ':usuario_id' => $usuarioId,
+                ':monto' => $montoTotal,
+                ':comprobante' => $comprobante
+            ]);
+            $pagoId = $this->conexion->lastInsertId();
+
+            $stmt = $this->conexion->prepare(
+                "UPDATE obligacion_pago
+                 SET pagado = 1, pago_id = :pago_id
+                 WHERE id = :id AND pagado = 0"
+            );
+            foreach ($obligaciones as $obligacion) {
+                $stmt->execute([':pago_id' => $pagoId, ':id' => $obligacion['id']]);
+            }
+
+            if ($manejaTransaccion) {
+                $this->conexion->commit();
+            }
+            return [
+                'status' => 'success',
+                'pago_id' => $pagoId,
+                'cantidad' => count($obligaciones),
+                'monto' => $montoTotal
+            ];
+        } catch (Throwable $e) {
+            if ($manejaTransaccion && $this->conexion->inTransaction()) {
+                $this->conexion->rollBack();
+            }
+            return ['status' => 'error'];
+        }
     }
 
     public function obtenerDiscosConductor($usuarioId, $q = '', $limite = 10) {

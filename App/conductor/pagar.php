@@ -20,32 +20,19 @@ function formatearFecha($fecha) {
 }
 
 $valoresDao = new ValoresDao($conexion);
-$valoresDao->sincronizarTurnosConArchivo();
+$valoresDao->sincronizarObligacionesConArchivo();
 
 $pagoDao = new PagoDao($conexion);
-$turnoHoy = $pagoDao->obtenerTurnoHoyConductor($_SESSION['usuario_id']);
-
 $pagables = [];
 
-if ($turnoHoy && (int)$turnoHoy['pagado'] === 0 && (float)$turnoHoy['valor'] > 0) {
+foreach ($pagoDao->obtenerObligacionesPendientes() as $pendiente) {
     $pagables[] = [
-        'id' => (int)$turnoHoy['id'],
-        'fecha' => $turnoHoy['fecha'],
-        'valor' => (float)$turnoHoy['valor'],
-        'ruta' => $turnoHoy['ruta'] ?: 'Sin ruta',
-        'disco' => $turnoHoy['disco'],
-        'hoy' => true
-    ];
-}
-
-foreach ($pagoDao->obtenerTurnosPendientesConductor($_SESSION['usuario_id']) as $t) {
-    $pagables[] = [
-        'id' => (int)$t['id'],
-        'fecha' => $t['fecha'],
-        'valor' => (float)$t['valor'],
-        'ruta' => $t['ruta'] ?: 'Sin ruta',
-        'disco' => $t['disco'],
-        'hoy' => false
+        'id' => (int)$pendiente['id'],
+        'fecha' => $pendiente['fecha'],
+        'valor' => (float)$pendiente['valor'],
+        'ruta' => $pendiente['ruta'] ?: 'Sin ruta',
+        'disco' => $pendiente['disco'],
+        'hoy' => $pendiente['fecha'] === date('Y-m-d')
     ];
 }
 
@@ -54,8 +41,7 @@ foreach ($pagables as $i => $p) {
     $pagables[$i]['valorFmt'] = number_format($p['valor'], 2, '.', ',');
 }
 
-$discoInicial = $_SESSION['turno_disco']
-    ?? ($turnoHoy ? $turnoHoy['disco'] : null);
+$discoInicial = null;
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -121,7 +107,7 @@ $discoInicial = $_SESSION['turno_disco']
             <div id="sinSeleccion" class="bg-white rounded-3xl p-10 text-center shadow-sm border-2 border-dashed border-blue-200">
                 <i class="fas fa-compact-disc text-blue-300 text-6xl mb-4"></i>
                 <p class="text-2xl lg:text-3xl font-bold text-gray-700 mb-2">Selecciona un disco</p>
-                <p class="text-xl lg:text-2xl text-gray-500">Usa la casilla <span class="font-bold text-blue-700">Disco</span> de arriba para ver los turnos pendientes de pago.</p>
+                <p class="text-xl lg:text-2xl text-gray-500">Usa la casilla <span class="font-bold text-blue-700">Disco</span> de arriba para ver sus pagos pendientes.</p>
             </div>
 
             <button id="verVarios" type="button"
@@ -141,7 +127,7 @@ $discoInicial = $_SESSION['turno_disco']
                              class="cardPagar w-full max-w-sm md:w-auto md:max-w-none min-h-0 bg-gradient-to-br from-blue-500 to-blue-700 rounded-3xl p-7 lg:p-9 shadow-xl text-white cursor-pointer active:scale-95 transition-transform">
                         <div class="flex items-start justify-between gap-3">
                             <div>
-                                <p class="text-blue-100 text-sm lg:text-base font-bold uppercase tracking-widest"><?php echo $card['hoy'] ? 'Turno de hoy' : 'Turno pendiente'; ?></p>
+                                <p class="text-blue-100 text-sm lg:text-base font-bold uppercase tracking-widest"><?php echo $card['hoy'] ? 'Pago de hoy' : 'Pago pendiente'; ?></p>
                                 <p class="text-2xl lg:text-3xl font-bold mt-1"><?php echo htmlspecialchars($card['fechaLegible']); ?></p>
                             </div>
                             <span class="bg-white text-blue-700 font-extrabold px-4 py-2 rounded-full text-lg lg:text-xl shadow whitespace-nowrap">Disco <?php echo htmlspecialchars($card['disco']); ?></span>
@@ -169,7 +155,7 @@ $discoInicial = $_SESSION['turno_disco']
                 </button>
 
                 <p id="sinResultadosDisco" class="hidden mt-6 text-center text-xl lg:text-2xl text-gray-500 italic">
-                    No hay turnos para el disco seleccionado.
+                    No hay pagos pendientes para el disco seleccionado.
                 </p>
             </div>
 
@@ -191,7 +177,7 @@ $discoInicial = $_SESSION['turno_disco']
                     <?php if (empty($pagables)): ?>
                         <div class="p-8 text-center">
                             <i class="fas fa-circle-check text-green-500 text-4xl mb-3"></i>
-                            <p class="text-2xl text-gray-600">No tienes días pendientes de pago.</p>
+                            <p class="text-2xl text-gray-600">No hay pagos pendientes para este disco.</p>
                         </div>
                     <?php else: ?>
                         <?php foreach ($pagables as $dia): ?>

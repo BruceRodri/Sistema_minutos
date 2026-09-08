@@ -128,6 +128,41 @@ class ValoresDao {
         return $this->obtenerParaDiscoFecha($disco, date('Y-m-d'));
     }
 
+    public function obtenerFilasFiltradas($disco = '', $fecha = '', $valor = '', $ruta = '') {
+        $disco = trim((string)$disco);
+        $fecha = trim((string)$fecha);
+        $valor = trim((string)$valor);
+        $ruta = trim((string)$ruta);
+        $valorNumerico = str_replace(',', '.', $valor);
+
+        return array_values(array_filter(
+            $this->leerFilas(),
+            static function ($fila) use ($disco, $fecha, $valor, $valorNumerico, $ruta) {
+                if ($disco !== '' && stripos((string)$fila['disco'], $disco) === false) {
+                    return false;
+                }
+                if ($fecha !== '' && (string)$fila['fecha'] !== $fecha) {
+                    return false;
+                }
+                if ($valor !== '' && (!is_numeric($valorNumerico) || abs((float)$fila['valor'] - (float)$valorNumerico) > 0.00001)) {
+                    return false;
+                }
+                if ($ruta !== '' && stripos((string)$fila['ruta'], $ruta) === false) {
+                    return false;
+                }
+                return true;
+            }
+        ));
+    }
+
+    public function firmaArchivo() {
+        clearstatcache(true, self::RUTA_XLSX);
+        if (!is_file(self::RUTA_XLSX)) {
+            return 'sin-archivo';
+        }
+        return filemtime(self::RUTA_XLSX) . ':' . filesize(self::RUTA_XLSX);
+    }
+
     public function actualizarTurnosDesdeFilas(array $filas) {
         $actualizados = 0;
 
@@ -169,6 +204,36 @@ class ValoresDao {
 
     public function sincronizarTurnosConArchivo() {
         return $this->actualizarTurnosDesdeFilas($this->leerFilas());
+    }
+
+    public function sincronizarObligacionesDesdeFilas(array $filas) {
+        $sincronizadas = 0;
+        $sql = "INSERT INTO obligacion_pago (disco, fecha, valor, ruta, pagado, activo)
+                VALUES (:disco, :fecha, :valor, :ruta, 0, 1)
+                ON DUPLICATE KEY UPDATE
+                    valor = IF(pagado = 0, VALUES(valor), valor),
+                    ruta = IF(pagado = 0, VALUES(ruta), ruta),
+                    activo = 1";
+        $stmt = $this->conexion->prepare($sql);
+
+        foreach ($filas as $fila) {
+            if (empty($fila['disco']) || empty($fila['fecha']) || (float)$fila['valor'] <= 0) {
+                continue;
+            }
+            $stmt->execute([
+                ':disco' => $this->normalizarDisco($fila['disco']),
+                ':fecha' => $fila['fecha'],
+                ':valor' => $fila['valor'],
+                ':ruta' => $fila['ruta'] ?: null
+            ]);
+            $sincronizadas++;
+        }
+
+        return $sincronizadas;
+    }
+
+    public function sincronizarObligacionesConArchivo() {
+        return $this->sincronizarObligacionesDesdeFilas($this->leerFilas());
     }
 
     private function obtenerParaDiscoFechaISHoy() {

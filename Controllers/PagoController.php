@@ -72,38 +72,27 @@ function responderErrorComprobante($estado) {
 
 $accion = $_POST['accion'] ?? '';
 $valoresDao = new ValoresDao($conexion);
-$valoresDao->sincronizarTurnosConArchivo();
+$valoresDao->sincronizarObligacionesConArchivo();
 
 $pagoDao = new PagoDao($conexion);
-$turnosIds = [];
+$obligacionesIds = [];
 
 if ($accion === 'listar_discos') {
     $q = isset($_POST['q']) ? preg_replace('/\D+/', '', (string)$_POST['q']) : '';
     echo json_encode([
         'status' => 'success',
-        'discos' => $pagoDao->obtenerDiscosConductor($_SESSION['usuario_id'], $q)
+        'discos' => $pagoDao->obtenerTodosDiscos($q)
     ]);
     exit;
 }
 
-if ($accion === 'enviar_comprobante') {
-    $turnoHoy = $pagoDao->obtenerTurnoHoyConductor($_SESSION['usuario_id']);
-    if (!$turnoHoy || (int)$turnoHoy['pagado'] === 1) {
-        echo json_encode(['status' => 'error', 'message' => 'No tienes un turno sin pagar para hoy.']);
-        exit;
-    }
-    if ((float)$turnoHoy['valor'] <= 0) {
-        echo json_encode(['status' => 'error', 'message' => 'El valor del turno todavía no ha sido cargado por el administrador.']);
-        exit;
-    }
-    $turnosIds = [(int)$turnoHoy['id']];
-} elseif ($accion === 'pagar_varios') {
-    $turnosIds = array_values(array_unique(array_filter(array_map(
+if ($accion === 'pagar_varios') {
+    $obligacionesIds = array_values(array_unique(array_filter(array_map(
         'intval',
-        (array)($_POST['turnos_ids'] ?? [])
+        (array)($_POST['obligaciones_ids'] ?? [])
     ))));
-    if (empty($turnosIds)) {
-        echo json_encode(['status' => 'error', 'message' => 'Selecciona al menos un día para pagar.']);
+    if (empty($obligacionesIds)) {
+        echo json_encode(['status' => 'error', 'message' => 'Selecciona al menos un pago pendiente.']);
         exit;
     }
 } else {
@@ -117,9 +106,9 @@ if ($comprobante['status'] !== 'success') {
     exit;
 }
 
-$resultado = $pagoDao->registrarPago(
+$resultado = $pagoDao->registrarPagoObligaciones(
     $_SESSION['usuario_id'],
-    $turnosIds,
+    $obligacionesIds,
     $comprobante['ruta_relativa']
 );
 
@@ -127,15 +116,15 @@ if ($resultado['status'] !== 'success') {
     if (is_file($comprobante['ruta_absoluta'])) {
         unlink($comprobante['ruta_absoluta']);
     }
-    $mensaje = $resultado['status'] === 'turnos_invalidos'
-        ? 'Uno o más turnos ya fueron pagados o no pertenecen al conductor.'
+    $mensaje = $resultado['status'] === 'obligaciones_invalidas'
+        ? 'Uno o más valores ya fueron pagados o dejaron de estar disponibles.'
         : 'No se pudo registrar el pago.';
     echo json_encode(['status' => 'error', 'message' => $mensaje]);
     exit;
 }
 
 $descripcion = $resultado['cantidad'] === 1
-    ? 'Pago del turno registrado correctamente.'
+    ? 'Pago registrado correctamente.'
     : 'Pago de ' . $resultado['cantidad'] . ' días registrado correctamente.';
 
 echo json_encode([

@@ -10,8 +10,12 @@ require_once '../../Config/conexion.php';
 require_once '../../Dao/BusDao.php';
 
 $busDao = new BusDao($conexion);
-$listaBuses = $busDao->obtenerTodos();
-$totalBuses = count($listaBuses);
+$todosLosBuses = $busDao->obtenerTodos();
+$filtroDisco = isset($_GET['disco']) && is_scalar($_GET['disco']) ? trim((string)$_GET['disco']) : '';
+$filtroPlaca = isset($_GET['placa']) && is_scalar($_GET['placa']) ? trim((string)$_GET['placa']) : '';
+$listaBuses = $busDao->obtenerFiltrados($filtroDisco, $filtroPlaca);
+$totalBuses = count($todosLosBuses);
+$totalResultados = count($listaBuses);
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -52,16 +56,49 @@ $totalBuses = count($listaBuses);
                 <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                     <p class="text-sm text-gray-500">Habilitados</p>
                     <p class="text-3xl font-bold text-green-600">
-                        <?php echo count(array_filter($listaBuses, fn($b) => $b['activo'] == 1)); ?>
+                        <?php echo count(array_filter($todosLosBuses, fn($b) => $b['activo'] == 1)); ?>
                     </p>
                 </div>
                 <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                     <p class="text-sm text-gray-500">Deshabilitados</p>
                     <p class="text-3xl font-bold text-red-600">
-                        <?php echo count(array_filter($listaBuses, fn($b) => $b['activo'] == 0)); ?>
+                        <?php echo count(array_filter($todosLosBuses, fn($b) => $b['activo'] == 0)); ?>
                     </p>
                 </div>
             </div>
+
+            <!-- Filtros -->
+            <form method="GET" action="buses.php" class="mb-5 rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="filtroDiscoBus" class="block mb-2 text-sm font-bold text-gray-700">
+                            <i class="fas fa-compact-disc mr-2 text-blue-600"></i>Número de disco
+                        </label>
+                        <input id="filtroDiscoBus" name="disco" type="search" value="<?php echo htmlspecialchars($filtroDisco); ?>" placeholder="Ej.: 002"
+                               class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-center font-mono outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
+                    </div>
+                    <div>
+                        <label for="filtroPlacaBus" class="block mb-2 text-sm font-bold text-gray-700">
+                            <i class="fas fa-id-card mr-2 text-indigo-600"></i>Placa
+                        </label>
+                        <input id="filtroPlacaBus" name="placa" type="search" value="<?php echo htmlspecialchars($filtroPlaca); ?>" placeholder="Ej.: GHA-4587"
+                               class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-center font-mono uppercase outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
+                    </div>
+                </div>
+                <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
+                    <p class="text-sm text-gray-500">
+                        Registros encontrados: <span class="font-bold text-blue-700"><?php echo $totalResultados; ?></span>
+                    </p>
+                    <div class="flex gap-2">
+                        <a href="buses.php" class="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-bold text-gray-700 hover:bg-gray-50">
+                            <i class="fas fa-eraser mr-2"></i>Limpiar
+                        </a>
+                        <button type="submit" class="inline-flex items-center rounded-lg bg-blue-600 px-5 py-2 text-sm font-bold text-white shadow hover:bg-blue-700">
+                            <i class="fas fa-magnifying-glass mr-2"></i>Buscar
+                        </button>
+                    </div>
+                </div>
+            </form>
 
             <!-- Tabla de Buses -->
             <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 overflow-x-auto">
@@ -75,11 +112,11 @@ $totalBuses = count($listaBuses);
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
-                        <?php if ($totalBuses === 0): ?>
+                        <?php if ($totalResultados === 0): ?>
                         <tr>
                             <td colspan="4" class="px-6 py-10 text-center text-gray-500">
                                 <i class="fas fa-bus text-3xl mb-3 text-gray-300"></i>
-                                <p>Aún no hay buses registrados.</p>
+                                <p><?php echo $totalBuses === 0 ? 'Aún no hay buses registrados.' : 'No se encontraron buses con los filtros seleccionados.'; ?></p>
                             </td>
                         </tr>
                         <?php else: ?>
