@@ -55,6 +55,9 @@ $rolesAdmin = ['admin', 'secretaria', 'operativo'];
             <a href="socios.php" class="flex items-center px-4 py-3 rounded-lg transition-colors <?php echo ($paginaActual == 'socios.php') ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-800 hover:text-white'; ?>">
                 <i class="fas fa-id-card w-6"></i><span>Socios</span>
             </a>
+            <a href="valores.php" class="flex items-center px-4 py-3 rounded-lg transition-colors <?php echo ($paginaActual == 'valores.php') ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-800 hover:text-white'; ?>">
+                <i class="fas fa-file-excel w-6"></i><span>Valores Diarios</span>
+            </a>
         <?php endif; ?>
     </nav>
     

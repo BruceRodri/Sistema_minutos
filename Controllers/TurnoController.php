@@ -3,6 +3,7 @@
 session_start();
 require_once '../Config/conexion.php';
 require_once '../Dao/TurnoDao.php';
+require_once '../Dao/ValoresDao.php';
 
 header('Content-Type: application/json');
 
@@ -39,7 +40,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
-        $resultado = $turnoDao->abrirTurno($_SESSION['usuario_id'], $bus['id']);
+        $valoresDao = new ValoresDao($conexion);
+        $valorHoy = $valoresDao->obtenerDiscoHoy($bus['disco']);
+
+        if (!$valorHoy) {
+            echo json_encode(['status' => 'error', 'message' => 'No existe un valor definido para el disco ' . $bus['disco'] . ' en la fecha de hoy. Verifique que el archivo de valores diarios esté actualizado.']);
+            exit;
+        }
+
+        $resultado = $turnoDao->abrirTurno($_SESSION['usuario_id'], $bus['id'], $valorHoy['valor'], $valorHoy['ruta']);
 
         if (isset($resultado['conductor_duplicado'])) {
             echo json_encode(['status' => 'error', 'message' => 'Usted ya abrió un turno hoy. Podrá abrir otro mañana.']);
@@ -61,13 +70,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
+        $_SESSION['turno_disco'] = $bus['disco'];
+        $_SESSION['turno_bus_id'] = $bus['id'];
+
         echo json_encode([
             'status' => 'success',
             'message' => 'Bienvenido. Su turno fue abierto correctamente.',
             'disco' => $bus['disco'],
             'fecha' => $resultado['fecha'],
             'hora' => $resultado['hora'],
-            'codigo_conductor' => $resultado['codigo_conductor']
+            'codigo_conductor' => $resultado['codigo_conductor'],
+            'valor' => $resultado['valor'],
+            'ruta' => $valorHoy['ruta']
         ]);
         exit;
     }

@@ -73,7 +73,7 @@ $fechaHoy = date('d/m/Y');
                 <span class="mt-2 text-sm font-normal text-gray-500">Escanear código QR del bus</span>
             </button>
 
-            <a href="pagos.php" class="group bg-white hover:bg-green-50 border-2 border-green-200 hover:border-green-500 text-gray-900 font-bold py-14 px-4 rounded-2xl shadow-md hover:shadow-lg text-2xl transition-all flex flex-col items-center justify-center active:scale-95">
+            <a href="pagar.php" class="group bg-white hover:bg-green-50 border-2 border-green-200 hover:border-green-500 text-gray-900 font-bold py-14 px-4 rounded-2xl shadow-md hover:shadow-lg text-2xl transition-all flex flex-col items-center justify-center active:scale-95">
                 <span class="w-20 h-20 mb-5 rounded-2xl bg-green-600 group-hover:bg-green-700 text-white flex items-center justify-center shadow-lg transition-colors">
                     <i class="fas fa-money-bill-wave text-5xl"></i>
                 </span>
