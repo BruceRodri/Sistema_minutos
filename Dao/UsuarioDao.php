@@ -163,6 +163,44 @@ class UsuarioDao {
 
     // ==================== BD NUEVA (sistema_minutos_db) ====================
 
+    public function obtenerUsuariosAdministrables() {
+        $sql = "SELECT u.id, u.nombres, u.apellidos, u.fecha_nacimiento, u.cedula,
+                       u.codigo_conductor, u.codigo_socio, u.activo,
+                       r.nombre AS rol, eu.nombre AS estado
+                FROM usuario u
+                INNER JOIN rol r ON u.rol_id = r.id
+                INNER JOIN estado_usuario eu ON u.estado_usuario_id = eu.id
+                ORDER BY u.id DESC";
+        $stmt = $this->conexion->prepare($sql);
+        $stmt->execute();
+        return $stmt->fetchAll();
+    }
+
+    public function obtenerRolesActivos() {
+        $sql = "SELECT nombre FROM rol WHERE activo = 1 ORDER BY id";
+        $stmt = $this->conexion->prepare($sql);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_COLUMN);
+    }
+
+    public function rolActivoExiste($rol) {
+        $sql = "SELECT COUNT(*) FROM rol WHERE nombre = :rol AND activo = 1";
+        $stmt = $this->conexion->prepare($sql);
+        $stmt->execute([':rol' => $rol]);
+        return (int)$stmt->fetchColumn() === 1;
+    }
+
+    public function obtenerUsuarioAdministrablePorId($id) {
+        $sql = "SELECT u.id, u.nombres, u.apellidos, u.fecha_nacimiento, u.cedula,
+                       u.codigo_conductor, u.codigo_socio, u.activo, r.nombre AS rol
+                FROM usuario u
+                INNER JOIN rol r ON u.rol_id = r.id
+                WHERE u.id = :id";
+        $stmt = $this->conexion->prepare($sql);
+        $stmt->execute([':id' => $id]);
+        return $stmt->fetch();
+    }
+
     public function generarCodigoConductor() {
         $sql = "SELECT MAX(CAST(codigo_conductor AS UNSIGNED)) FROM usuario WHERE codigo_conductor IS NOT NULL";
         $stmt = $this->conexion->prepare($sql);
@@ -215,6 +253,84 @@ class UsuarioDao {
         } catch (PDOException $e) {
             return ($e->errorInfo[1] == 1062) ? 'duplicado' : false;
         }
+    }
+
+    public function actualizarUsuarioAdministrable($id, $nombres, $apellidos, $fechaNacimiento, $cedula, $rolNombre) {
+        $manejaTransaccion = !$this->conexion->inTransaction();
+        try {
+            if ($manejaTransaccion) {
+                $this->conexion->beginTransaction();
+            }
+
+            $stmt = $this->conexion->prepare(
+                "SELECT codigo_conductor, codigo_socio FROM usuario WHERE id = :id FOR UPDATE"
+            );
+            $stmt->execute([':id' => $id]);
+            $usuario = $stmt->fetch();
+            if (!$usuario) {
+                if ($manejaTransaccion) {
+                    $this->conexion->rollBack();
+                }
+                return 'no_encontrado';
+            }
+
+            $codigoConductor = null;
+            $codigoSocio = null;
+            if ($rolNombre === 'conductor') {
+                $codigoConductor = $usuario['codigo_conductor'] ?: $this->generarCodigoConductor();
+            } elseif ($rolNombre === 'socio') {
+                $codigoSocio = $usuario['codigo_socio'] ?: $this->generarCodigoSocio();
+            }
+
+            $sql = "UPDATE usuario
+                    SET nombres = :nombres,
+                        apellidos = :apellidos,
+                        fecha_nacimiento = :fecha,
+                        cedula = :cedula,
+                        codigo_conductor = :codigo_conductor,
+                        codigo_socio = :codigo_socio,
+                        rol_id = (SELECT id FROM rol WHERE nombre = :rol AND activo = 1)
+                    WHERE id = :id";
+            $stmt = $this->conexion->prepare($sql);
+            $stmt->execute([
+                ':nombres' => $nombres,
+                ':apellidos' => $apellidos,
+                ':fecha' => $fechaNacimiento,
+                ':cedula' => $cedula,
+                ':codigo_conductor' => $codigoConductor,
+                ':codigo_socio' => $codigoSocio,
+                ':rol' => $rolNombre,
+                ':id' => $id
+            ]);
+
+            if ($manejaTransaccion) {
+                $this->conexion->commit();
+            }
+            return [
+                'id' => $id,
+                'codigo_conductor' => $codigoConductor,
+                'codigo_socio' => $codigoSocio
+            ];
+        } catch (PDOException $e) {
+            if ($manejaTransaccion && $this->conexion->inTransaction()) {
+                $this->conexion->rollBack();
+            }
+            return ($e->errorInfo[1] == 1062) ? 'duplicado' : false;
+        }
+    }
+
+    public function cambiarEstadoUsuarioAdministrable($id, $habilitado) {
+        $estado = $habilitado ? 'habilitado' : 'deshabilitado';
+        $sql = "UPDATE usuario
+                SET activo = :activo,
+                    estado_usuario_id = (SELECT id FROM estado_usuario WHERE nombre = :estado AND activo = 1)
+                WHERE id = :id";
+        $stmt = $this->conexion->prepare($sql);
+        return $stmt->execute([
+            ':activo' => $habilitado ? 1 : 0,
+            ':estado' => $estado,
+            ':id' => $id
+        ]);
     }
 
     public function obtenerPorCedulaNuevo($cedula) {

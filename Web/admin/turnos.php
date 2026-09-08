@@ -46,6 +46,11 @@ function construirUrlPagina($pagina, $disco, $conductor, $fecha) {
     if ($fecha !== '') $parametros['fecha'] = $fecha;
     return '?' . http_build_query($parametros);
 }
+
+function formatearDiscoHistorial($disco) {
+    $disco = (string)$disco;
+    return strlen($disco) > 1 && $disco[0] === '0' ? substr($disco, 1) : $disco;
+}
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -243,7 +248,7 @@ function construirUrlPagina($pagina, $disco, $conductor, $fecha) {
                                 <tr class="hover:bg-gray-50 transition-colors">
                                     <td class="px-6 py-4 whitespace-nowrap text-center">
                                         <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-blue-100 text-blue-800 border border-blue-200">
-                                            <?php echo htmlspecialchars($turno['disco']); ?>
+                                            <?php echo htmlspecialchars(formatearDiscoHistorial($turno['disco'])); ?>
                                         </span>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-mono font-semibold text-gray-700">

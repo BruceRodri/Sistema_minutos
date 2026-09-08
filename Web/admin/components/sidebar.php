@@ -52,6 +52,11 @@ $rolesAdmin = ['admin', 'secretaria', 'operativo'];
             <a href="turnos.php" class="flex items-center px-4 py-3 rounded-lg transition-colors <?php echo ($paginaActual == 'turnos.php') ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-800 hover:text-white'; ?>">
                 <i class="fas fa-clock w-6"></i><span>Turnos</span>
             </a>
+            <?php if ($rol === 'admin'): ?>
+            <a href="usuarios.php" class="flex items-center px-4 py-3 rounded-lg transition-colors <?php echo ($paginaActual == 'usuarios.php') ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-800 hover:text-white'; ?>">
+                <i class="fas fa-users w-6"></i><span>Usuarios</span>
+            </a>
+            <?php endif; ?>
             <a href="socios.php" class="flex items-center px-4 py-3 rounded-lg transition-colors <?php echo ($paginaActual == 'socios.php') ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-800 hover:text-white'; ?>">
                 <i class="fas fa-id-card w-6"></i><span>Socios</span>
             </a>

@@ -66,7 +66,9 @@ do {
 
         return [
             'id' => (int)$turno['id'],
-            'disco' => $turno['disco'],
+            'disco' => strlen((string)$turno['disco']) > 1 && (string)$turno['disco'][0] === '0'
+                ? substr((string)$turno['disco'], 1)
+                : (string)$turno['disco'],
             'codigo_conductor' => $turno['codigo_conductor'] ?? 'Sin código',
             'fecha_apertura' => $fecha
                 ? $fecha->format('d/m/Y H:i:s')
