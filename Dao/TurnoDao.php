@@ -24,7 +24,7 @@ class TurnoDao {
         return $stmt->fetch();
     }
 
-    public function abrirTurno($usuario_id, $bus_id, $valor, $ruta) {
+    public function abrirTurno($usuario_id, $bus_id) {
         try {
             $this->cerrarTurnosVencidos();
 
@@ -39,8 +39,8 @@ class TurnoDao {
             // El conductor se obtiene de la sesión y se valida nuevamente en la BD.
             // El navegador nunca envía ni decide el código del conductor.
             $sql = "INSERT INTO turno
-                        (usuario_id, bus_id, fecha, hora_apertura, hora_cierre, valor, ruta)
-                    SELECT u.id, :bus_id, CURDATE(), CURTIME(), '23:59:00', :valor, :ruta
+                        (usuario_id, bus_id, fecha, hora_apertura, hora_cierre)
+                    SELECT u.id, :bus_id, CURDATE(), CURTIME(), '23:59:00'
                     FROM usuario u
                     INNER JOIN rol r ON u.rol_id = r.id
                     INNER JOIN estado_usuario eu ON u.estado_usuario_id = eu.id
@@ -53,9 +53,7 @@ class TurnoDao {
             $stmt = $this->conexion->prepare($sql);
             $stmt->execute([
                 ':usuario_id' => $usuario_id,
-                ':bus_id' => $bus_id,
-                ':valor' => $valor,
-                ':ruta' => $ruta
+                ':bus_id' => $bus_id
             ]);
 
             if ($stmt->rowCount() !== 1) {
@@ -64,7 +62,7 @@ class TurnoDao {
 
             $turnoId = $this->conexion->lastInsertId();
             $stmtTurno = $this->conexion->prepare(
-                "SELECT t.fecha, t.hora_apertura, t.valor, t.ruta, u.codigo_conductor
+                "SELECT t.fecha, t.hora_apertura, u.codigo_conductor
                  FROM turno t
                  INNER JOIN usuario u ON t.usuario_id = u.id
                  WHERE t.id = :turno_id"
@@ -77,9 +75,7 @@ class TurnoDao {
                 'fecha' => $turnoCreado['fecha'],
                 'hora' => $turnoCreado['hora_apertura'],
                 'hora_cierre' => '23:59:00',
-                'codigo_conductor' => $turnoCreado['codigo_conductor'],
-                'valor' => (float)$turnoCreado['valor'],
-                'ruta' => $turnoCreado['ruta']
+                'codigo_conductor' => $turnoCreado['codigo_conductor']
             ];
         } catch (PDOException $e) {
             // 1062 protege también ante dos solicitudes simultáneas.

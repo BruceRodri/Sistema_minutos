@@ -44,10 +44,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['accion'] ?? '') === 'subir
         exit;
     }
 
+    $turnosActualizados = $valoresDao->actualizarTurnosDesdeFilas($filas);
+
     echo json_encode([
         'status' => 'success',
-        'message' => 'Archivo de valores actualizado correctamente. ' . count($filas) . ' filas leídas.',
+        'message' => 'Archivo de valores actualizado correctamente. ' . count($filas) . ' filas leídas y ' . $turnosActualizados . ' turno(s) actualizado(s).',
         'total_filas' => count($filas),
+        'turnos_actualizados' => $turnosActualizados,
         'fecha_subida' => date('d/m/Y H:i', filemtime($destino)),
         'vista_previa' => array_slice($filas, 0, 5)
     ]);

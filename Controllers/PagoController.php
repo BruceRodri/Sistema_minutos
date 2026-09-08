@@ -3,6 +3,7 @@
 session_start();
 require_once '../Config/conexion.php';
 require_once '../Dao/PagoDao.php';
+require_once '../Dao/ValoresDao.php';
 
 header('Content-Type: application/json');
 
@@ -70,6 +71,9 @@ function responderErrorComprobante($estado) {
 }
 
 $accion = $_POST['accion'] ?? '';
+$valoresDao = new ValoresDao($conexion);
+$valoresDao->sincronizarTurnosConArchivo();
+
 $pagoDao = new PagoDao($conexion);
 $turnosIds = [];
 
@@ -77,6 +81,10 @@ if ($accion === 'enviar_comprobante') {
     $turnoHoy = $pagoDao->obtenerTurnoHoyConductor($_SESSION['usuario_id']);
     if (!$turnoHoy || (int)$turnoHoy['pagado'] === 1) {
         echo json_encode(['status' => 'error', 'message' => 'No tienes un turno sin pagar para hoy.']);
+        exit;
+    }
+    if ((float)$turnoHoy['valor'] <= 0) {
+        echo json_encode(['status' => 'error', 'message' => 'El valor del turno todavía no ha sido cargado por el administrador.']);
         exit;
     }
     $turnosIds = [(int)$turnoHoy['id']];

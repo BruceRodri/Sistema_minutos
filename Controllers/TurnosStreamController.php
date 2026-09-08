@@ -1,0 +1,101 @@
+<?php
+// Controllers/TurnosStreamController.php
+session_start();
+
+if (!isset($_SESSION['usuario_id']) || !in_array($_SESSION['rol'] ?? '', ['admin', 'secretaria', 'operativo'], true)) {
+    http_response_code(403);
+    exit;
+}
+
+// Evita mantener bloqueada la sesión durante toda la conexión SSE.
+session_write_close();
+
+require_once '../Config/conexion.php';
+require_once '../Dao/TurnoDao.php';
+
+header('Content-Type: text/event-stream; charset=utf-8');
+header('Cache-Control: no-cache, no-store, must-revalidate');
+header('X-Accel-Buffering: no');
+header('Connection: keep-alive');
+
+while (ob_get_level() > 0) {
+    ob_end_clean();
+}
+
+set_time_limit(30);
+ignore_user_abort(false);
+
+$filtroDisco = trim($_GET['disco'] ?? '');
+$filtroConductor = trim($_GET['conductor'] ?? '');
+$filtroFecha = trim($_GET['fecha'] ?? '');
+$paginaSolicitada = max(1, (int)($_GET['pagina'] ?? 1));
+$registrosPorPagina = 20;
+
+if ($filtroFecha !== '') {
+    $fechaValida = DateTime::createFromFormat('Y-m-d', $filtroFecha);
+    if (!$fechaValida || $fechaValida->format('Y-m-d') !== $filtroFecha) {
+        $filtroFecha = '';
+    }
+}
+
+$turnoDao = new TurnoDao($conexion);
+$ultimoHash = null;
+$inicio = time();
+
+echo "retry: 2000\n\n";
+flush();
+
+do {
+    $total = $turnoDao->contarTurnos($filtroDisco, $filtroConductor, $filtroFecha);
+    $totalPaginas = max(1, (int)ceil($total / $registrosPorPagina));
+    $pagina = min($paginaSolicitada, $totalPaginas);
+    $offset = ($pagina - 1) * $registrosPorPagina;
+    $turnos = $turnoDao->obtenerTurnos(
+        $filtroDisco,
+        $filtroConductor,
+        $filtroFecha,
+        $registrosPorPagina,
+        $offset
+    );
+
+    $filas = array_map(static function ($turno) {
+        $fecha = DateTime::createFromFormat(
+            'Y-m-d H:i:s',
+            $turno['fecha'] . ' ' . $turno['hora_apertura']
+        );
+
+        return [
+            'id' => (int)$turno['id'],
+            'disco' => $turno['disco'],
+            'codigo_conductor' => $turno['codigo_conductor'] ?? 'Sin código',
+            'fecha_apertura' => $fecha
+                ? $fecha->format('d/m/Y H:i:s')
+                : $turno['fecha'] . ' ' . $turno['hora_apertura']
+        ];
+    }, $turnos);
+
+    $respuesta = [
+        'turnos' => $filas,
+        'total' => $total,
+        'pagina' => $pagina,
+        'total_paginas' => $totalPaginas,
+        'primero' => $total > 0 ? $offset + 1 : 0,
+        'ultimo' => min($offset + $registrosPorPagina, $total)
+    ];
+    $json = json_encode($respuesta, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    $hash = hash('sha256', $json);
+
+    if ($hash !== $ultimoHash) {
+        echo "event: turnos\n";
+        echo 'data: ' . $json . "\n\n";
+        $ultimoHash = $hash;
+    } else {
+        echo ": conectado\n\n";
+    }
+
+    flush();
+    if (connection_aborted()) {
+        break;
+    }
+    sleep(2);
+} while ((time() - $inicio) < 25);

@@ -22,7 +22,7 @@ if ($filtroFecha !== '') {
     }
 }
 
-$registrosPorPagina = 10;
+$registrosPorPagina = 20;
 $paginaActual = max(1, (int)($_GET['pagina'] ?? 1));
 $totalTurnos = $turnoDao->contarTurnos($filtroDisco, $filtroConductor, $filtroFecha);
 $totalPaginas = max(1, (int)ceil($totalTurnos / $registrosPorPagina));
@@ -154,10 +154,6 @@ function construirUrlPagina($pagina, $disco, $conductor, $fecha) {
                 </h2>
                 <p class="text-xs text-gray-500">Registros ordenados del más reciente al más antiguo</p>
             </div>
-            <button type="button" onclick="window.location.reload()" class="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow hover:bg-blue-700 transition-colors">
-                <i class="fas fa-rotate-right mr-2"></i>
-                Actualizar
-            </button>
         </header>
 
         <div class="p-4 md:p-8 w-full max-w-7xl mx-auto">
@@ -210,13 +206,13 @@ function construirUrlPagina($pagina, $disco, $conductor, $fecha) {
             <div class="mb-4 flex flex-wrap items-end justify-between gap-2">
                 <div>
                     <p class="text-sm text-gray-500">Registros encontrados</p>
-                    <p class="text-3xl font-bold text-blue-700"><?php echo $totalTurnos; ?></p>
+                    <p id="totalTurnos" class="text-3xl font-bold text-blue-700"><?php echo $totalTurnos; ?></p>
                 </div>
-                <?php if ($totalTurnos > 0): ?>
-                    <p class="text-sm text-gray-500">
+                <p id="rangoTurnos" class="text-sm text-gray-500<?php echo $totalTurnos > 0 ? '' : ' hidden'; ?>">
+                    <?php if ($totalTurnos > 0): ?>
                         Mostrando <?php echo $primerRegistro; ?>–<?php echo $ultimoRegistro; ?> de <?php echo $totalTurnos; ?>
-                    </p>
-                <?php endif; ?>
+                    <?php endif; ?>
+                </p>
             </div>
 
             <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 overflow-x-auto">
@@ -228,7 +224,7 @@ function construirUrlPagina($pagina, $disco, $conductor, $fecha) {
                             <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Fecha</th>
                         </tr>
                     </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
+                    <tbody id="tablaTurnos" class="bg-white divide-y divide-gray-200">
                         <?php if ($totalTurnos === 0): ?>
                             <tr>
                                 <td colspan="3" class="px-6 py-12 text-center text-gray-500">
@@ -263,12 +259,13 @@ function construirUrlPagina($pagina, $disco, $conductor, $fecha) {
                 </table>
             </div>
 
-            <?php if ($totalPaginas > 1): ?>
-                <?php
-                    $paginaInicial = max(1, $paginaActual - 2);
-                    $paginaFinal = min($totalPaginas, $paginaActual + 2);
-                ?>
-                <nav class="mt-6 flex flex-wrap items-center justify-center gap-2" aria-label="Paginación de turnos">
+            <div id="contenedorPaginacion" class="<?php echo $totalPaginas > 1 ? '' : 'hidden'; ?>">
+                <nav id="paginacionTurnos" class="mt-6 flex flex-wrap items-center justify-center gap-2" aria-label="Paginación de turnos">
+                <?php if ($totalPaginas > 1): ?>
+                    <?php
+                        $paginaInicial = max(1, $paginaActual - 2);
+                        $paginaFinal = min($totalPaginas, $paginaActual + 2);
+                    ?>
                     <?php if ($paginaActual > 1): ?>
                         <a href="<?php echo htmlspecialchars(construirUrlPagina($paginaActual - 1, $filtroDisco, $filtroConductor, $filtroFecha)); ?>"
                            class="inline-flex items-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-bold text-gray-700 hover:bg-gray-50">
@@ -290,8 +287,9 @@ function construirUrlPagina($pagina, $disco, $conductor, $fecha) {
                             Siguiente <i class="fas fa-chevron-right ml-2"></i>
                         </a>
                     <?php endif; ?>
+                <?php endif; ?>
                 </nav>
-            <?php endif; ?>
+            </div>
         </div>
     </main>
 
@@ -309,6 +307,108 @@ function construirUrlPagina($pagina, $disco, $conductor, $fecha) {
                 monthSelectorType: 'static'
             });
         }
+
+        (() => {
+            if (typeof EventSource === 'undefined') return;
+
+            const tabla = document.getElementById('tablaTurnos');
+            const total = document.getElementById('totalTurnos');
+            const rango = document.getElementById('rangoTurnos');
+            const contenedorPaginacion = document.getElementById('contenedorPaginacion');
+            const paginacion = document.getElementById('paginacionTurnos');
+            const parametros = new URLSearchParams(window.location.search);
+            const streamUrl = new URL('../../Controllers/TurnosStreamController.php', window.location.href);
+
+            ['disco', 'conductor', 'fecha', 'pagina'].forEach((nombre) => {
+                const valor = parametros.get(nombre);
+                if (valor) streamUrl.searchParams.set(nombre, valor);
+            });
+
+            const escapar = (valor) => String(valor ?? '')
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#039;');
+
+            const urlPagina = (pagina) => {
+                const url = new URL(window.location.href);
+                url.searchParams.set('pagina', pagina);
+                return `${url.pathname}?${url.searchParams.toString()}`;
+            };
+
+            const enlacePagina = (pagina, contenido, activo = false) => {
+                const clases = activo
+                    ? 'bg-blue-600 text-white shadow'
+                    : 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50';
+                return `<a href="${escapar(urlPagina(pagina))}" class="inline-flex min-w-10 items-center justify-center rounded-lg px-3 py-2 text-sm font-bold ${clases}"${activo ? ' aria-current="page"' : ''}>${contenido}</a>`;
+            };
+
+            const renderizarPaginacion = (paginaActual, totalPaginas) => {
+                if (totalPaginas <= 1) {
+                    contenedorPaginacion.classList.add('hidden');
+                    paginacion.innerHTML = '';
+                    return;
+                }
+
+                const inicial = Math.max(1, paginaActual - 2);
+                const final = Math.min(totalPaginas, paginaActual + 2);
+                let html = '';
+
+                if (paginaActual > 1) {
+                    html += enlacePagina(paginaActual - 1, '<i class="fas fa-chevron-left mr-2"></i> Anterior');
+                }
+                for (let pagina = inicial; pagina <= final; pagina++) {
+                    html += enlacePagina(pagina, pagina, pagina === paginaActual);
+                }
+                if (paginaActual < totalPaginas) {
+                    html += enlacePagina(paginaActual + 1, 'Siguiente <i class="fas fa-chevron-right ml-2"></i>');
+                }
+
+                paginacion.innerHTML = html;
+                contenedorPaginacion.classList.remove('hidden');
+            };
+
+            const renderizar = (datos) => {
+                total.textContent = datos.total;
+
+                if (datos.total === 0) {
+                    rango.textContent = '';
+                    rango.classList.add('hidden');
+                    tabla.innerHTML = `
+                        <tr>
+                            <td colspan="3" class="px-6 py-12 text-center text-gray-500">
+                                <i class="fas fa-clock text-3xl mb-3 text-gray-300"></i>
+                                <p>No se encontraron turnos con los filtros seleccionados.</p>
+                            </td>
+                        </tr>`;
+                } else {
+                    rango.textContent = `Mostrando ${datos.primero}–${datos.ultimo} de ${datos.total}`;
+                    rango.classList.remove('hidden');
+                    tabla.innerHTML = datos.turnos.map((turno) => `
+                        <tr class="hover:bg-gray-50 transition-colors">
+                            <td class="px-6 py-4 whitespace-nowrap text-center">
+                                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-blue-100 text-blue-800 border border-blue-200">${escapar(turno.disco)}</span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-mono font-semibold text-gray-700">${escapar(turno.codigo_conductor || 'Sin código')}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-700">${escapar(turno.fecha_apertura)}</td>
+                        </tr>`).join('');
+                }
+
+                renderizarPaginacion(datos.pagina, datos.total_paginas);
+            };
+
+            const eventos = new EventSource(streamUrl.toString());
+            eventos.addEventListener('turnos', (evento) => {
+                try {
+                    renderizar(JSON.parse(evento.data));
+                } catch (error) {
+                    console.error('No se pudo actualizar el historial de turnos.', error);
+                }
+            });
+
+            window.addEventListener('beforeunload', () => eventos.close());
+        })();
     </script>
 </body>
 </html>

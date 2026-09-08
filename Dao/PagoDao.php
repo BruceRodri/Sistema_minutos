@@ -26,6 +26,7 @@ class PagoDao {
                 WHERE t.usuario_id = :usuario_id
                   AND t.fecha < CURDATE()
                   AND t.pagado = 0
+                  AND t.valor > 0
                 ORDER BY t.fecha ASC, t.hora_apertura ASC";
         $stmt = $this->conexion->prepare($sql);
         $stmt->execute([':usuario_id' => $usuarioId]);
@@ -59,6 +60,7 @@ class PagoDao {
                     WHERE id IN ({$placeholders})
                       AND usuario_id = ?
                       AND pagado = 0
+                      AND valor > 0
                     FOR UPDATE";
             $stmt = $this->conexion->prepare($sql);
             $stmt->execute(array_merge($turnosIds, [(int)$usuarioId]));

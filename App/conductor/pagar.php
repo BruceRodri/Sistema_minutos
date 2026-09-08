@@ -8,10 +8,14 @@ if (!isset($_SESSION['usuario_id']) || $_SESSION['rol'] !== 'conductor') {
 
 require_once '../../Config/conexion.php';
 require_once '../../Dao/PagoDao.php';
+require_once '../../Dao/ValoresDao.php';
 
 $nombreCorto = explode(' ', $_SESSION['nombre'] ?? 'Conductor')[0];
 $dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 $diaSemana = $dias[(int)date('w')];
+
+$valoresDao = new ValoresDao($conexion);
+$valoresDao->sincronizarTurnosConArchivo();
 
 $pagoDao = new PagoDao($conexion);
 $turnoHoy = $pagoDao->obtenerTurnoHoyConductor($_SESSION['usuario_id']);
@@ -26,6 +30,7 @@ $montoHoy = $turnoHoy ? (float)$turnoHoy['valor'] : 0.00;
 $montoMostrar = number_format($montoHoy, 2, '.', ',');
 $rutaHoy = $turnoHoy ? ($turnoHoy['ruta'] ?: 'Sin ruta') : '--';
 $hoyPagado = $turnoHoy && (int)$turnoHoy['pagado'] === 1;
+$valorDisponible = $turnoHoy && (float)$turnoHoy['valor'] > 0;
 
 $pendientes = $pagoDao->obtenerTurnosPendientesConductor($_SESSION['usuario_id']);
 function formatearFecha($fecha) {
@@ -75,7 +80,7 @@ function formatearFecha($fecha) {
 
             <div id="alertaComprobante" class="hidden mt-6 p-4 rounded-2xl text-base text-center"></div>
 
-            <?php if ($turnoHoy && !$hoyPagado): ?>
+            <?php if ($turnoHoy && !$hoyPagado && $valorDisponible): ?>
             <div class="mt-6">
                 <input type="file" id="inputComprobante" accept="image/*,application/pdf" class="hidden">
                 <button id="btnComprobante" type="button"
@@ -88,6 +93,10 @@ function formatearFecha($fecha) {
             <?php elseif ($turnoHoy && $hoyPagado): ?>
             <div class="mt-6 w-full bg-green-100 border border-green-300 text-green-800 text-xl font-bold py-5 px-4 rounded-2xl text-center">
                 <i class="fas fa-check-circle mr-2"></i> Turno de hoy ya pagado
+            </div>
+            <?php elseif ($turnoHoy): ?>
+            <div class="mt-6 w-full bg-amber-50 border border-amber-300 text-amber-800 text-base font-bold py-4 px-4 rounded-2xl text-center">
+                <i class="fas fa-clock mr-2"></i> Valor pendiente de carga por el administrador
             </div>
             <?php else: ?>
             <p class="mt-6 text-center text-lg text-gray-500 italic">Aún no has abierto un turno hoy.</p>

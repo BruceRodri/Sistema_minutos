@@ -128,6 +128,49 @@ class ValoresDao {
         return $this->obtenerParaDiscoFecha($disco, date('Y-m-d'));
     }
 
+    public function actualizarTurnosDesdeFilas(array $filas) {
+        $actualizados = 0;
+
+        foreach ($filas as $fila) {
+            if (empty($fila['disco']) || empty($fila['fecha']) || (float)$fila['valor'] <= 0) {
+                continue;
+            }
+
+            if (is_numeric($fila['disco'])) {
+                $sql = "UPDATE turno t
+                        INNER JOIN bus b ON t.bus_id = b.id
+                        SET t.valor = :valor, t.ruta = :ruta
+                        WHERE t.fecha = :fecha
+                          AND t.pagado = 0
+                          AND CAST(b.disco AS UNSIGNED) = :disco";
+                $disco = (int)$fila['disco'];
+            } else {
+                $sql = "UPDATE turno t
+                        INNER JOIN bus b ON t.bus_id = b.id
+                        SET t.valor = :valor, t.ruta = :ruta
+                        WHERE t.fecha = :fecha
+                          AND t.pagado = 0
+                          AND b.disco = :disco";
+                $disco = $fila['disco'];
+            }
+
+            $stmt = $this->conexion->prepare($sql);
+            $stmt->execute([
+                ':valor' => $fila['valor'],
+                ':ruta' => $fila['ruta'] ?: null,
+                ':fecha' => $fila['fecha'],
+                ':disco' => $disco
+            ]);
+            $actualizados += $stmt->rowCount();
+        }
+
+        return $actualizados;
+    }
+
+    public function sincronizarTurnosConArchivo() {
+        return $this->actualizarTurnosDesdeFilas($this->leerFilas());
+    }
+
     private function obtenerParaDiscoFechaISHoy() {
         return null;
     }
