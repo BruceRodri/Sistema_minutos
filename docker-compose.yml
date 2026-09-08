@@ -1,6 +1,7 @@
 services:
   db:
     image: mysql:8.4
+    command: --event-scheduler=ON --default-time-zone=-05:00
     # CAMBIO: Nombre del contenedor único
     container_name: sistema_minutos_db
     environment:

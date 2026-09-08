@@ -3,6 +3,7 @@
 session_start();
 
 require_once '../Config/conexion.php';
+require_once '../Config/rutas.php';
 require_once '../Dao/UsuarioDao.php';
 
 header('Content-Type: application/json');
@@ -21,20 +22,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Login actual: usuario y contraseña = cédula (sin columna password en la BD nueva)
     if ($usuario && $password === $cedula) {
+        $redirect = obtenerRutaInicio($usuario['rol']);
+
+        if ($redirect === null) {
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Este rol todavía no tiene un módulo de inicio habilitado.'
+            ]);
+            exit;
+        }
+
         session_regenerate_id(true);
 
         $_SESSION['usuario_id'] = $usuario['id'];
         $_SESSION['rol'] = $usuario['rol'];
         $_SESSION['nombre'] = $usuario['nombre'];
+        $_SESSION['codigo_conductor'] = $usuario['codigo_conductor'] ?? null;
         $_SESSION['permisos'] = [];
-
-        $redirect = match ($usuario['rol']) {
-            'admin' => 'Web/admin/turnos.php',
-            'secretaria' => 'secretaria/gestion_resoluciones.php',
-            'operativo' => 'operador/ingreso_resolucion.php',
-            'socio' => 'Web/admin/socios.php',
-            default => 'App/conductor/dashboard.php',
-        };
 
         echo json_encode(['status' => 'success', 'redirect' => $redirect]);
     } else {

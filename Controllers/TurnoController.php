@@ -41,8 +41,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $resultado = $turnoDao->abrirTurno($_SESSION['usuario_id'], $bus['id']);
 
-        if (isset($resultado['duplicado'])) {
-            echo json_encode(['status' => 'error', 'message' => 'Este bus ya abrió turno hoy. Para reabrirlo, debe deshabilitarlo desde el panel administrativo.']);
+        if (isset($resultado['conductor_duplicado'])) {
+            echo json_encode(['status' => 'error', 'message' => 'Usted ya abrió un turno hoy. Podrá abrir otro mañana.']);
+            exit;
+        }
+
+        if (isset($resultado['bus_duplicado'])) {
+            echo json_encode(['status' => 'error', 'message' => 'Este bus ya abrió un turno hoy. Podrá abrir un nuevo turno mañana.']);
+            exit;
+        }
+
+        if (isset($resultado['conductor_invalido'])) {
+            echo json_encode(['status' => 'error', 'message' => 'El conductor no está habilitado o no tiene un código asignado.']);
             exit;
         }
 
@@ -55,7 +65,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'status' => 'success',
             'message' => 'Bienvenido. Su turno fue abierto correctamente.',
             'disco' => $bus['disco'],
-            'hora' => $resultado['hora']
+            'fecha' => $resultado['fecha'],
+            'hora' => $resultado['hora'],
+            'codigo_conductor' => $resultado['codigo_conductor']
         ]);
         exit;
     }

@@ -9,7 +9,7 @@ class UsuarioDao {
     }
 
     public function obtenerPorCedula($cedula) {
-        $sql = "SELECT u.id, u.cedula, u.nombres, u.apellidos,
+        $sql = "SELECT u.id, u.cedula, u.codigo_conductor, u.nombres, u.apellidos,
                        CONCAT(u.nombres, ' ', u.apellidos) AS nombre,
                        r.nombre AS rol, u.activo, u.rol_id, u.estado_usuario_id
                 FROM usuario u

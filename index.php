@@ -1,16 +1,31 @@
 <?php
 // index.php
 session_start();
+require_once __DIR__ . '/Config/rutas.php';
+
 if (isset($_SESSION['usuario_id'])) {
-    $destino = match ($_SESSION['rol'] ?? '') {
-        'admin' => 'Web/admin/turnos.php',
-        'secretaria' => 'secretaria/gestion_resoluciones.php',
-        'operativo' => 'operador/ingreso_resolucion.php',
-        'socio' => 'Web/admin/socios.php',
-        default => 'App/conductor/dashboard.php',
-    };
-    header("Location: $destino");
-    exit;
+    $destino = obtenerRutaInicio($_SESSION['rol'] ?? '');
+
+    if ($destino !== null) {
+        header("Location: $destino");
+        exit;
+    }
+
+    // Una sesión con un rol sin módulo no debe provocar un ciclo de redirecciones.
+    $_SESSION = [];
+    if (ini_get('session.use_cookies')) {
+        $params = session_get_cookie_params();
+        setcookie(
+            session_name(),
+            '',
+            time() - 42000,
+            $params['path'],
+            $params['domain'],
+            $params['secure'],
+            $params['httponly']
+        );
+    }
+    session_destroy();
 }
 ?>
 <!DOCTYPE html>

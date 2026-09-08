@@ -12,9 +12,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnCerrarModal = document.getElementById('btnCerrarModal');
 
     let html5QrCode = null;
+    let procesandoLectura = false;
 
     async function iniciarScanner() {
         try {
+            procesandoLectura = false;
+
             if (!html5QrCode) {
                 html5QrCode = new Html5Qrcode('qr-reader');
             } else if (html5QrCode.isScanning) {
@@ -25,7 +28,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 { facingMode: 'environment' },
                 { fps: 10, qrbox: { width: 250, height: 250 } },
                 async (texto) => {
+                    if (procesandoLectura) return;
+                    procesandoLectura = true;
+
                     await detenerScanner();
+                    overlay.classList.add('hidden');
                     await enviarTurno(texto.trim());
                 },
                 () => {}
@@ -42,6 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 await html5QrCode.stop();
                 await html5QrCode.clear();
+                html5QrCode = null;
             } catch (e) {
                 console.error(e);
             }
@@ -61,7 +69,17 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await response.json();
 
             if (data.status === 'success') {
-                mostrarModal('success', 'Turno Abierto', data.message, 'Disco ' + data.disco + ' - Hora ' + data.hora);
+                const partesFecha = data.fecha.split('-');
+                const fechaFormateada = partesFecha.length === 3
+                    ? `${partesFecha[2]}/${partesFecha[1]}/${partesFecha[0]}`
+                    : data.fecha;
+
+                mostrarModal(
+                    'success',
+                    'Turno abierto',
+                    data.message,
+                    `Disco ${data.disco} · Conductor ${data.codigo_conductor} · ${fechaFormateada} ${data.hora}`
+                );
             } else {
                 mostrarModal('error', 'No se pudo abrir', data.message, '');
             }
