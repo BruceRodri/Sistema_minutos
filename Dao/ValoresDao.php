@@ -128,6 +128,41 @@ class ValoresDao {
         return $this->obtenerParaDiscoFecha($disco, date('Y-m-d'));
     }
 
+    public function obtenerFilasFiltradas($disco = '', $fecha = '', $valor = '', $ruta = '') {
+        $disco = trim((string)$disco);
+        $fecha = trim((string)$fecha);
+        $valor = trim((string)$valor);
+        $ruta = trim((string)$ruta);
+        $valorNumerico = str_replace(',', '.', $valor);
+
+        return array_values(array_filter(
+            $this->leerFilas(),
+            static function ($fila) use ($disco, $fecha, $valor, $valorNumerico, $ruta) {
+                if ($disco !== '' && stripos((string)$fila['disco'], $disco) === false) {
+                    return false;
+                }
+                if ($fecha !== '' && (string)$fila['fecha'] !== $fecha) {
+                    return false;
+                }
+                if ($valor !== '' && (!is_numeric($valorNumerico) || abs((float)$fila['valor'] - (float)$valorNumerico) > 0.00001)) {
+                    return false;
+                }
+                if ($ruta !== '' && stripos((string)$fila['ruta'], $ruta) === false) {
+                    return false;
+                }
+                return true;
+            }
+        ));
+    }
+
+    public function firmaArchivo() {
+        clearstatcache(true, self::RUTA_XLSX);
+        if (!is_file(self::RUTA_XLSX)) {
+            return 'sin-archivo';
+        }
+        return filemtime(self::RUTA_XLSX) . ':' . filesize(self::RUTA_XLSX);
+    }
+
     public function actualizarTurnosDesdeFilas(array $filas) {
         $actualizados = 0;
 

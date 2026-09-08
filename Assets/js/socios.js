@@ -3,6 +3,41 @@
 document.addEventListener('DOMContentLoaded', () => {
     const urlControlador = '../../Controllers/SocioController.php';
 
+    // ---------- Asignar un disco disponible ----------
+    const modalAgregarDisco = document.getElementById('modalAgregarDisco');
+    const formAgregarDisco = document.getElementById('formAgregarDisco');
+
+    if (modalAgregarDisco && formAgregarDisco) {
+        document.querySelectorAll('.btnAgregarDisco:not(:disabled)').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                document.getElementById('agregarUsuarioId').value = btn.dataset.usuarioId;
+                document.getElementById('agregarBusId').value = '';
+                document.getElementById('modalSocioLabel').textContent = btn.dataset.socio;
+                modalAgregarDisco.classList.remove('hidden');
+            });
+        });
+
+        document.getElementById('btnCancelarAgregarDisco').addEventListener('click', () => {
+            modalAgregarDisco.classList.add('hidden');
+        });
+
+        formAgregarDisco.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(formAgregarDisco);
+            formData.append('accion', 'asignar_disco');
+
+            try {
+                const response = await fetch(urlControlador, { method: 'POST', body: formData });
+                const data = await response.json();
+                alert(data.message);
+                if (data.status === 'success') window.location.reload();
+            } catch (error) {
+                console.error(error);
+                alert('Error de conexión con el servidor.');
+            }
+        });
+    }
+
     // ---------- Deshabilitar / Habilitar disco ----------
     document.querySelectorAll('.btnToggleDisco').forEach((btn) => {
         btn.addEventListener('click', async () => {

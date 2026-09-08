@@ -12,9 +12,11 @@ require_once '../../Dao/SocioDao.php';
 $socioDao = new SocioDao($conexion);
 $sociosConBuses = $socioDao->obtenerSociosConBuses();
 $socios = $socioDao->obtenerTodosSocios();
+$discosDisponibles = $socioDao->obtenerDiscosDisponibles();
 
 $sociosAgrupados = [];
 foreach ($sociosConBuses as $fila) {
+    $sociosAgrupados[$fila['usuario_id']]['usuario_id'] = $fila['usuario_id'];
     $sociosAgrupados[$fila['usuario_id']]['cedula'] = $fila['cedula'];
     $sociosAgrupados[$fila['usuario_id']]['nombres'] = $fila['nombres'];
     $sociosAgrupados[$fila['usuario_id']]['apellidos'] = $fila['apellidos'];
@@ -81,7 +83,19 @@ foreach ($sociosConBuses as $fila) {
                                 </td>
                                 <td class="px-6 py-4">
                                     <?php if (empty($socio['discos'])): ?>
-                                        <span class="text-sm text-gray-400 italic">Sin discos asignados</span>
+                                        <div class="flex flex-wrap items-center gap-3">
+                                            <span class="text-sm text-gray-400 italic">Sin discos asignados</span>
+                                            <button type="button"
+                                                    class="btnAgregarDisco inline-flex items-center rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white shadow hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300 transition-colors"
+                                                    data-usuario-id="<?php echo (int)$socio['usuario_id']; ?>"
+                                                    data-socio="<?php echo htmlspecialchars($socio['nombres'] . ' ' . $socio['apellidos'], ENT_QUOTES); ?>"
+                                                    <?php echo empty($discosDisponibles) ? 'disabled title="No hay discos disponibles"' : ''; ?>>
+                                                <i class="fas fa-circle-plus mr-2"></i>Agregar disco
+                                            </button>
+                                            <?php if (empty($discosDisponibles)): ?>
+                                                <span class="text-xs font-semibold text-amber-600">No hay discos disponibles</span>
+                                            <?php endif; ?>
+                                        </div>
                                     <?php else: ?>
                                         <div class="flex flex-col gap-2">
                                             <?php foreach ($socio['discos'] as $disco): ?>
@@ -151,6 +165,36 @@ foreach ($sociosConBuses as $fila) {
         </div>
     </div>
 
-    <script src="../../Assets/js/socios.js"></script>
+    <!-- Modal Asignar Disco -->
+    <div id="modalAgregarDisco" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-6">
+        <div class="bg-white rounded-2xl p-8 w-full max-w-sm shadow-2xl">
+            <div class="mb-6 w-12 h-12 mx-auto rounded-full bg-blue-100 flex items-center justify-center">
+                <i class="fas fa-bus text-blue-600 text-xl"></i>
+            </div>
+            <h3 class="text-xl font-bold text-gray-800 text-center mb-1">Agregar Disco</h3>
+            <p id="modalSocioLabel" class="text-sm text-gray-500 text-center mb-6"></p>
+
+            <form id="formAgregarDisco">
+                <input type="hidden" id="agregarUsuarioId" name="usuario_id">
+                <div class="mb-6">
+                    <label for="agregarBusId" class="block text-gray-600 text-sm font-bold mb-2">Discos disponibles</label>
+                    <select id="agregarBusId" name="bus_id" class="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all" required>
+                        <option value="">Seleccione un disco...</option>
+                        <?php foreach ($discosDisponibles as $disco): ?>
+                            <option value="<?php echo (int)$disco['id']; ?>">
+                                Disco <?php echo htmlspecialchars($disco['disco']); ?> — <?php echo htmlspecialchars($disco['placa']); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="flex gap-3">
+                    <button type="button" id="btnCancelarAgregarDisco" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2.5 px-4 rounded-lg transition-all">Cancelar</button>
+                    <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-4 rounded-lg transition-all">Asignar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="../../Assets/js/socios.js?v=<?php echo filemtime('../../Assets/js/socios.js'); ?>"></script>
 </body>
 </html>

@@ -16,6 +16,34 @@ if (!isset($_SESSION['usuario_id']) || !in_array($_SESSION['rol'] ?? '', $rolesA
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $accion = $_POST['accion'] ?? '';
 
+    if ($accion === 'asignar_disco') {
+        $bus_id = filter_var($_POST['bus_id'] ?? null, FILTER_VALIDATE_INT);
+        $usuario_id = filter_var($_POST['usuario_id'] ?? null, FILTER_VALIDATE_INT);
+
+        if (!$bus_id || !$usuario_id) {
+            echo json_encode(['status' => 'error', 'message' => 'Seleccione un disco válido.']);
+            exit;
+        }
+
+        $socioDao = new SocioDao($conexion);
+        $resultado = $socioDao->asignarDiscoDisponible($bus_id, $usuario_id);
+
+        if ($resultado === 'socio_invalido') {
+            echo json_encode(['status' => 'error', 'message' => 'El socio no existe o está deshabilitado.']);
+        } elseif ($resultado === 'socio_con_disco') {
+            echo json_encode(['status' => 'error', 'message' => 'Este socio ya tiene un disco asignado.']);
+        } elseif ($resultado === 'disco_invalido') {
+            echo json_encode(['status' => 'error', 'message' => 'El disco no existe o está deshabilitado.']);
+        } elseif ($resultado === 'no_disponible') {
+            echo json_encode(['status' => 'error', 'message' => 'El disco seleccionado ya fue asignado a otro socio.']);
+        } elseif ($resultado) {
+            echo json_encode(['status' => 'success', 'message' => 'Disco asignado correctamente.']);
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'No se pudo asignar el disco.']);
+        }
+        exit;
+    }
+
     if ($accion === 'cambiar_socio') {
         $bus_id = $_POST['bus_id'] ?? '';
         $usuario_id = $_POST['usuario_id'] ?? '';
