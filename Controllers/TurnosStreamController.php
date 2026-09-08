@@ -70,6 +70,8 @@ do {
                 ? substr((string)$turno['disco'], 1)
                 : (string)$turno['disco'],
             'codigo_conductor' => $turno['codigo_conductor'] ?? 'Sin código',
+            'estado' => $turno['estado'] ?? 'abierto',
+            'motivo' => $turno['motivo'] ?? '',
             'fecha_apertura' => $fecha
                 ? $fecha->format('d/m/Y H:i:s')
                 : $turno['fecha'] . ' ' . $turno['hora_apertura']

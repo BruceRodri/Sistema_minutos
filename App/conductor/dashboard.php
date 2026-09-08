@@ -85,16 +85,26 @@ $fechaHoy = date('d/m/Y');
 
     <!-- Overlay del escáner QR -->
     <div id="scannerOverlay" class="hidden fixed inset-0 bg-gray-100 z-50 flex flex-col">
-        <div class="flex items-center justify-between p-4 bg-white border-b border-gray-200 text-gray-900 shadow-sm">
-            <h3 class="text-xl font-bold">Escanear QR del Bus</h3>
+        <div class="flex items-center justify-end p-4 bg-white border-b border-gray-200 text-gray-900 shadow-sm">
             <button id="btnCerrarScanner" class="bg-gray-100 hover:bg-gray-200 text-gray-700 w-10 h-10 rounded-full flex items-center justify-center transition-colors" title="Cerrar">
                 <i class="fas fa-times text-xl"></i>
             </button>
         </div>
-        <div class="flex-1 flex items-center justify-center p-4">
-            <div id="qr-reader"></div>
+        <div class="flex-1 overflow-y-auto p-4">
+            <div class="mx-auto flex min-h-full w-full max-w-md flex-col items-center justify-center py-5">
+                <div class="mb-6 w-full rounded-2xl border border-blue-100 bg-white p-5 text-center shadow-sm">
+                    <span class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100 text-blue-700">
+                        <i class="fas fa-qrcode text-2xl"></i>
+                    </span>
+                    <h3 class="text-xl font-bold text-gray-900">Por favor, escanee el código QR de su unidad</h3>
+                    <p class="mt-2 text-sm text-gray-500">Mantenga el código completo y bien iluminado.</p>
+                </div>
+                <div id="qr-reader"></div>
+                <p class="mt-5 text-center text-sm font-medium text-gray-600">
+                    <i class="fas fa-camera mr-2 text-blue-600"></i>Apunta la cámara al código QR del bus
+                </p>
+            </div>
         </div>
-        <p class="text-center text-gray-600 p-4 text-sm">Apunta la cámara al código QR del bus (disco 1-90)</p>
     </div>
 
     <!-- Modal de confirmación -->
@@ -111,6 +121,6 @@ $fechaHoy = date('d/m/Y');
     </div>
 
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-    <script src="../../Assets/js/conductor.js"></script>
+    <script src="../../Assets/js/conductor.js?v=2"></script>
 </body>
 </html>

@@ -6,6 +6,12 @@ require_once '../Dao/TurnoDao.php';
 
 header('Content-Type: application/json');
 
+function responderErrorTurno($turnoDao, $usuarioId, $mensaje, $discoEscaneado = '', $busId = null) {
+    $turnoDao->registrarIntentoFallido($usuarioId, $busId, $discoEscaneado, $mensaje);
+    echo json_encode(['status' => 'error', 'message' => $mensaje]);
+    exit;
+}
+
 if (!isset($_SESSION['usuario_id'])) {
     echo json_encode(['status' => 'error', 'message' => 'Acceso denegado.']);
     exit;
@@ -21,44 +27,68 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $disco = trim($_POST['disco'] ?? '');
+        $turnoDao = new TurnoDao($conexion);
+
         if ($disco === '') {
-            echo json_encode(['status' => 'error', 'message' => 'Código QR no válido.']);
-            exit;
+            responderErrorTurno($turnoDao, $_SESSION['usuario_id'], 'Código QR no válido.');
         }
 
-        $turnoDao = new TurnoDao($conexion);
         $bus = $turnoDao->obtenerBusPorDisco($disco);
 
         if (!$bus) {
-            echo json_encode(['status' => 'error', 'message' => 'Bus no encontrado. Verifique el código QR.']);
-            exit;
+            responderErrorTurno($turnoDao, $_SESSION['usuario_id'], 'Bus no encontrado. Verifique el código QR.', $disco);
         }
 
         if ($bus['activo'] != 1) {
-            echo json_encode(['status' => 'error', 'message' => 'Este bus está deshabilitado. Contacte al personal administrativo.']);
-            exit;
+            responderErrorTurno(
+                $turnoDao,
+                $_SESSION['usuario_id'],
+                'Este bus está deshabilitado. Contacte al personal administrativo.',
+                $disco,
+                $bus['id']
+            );
         }
 
         $resultado = $turnoDao->abrirTurno($_SESSION['usuario_id'], $bus['id']);
 
         if (isset($resultado['conductor_duplicado'])) {
-            echo json_encode(['status' => 'error', 'message' => 'Usted ya abrió un turno hoy. Podrá abrir otro mañana.']);
-            exit;
+            responderErrorTurno(
+                $turnoDao,
+                $_SESSION['usuario_id'],
+                'Usted ya abrió un turno el día de hoy, por favor comunicarse con su jefe de ruta.',
+                $disco,
+                $bus['id']
+            );
         }
 
         if (isset($resultado['bus_duplicado'])) {
-            echo json_encode(['status' => 'error', 'message' => 'Este bus ya abrió un turno hoy. Podrá abrir un nuevo turno mañana.']);
-            exit;
+            responderErrorTurno(
+                $turnoDao,
+                $_SESSION['usuario_id'],
+                'Este bus ya abrió un turno el día de hoy, comunicarse con su jefe de ruta.',
+                $disco,
+                $bus['id']
+            );
         }
 
         if (isset($resultado['conductor_invalido'])) {
-            echo json_encode(['status' => 'error', 'message' => 'El conductor no está habilitado o no tiene un código asignado.']);
-            exit;
+            responderErrorTurno(
+                $turnoDao,
+                $_SESSION['usuario_id'],
+                'El conductor no está habilitado o no tiene un código asignado.',
+                $disco,
+                $bus['id']
+            );
         }
 
         if (!$resultado) {
-            echo json_encode(['status' => 'error', 'message' => 'No se pudo abrir el turno. Intente nuevamente.']);
-            exit;
+            responderErrorTurno(
+                $turnoDao,
+                $_SESSION['usuario_id'],
+                'No se pudo abrir el turno. Intente nuevamente.',
+                $disco,
+                $bus['id']
+            );
         }
 
         $_SESSION['turno_disco'] = $bus['disco'];
@@ -66,7 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         echo json_encode([
             'status' => 'success',
-            'message' => 'Bienvenido. Su turno fue abierto correctamente.',
+            'message' => 'Que tengas un excelente día.',
             'disco' => $bus['disco'],
             'fecha' => $resultado['fecha'],
             'hora' => $resultado['hora'],

@@ -77,8 +77,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 mostrarModal(
                     'success',
                     'Turno abierto',
-                    data.message,
-                    `Disco ${data.disco} · Conductor ${data.codigo_conductor} · ${fechaFormateada} ${data.hora}`
+                    'Que tengas un excelente día.',
+                    `Disco ${data.disco} · ${fechaFormateada} · ${data.hora}`
                 );
             } else {
                 mostrarModal('error', 'No se pudo abrir', data.message, '');

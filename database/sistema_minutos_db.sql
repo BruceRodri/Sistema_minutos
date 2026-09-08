@@ -106,6 +106,23 @@ CREATE TABLE turno (
     UNIQUE KEY unq_conductor_fecha (usuario_id, fecha)
 );
 
+-- 9. INTENTOS FALLIDOS DE APERTURA DE TURNO
+CREATE TABLE intento_turno (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    usuario_id INT NOT NULL,
+    bus_id INT NULL,
+    disco_escaneado VARCHAR(30) NOT NULL DEFAULT '',
+    fecha DATE NOT NULL,
+    hora_intento TIME NOT NULL,
+    motivo VARCHAR(255) NOT NULL,
+    activo TINYINT(1) NOT NULL DEFAULT 1,
+    KEY idx_intento_turno_fecha (fecha, hora_intento),
+    KEY idx_intento_turno_usuario (usuario_id, fecha),
+    KEY idx_intento_turno_bus (bus_id, fecha),
+    FOREIGN KEY (usuario_id) REFERENCES usuario(id),
+    FOREIGN KEY (bus_id) REFERENCES bus(id)
+);
+
 -- Cierra físicamente los turnos al terminar el día en horario de Ecuador.
 DROP EVENT IF EXISTS cerrar_turnos_diarios;
 CREATE EVENT cerrar_turnos_diarios

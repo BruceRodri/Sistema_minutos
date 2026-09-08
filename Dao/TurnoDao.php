@@ -24,6 +24,25 @@ class TurnoDao {
         return $stmt->fetch();
     }
 
+    public function registrarIntentoFallido($usuarioId, $busId, $discoEscaneado, $motivo) {
+        try {
+            $sql = "INSERT INTO intento_turno
+                        (usuario_id, bus_id, disco_escaneado, fecha, hora_intento, motivo)
+                    VALUES
+                        (:usuario_id, :bus_id, :disco_escaneado, CURDATE(), CURTIME(), :motivo)";
+            $stmt = $this->conexion->prepare($sql);
+            return $stmt->execute([
+                ':usuario_id' => (int)$usuarioId,
+                ':bus_id' => $busId !== null ? (int)$busId : null,
+                ':disco_escaneado' => mb_substr((string)$discoEscaneado, 0, 30),
+                ':motivo' => mb_substr((string)$motivo, 0, 255)
+            ]);
+        } catch (PDOException $e) {
+            error_log('No se pudo registrar el intento fallido de turno: ' . $e->getMessage());
+            return false;
+        }
+    }
+
     public function abrirTurno($usuario_id, $bus_id) {
         try {
             $this->cerrarTurnosVencidos();
@@ -91,23 +110,22 @@ class TurnoDao {
     }
 
     private function obtenerRestriccionTurnoHoy($usuario_id, $bus_id) {
-        $sql = "SELECT usuario_id, bus_id
+        $sql = "SELECT MAX(usuario_id = :usuario_id) AS conductor_duplicado,
+                       MAX(bus_id = :bus_id) AS bus_duplicado
                 FROM turno
-                WHERE fecha = CURDATE()
-                  AND (usuario_id = :usuario_id OR bus_id = :bus_id)";
+                WHERE fecha = CURDATE()";
         $stmt = $this->conexion->prepare($sql);
         $stmt->execute([
             ':usuario_id' => $usuario_id,
             ':bus_id' => $bus_id
         ]);
 
-        foreach ($stmt->fetchAll() as $turno) {
-            if ((int)$turno['usuario_id'] === (int)$usuario_id) {
-                return 'conductor';
-            }
-            if ((int)$turno['bus_id'] === (int)$bus_id) {
-                return 'bus';
-            }
+        $restriccion = $stmt->fetch();
+        if ((int)($restriccion['conductor_duplicado'] ?? 0) === 1) {
+            return 'conductor';
+        }
+        if ((int)($restriccion['bus_duplicado'] ?? 0) === 1) {
+            return 'bus';
         }
 
         return null;
@@ -133,14 +151,31 @@ class TurnoDao {
         $this->cerrarTurnosVencidos();
 
         [$condiciones, $parametros] = $this->construirFiltrosTurnos($disco, $codigoConductor, $fecha);
-        $sql = "SELECT t.id, t.fecha, t.hora_apertura, t.hora_cierre,
-                       b.id AS bus_id, b.disco,
-                       u.id AS conductor_id, u.codigo_conductor
-                FROM turno t
-                INNER JOIN bus b ON t.bus_id = b.id
-                INNER JOIN usuario u ON t.usuario_id = u.id
+        $sql = "SELECT registros.*
+                FROM (
+                    SELECT CONCAT('turno-', t.id) AS registro_id,
+                           t.id, t.fecha, t.hora_apertura, t.hora_cierre,
+                           b.id AS bus_id, b.disco,
+                           u.id AS conductor_id, u.codigo_conductor,
+                           'abierto' AS estado, NULL AS motivo
+                    FROM turno t
+                    INNER JOIN bus b ON t.bus_id = b.id
+                    INNER JOIN usuario u ON t.usuario_id = u.id
+
+                    UNION ALL
+
+                    SELECT CONCAT('intento-', i.id) AS registro_id,
+                           i.id, i.fecha, i.hora_intento AS hora_apertura, NULL AS hora_cierre,
+                           i.bus_id, COALESCE(b.disco, NULLIF(i.disco_escaneado, ''), '—') AS disco,
+                           u.id AS conductor_id, u.codigo_conductor,
+                           'fallido' AS estado, i.motivo
+                    FROM intento_turno i
+                    LEFT JOIN bus b ON i.bus_id = b.id
+                    INNER JOIN usuario u ON i.usuario_id = u.id
+                    WHERE i.activo = 1
+                ) AS registros
                 {$condiciones}
-                ORDER BY t.fecha DESC, t.hora_apertura DESC, t.id DESC
+                ORDER BY registros.fecha DESC, registros.hora_apertura DESC, registros.registro_id DESC
                 LIMIT :limite OFFSET :offset";
 
         $stmt = $this->conexion->prepare($sql);
@@ -156,9 +191,21 @@ class TurnoDao {
     public function contarTurnos($disco = '', $codigoConductor = '', $fecha = '') {
         [$condiciones, $parametros] = $this->construirFiltrosTurnos($disco, $codigoConductor, $fecha);
         $sql = "SELECT COUNT(*)
-                FROM turno t
-                INNER JOIN bus b ON t.bus_id = b.id
-                INNER JOIN usuario u ON t.usuario_id = u.id
+                FROM (
+                    SELECT b.disco, u.codigo_conductor, t.fecha
+                    FROM turno t
+                    INNER JOIN bus b ON t.bus_id = b.id
+                    INNER JOIN usuario u ON t.usuario_id = u.id
+
+                    UNION ALL
+
+                    SELECT COALESCE(b.disco, NULLIF(i.disco_escaneado, ''), '—') AS disco,
+                           u.codigo_conductor, i.fecha
+                    FROM intento_turno i
+                    LEFT JOIN bus b ON i.bus_id = b.id
+                    INNER JOIN usuario u ON i.usuario_id = u.id
+                    WHERE i.activo = 1
+                ) AS registros
                 {$condiciones}";
 
         $stmt = $this->conexion->prepare($sql);
@@ -171,15 +218,15 @@ class TurnoDao {
         $parametros = [];
 
         if ($disco !== '') {
-            $filtros[] = 'b.disco LIKE :disco';
+            $filtros[] = 'registros.disco LIKE :disco';
             $parametros[':disco'] = '%' . $disco . '%';
         }
         if ($codigoConductor !== '') {
-            $filtros[] = 'u.codigo_conductor LIKE :codigo_conductor';
+            $filtros[] = 'registros.codigo_conductor LIKE :codigo_conductor';
             $parametros[':codigo_conductor'] = '%' . $codigoConductor . '%';
         }
         if ($fecha !== '') {
-            $filtros[] = 't.fecha = :fecha';
+            $filtros[] = 'registros.fecha = :fecha';
             $parametros[':fecha'] = $fecha;
         }
 
