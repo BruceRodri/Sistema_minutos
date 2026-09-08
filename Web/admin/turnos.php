@@ -157,7 +157,7 @@ function formatearDiscoHistorial($disco) {
                 <h2 class="text-xl md:text-2xl font-bold text-gray-800 text-transparent bg-clip-text bg-gradient-to-r from-blue-700 to-gray-800">
                     Historial de turnos
                 </h2>
-                <p class="text-xs text-gray-500">Registros ordenados del más reciente al más antiguo</p>
+                <p class="text-xs text-gray-500">Turnos abiertos e intentos fallidos, del más reciente al más antiguo</p>
             </div>
         </header>
 
@@ -227,12 +227,14 @@ function formatearDiscoHistorial($disco) {
                             <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Disco</th>
                             <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Conductor</th>
                             <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Fecha</th>
+                            <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Estado</th>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Motivo</th>
                         </tr>
                     </thead>
                     <tbody id="tablaTurnos" class="bg-white divide-y divide-gray-200">
                         <?php if ($totalTurnos === 0): ?>
                             <tr>
-                                <td colspan="3" class="px-6 py-12 text-center text-gray-500">
+                                <td colspan="5" class="px-6 py-12 text-center text-gray-500">
                                     <i class="fas fa-clock text-3xl mb-3 text-gray-300"></i>
                                     <p>No se encontraron turnos con los filtros seleccionados.</p>
                                 </td>
@@ -245,7 +247,7 @@ function formatearDiscoHistorial($disco) {
                                         $turno['fecha'] . ' ' . $turno['hora_apertura']
                                     );
                                 ?>
-                                <tr class="hover:bg-gray-50 transition-colors">
+                                <tr class="<?php echo ($turno['estado'] ?? 'abierto') === 'fallido' ? 'bg-amber-50/70 hover:bg-amber-100/70' : 'hover:bg-gray-50'; ?> transition-colors">
                                     <td class="px-6 py-4 whitespace-nowrap text-center">
                                         <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-blue-100 text-blue-800 border border-blue-200">
                                             <?php echo htmlspecialchars(formatearDiscoHistorial($turno['disco'])); ?>
@@ -256,6 +258,20 @@ function formatearDiscoHistorial($disco) {
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-700">
                                         <?php echo htmlspecialchars($fechaApertura ? $fechaApertura->format('d/m/Y H:i:s') : $turno['fecha'] . ' ' . $turno['hora_apertura']); ?>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-center">
+                                        <?php if (($turno['estado'] ?? 'abierto') === 'fallido'): ?>
+                                            <span class="inline-flex items-center rounded-full border border-amber-300 bg-amber-100/80 px-3 py-1 text-xs font-bold text-amber-800">
+                                                <i class="fas fa-triangle-exclamation mr-1.5"></i>Fallido
+                                            </span>
+                                        <?php else: ?>
+                                            <span class="inline-flex items-center rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-bold text-green-700">
+                                                <i class="fas fa-circle-check mr-1.5"></i>Abierto
+                                            </span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="px-6 py-4 min-w-72 text-left text-sm <?php echo ($turno['estado'] ?? 'abierto') === 'fallido' ? 'font-medium text-amber-900' : 'text-gray-600'; ?>">
+                                        <?php echo htmlspecialchars($turno['motivo'] ?: '—'); ?>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -382,7 +398,7 @@ function formatearDiscoHistorial($disco) {
                     rango.classList.add('hidden');
                     tabla.innerHTML = `
                         <tr>
-                            <td colspan="3" class="px-6 py-12 text-center text-gray-500">
+                            <td colspan="5" class="px-6 py-12 text-center text-gray-500">
                                 <i class="fas fa-clock text-3xl mb-3 text-gray-300"></i>
                                 <p>No se encontraron turnos con los filtros seleccionados.</p>
                             </td>
@@ -391,12 +407,18 @@ function formatearDiscoHistorial($disco) {
                     rango.textContent = `Mostrando ${datos.primero}–${datos.ultimo} de ${datos.total}`;
                     rango.classList.remove('hidden');
                     tabla.innerHTML = datos.turnos.map((turno) => `
-                        <tr class="hover:bg-gray-50 transition-colors">
+                        <tr class="${turno.estado === 'fallido' ? 'bg-amber-50/70 hover:bg-amber-100/70' : 'hover:bg-gray-50'} transition-colors">
                             <td class="px-6 py-4 whitespace-nowrap text-center">
                                 <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-blue-100 text-blue-800 border border-blue-200">${escapar(turno.disco)}</span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-mono font-semibold text-gray-700">${escapar(turno.codigo_conductor || 'Sin código')}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-700">${escapar(turno.fecha_apertura)}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-center">
+                                ${turno.estado === 'fallido'
+                                    ? '<span class="inline-flex items-center rounded-full border border-amber-300 bg-amber-100/80 px-3 py-1 text-xs font-bold text-amber-800"><i class="fas fa-triangle-exclamation mr-1.5"></i>Fallido</span>'
+                                    : '<span class="inline-flex items-center rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-bold text-green-700"><i class="fas fa-circle-check mr-1.5"></i>Abierto</span>'}
+                            </td>
+                            <td class="px-6 py-4 min-w-72 text-left text-sm ${turno.estado === 'fallido' ? 'font-medium text-amber-900' : 'text-gray-600'}">${escapar(turno.motivo || '—')}</td>
                         </tr>`).join('');
                 }
 
