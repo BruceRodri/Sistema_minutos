@@ -5,6 +5,7 @@
 
 CREATE DATABASE IF NOT EXISTS sistema_minutos_db;
 USE sistema_minutos_db;
+SET time_zone = '-05:00';
 
 -- 1. TABLA ROL
 CREATE TABLE rol (
@@ -66,11 +67,24 @@ CREATE TABLE turno (
     bus_id INT NOT NULL,
     fecha DATE NOT NULL,
     hora_apertura TIME NOT NULL,
+    hora_cierre TIME NOT NULL DEFAULT '23:59:00',
     activo TINYINT(1) DEFAULT 1,
     FOREIGN KEY (usuario_id) REFERENCES usuario(id),
     FOREIGN KEY (bus_id) REFERENCES bus(id),
-    UNIQUE KEY unq_bus_fecha (bus_id, fecha)
+    UNIQUE KEY unq_bus_fecha (bus_id, fecha),
+    UNIQUE KEY unq_conductor_fecha (usuario_id, fecha)
 );
+
+-- Cierra físicamente los turnos al terminar el día en horario de Ecuador.
+DROP EVENT IF EXISTS cerrar_turnos_diarios;
+CREATE EVENT cerrar_turnos_diarios
+    ON SCHEDULE EVERY 1 MINUTE
+    ON COMPLETION PRESERVE
+    ENABLE
+    DO UPDATE turno
+       SET activo = 0
+     WHERE activo = 1
+       AND TIMESTAMP(fecha, hora_cierre) <= NOW();
 
 -- ============================================================
 -- DATOS INICIALES RECOMENDADOS

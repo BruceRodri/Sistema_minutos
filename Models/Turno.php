@@ -7,6 +7,7 @@ class Turno {
     public $bus_id;
     public $fecha;
     public $hora_apertura;
+    public $hora_cierre;
     public $activo;
 }
 ?>
