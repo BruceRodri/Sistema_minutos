@@ -34,7 +34,7 @@ $totalBuses = count($listaBuses);
                 <h2 class="text-xl md:text-2xl font-bold text-gray-800 text-transparent bg-clip-text bg-gradient-to-r from-blue-700 to-gray-800">
                     Buses
                 </h2>
-                <p class="text-xs text-gray-500">Visualización de discos y sus códigos QR</p>
+                <p class="text-xs text-gray-500">Gestión de discos: QR, edición, estado y eliminación</p>
             </div>
             <a href="crear_bus.php" class="bg-gradient-to-r from-blue-600 to-blue-800 hover:from-blue-700 hover:to-blue-900 text-white px-5 py-2 rounded-lg shadow-lg transition-all text-sm font-bold flex items-center">
                 <i class="fas fa-circle-plus mr-2"></i> Nuevo Bus
@@ -101,16 +101,24 @@ $totalBuses = count($listaBuses);
                                     <?php endif; ?>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-center">
-                                    <button class="btnVerQR text-blue-700 hover:text-white bg-blue-50 hover:bg-blue-700 border border-blue-200 text-xs font-bold px-3 py-2 rounded-lg transition-all mr-1"
-                                            data-disco="<?php echo htmlspecialchars($bus['disco']); ?>">
-                                        <i class="fas fa-qrcode mr-1"></i> Ver QR
-                                    </button>
-                                    <button class="btnToggleBus text-xs font-bold px-3 py-2 rounded-lg transition-all <?php echo ($bus['activo'] == 1) ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-green-600 hover:bg-green-700 text-white'; ?>"
-                                            data-bus-id="<?php echo $bus['id']; ?>"
-                                            data-estado="<?php echo $bus['activo']; ?>"
-                                            data-disco="<?php echo htmlspecialchars($bus['disco']); ?>">
-                                        <?php echo ($bus['activo'] == 1) ? '<i class="fas fa-ban mr-1"></i> Deshabilitar' : '<i class="fas fa-check-circle mr-1"></i> Habilitar'; ?>
-                                    </button>
+                                    <div class="flex flex-wrap justify-center gap-1">
+                                        <button class="btnVerQR text-blue-700 hover:text-white bg-blue-50 hover:bg-blue-700 border border-blue-200 text-xs font-bold px-3 py-2 rounded-lg transition-all"
+                                                data-disco="<?php echo htmlspecialchars($bus['disco']); ?>">
+                                            <i class="fas fa-qrcode mr-1"></i> QR
+                                        </button>
+                                        <button class="btnEditarBus text-yellow-700 hover:text-white bg-yellow-50 hover:bg-yellow-600 border border-yellow-200 text-xs font-bold px-3 py-2 rounded-lg transition-all"
+                                                data-id="<?php echo $bus['id']; ?>"
+                                                data-disco="<?php echo htmlspecialchars($bus['disco']); ?>"
+                                                data-placa="<?php echo htmlspecialchars($bus['placa']); ?>">
+                                            <i class="fas fa-pen mr-1"></i> Editar
+                                        </button>
+                                        <button class="btnToggleBus text-xs font-bold px-3 py-2 rounded-lg transition-all <?php echo ($bus['activo'] == 1) ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-green-600 hover:bg-green-700 text-white'; ?>"
+                                                data-bus-id="<?php echo $bus['id']; ?>"
+                                                data-estado="<?php echo $bus['activo']; ?>"
+                                                data-disco="<?php echo htmlspecialchars($bus['disco']); ?>">
+                                            <?php echo ($bus['activo'] == 1) ? '<i class="fas fa-ban mr-1"></i> Deshabilitar' : '<i class="fas fa-check-circle mr-1"></i> Habilitar'; ?>
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                             <?php endforeach; ?>
@@ -133,6 +141,32 @@ $totalBuses = count($listaBuses);
             <button id="btnCerrarQR" class="mt-6 w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2.5 px-4 rounded-xl transition-all">
                 Cerrar
             </button>
+        </div>
+    </div>
+
+    <!-- Modal Editar Bus -->
+    <div id="modalEditar" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-6">
+        <div class="bg-white rounded-2xl p-8 w-full max-w-sm shadow-2xl">
+            <div class="mb-6 w-12 h-12 mx-auto rounded-full bg-blue-100 flex items-center justify-center">
+                <i class="fas fa-pen text-blue-600 text-xl"></i>
+            </div>
+            <h3 class="text-xl font-bold text-gray-800 text-center mb-6">Editar Bus</h3>
+
+            <form id="formEditarBus">
+                <input type="hidden" id="editId" name="id">
+                <div class="mb-4">
+                    <label for="editDisco" class="block text-gray-600 text-sm font-bold mb-2">Número de Disco</label>
+                    <input type="text" id="editDisco" name="disco" required class="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
+                </div>
+                <div class="mb-6">
+                    <label for="editPlaca" class="block text-gray-600 text-sm font-bold mb-2">Placa</label>
+                    <input type="text" id="editPlaca" name="placa" class="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
+                </div>
+                <div class="flex gap-3">
+                    <button type="button" id="btnCancelarEditar" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2.5 px-4 rounded-lg transition-all">Cancelar</button>
+                    <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-4 rounded-lg transition-all">Guardar</button>
+                </div>
+            </form>
         </div>
     </div>
 

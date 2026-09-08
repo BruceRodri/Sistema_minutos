@@ -42,14 +42,11 @@ $rolesAdmin = ['admin', 'secretaria', 'operativo'];
         <?php if(in_array($rol, $rolesAdmin)): ?>
         <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 mt-4 px-4">Administración</p>
 
-            <a href="buses.php" class="flex items-center px-4 py-3 rounded-lg transition-colors <?php echo (in_array($paginaActual, ['buses.php', 'crear_bus.php', 'lista_buses.php'])) ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-800 hover:text-white'; ?>">
+            <a href="buses.php" class="flex items-center px-4 py-3 rounded-lg transition-colors <?php echo (in_array($paginaActual, ['buses.php', 'crear_bus.php'])) ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-800 hover:text-white'; ?>">
                 <i class="fas fa-bus w-6"></i><span>Buses</span>
             </a>
             <a href="crear_bus.php" class="flex items-center pl-9 pr-4 py-2.5 rounded-lg transition-colors <?php echo ($paginaActual == 'crear_bus.php') ? 'bg-blue-600/40 text-white' : 'text-gray-500 hover:bg-gray-800 hover:text-white'; ?>">
                 <i class="fas fa-circle-plus w-5 mr-1"></i><span class="text-sm">Crear Bus</span>
-            </a>
-            <a href="lista_buses.php" class="flex items-center pl-9 pr-4 py-2.5 rounded-lg transition-colors <?php echo ($paginaActual == 'lista_buses.php') ? 'bg-blue-600/40 text-white' : 'text-gray-500 hover:bg-gray-800 hover:text-white'; ?>">
-                <i class="fas fa-list w-5 mr-1"></i><span class="text-sm">Lista de Buses</span>
             </a>
 
             <a href="turnos.php" class="flex items-center px-4 py-3 rounded-lg transition-colors <?php echo ($paginaActual == 'turnos.php') ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-800 hover:text-white'; ?>">

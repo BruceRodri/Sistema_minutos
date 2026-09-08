@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (data.status === 'success') {
                     mostrarAlerta(alerta, 'success', data.message);
                     formCrearBus.reset();
-                    setTimeout(() => { window.location.href = 'lista_buses.php'; }, 800);
+                    setTimeout(() => { window.location.href = 'buses.php'; }, 800);
                 } else {
                     mostrarAlerta(alerta, 'error', data.message);
                 }
