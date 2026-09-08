@@ -12,7 +12,12 @@ require_once '../../Dao/ValoresDao.php';
 
 $nombreCorto = explode(' ', $_SESSION['nombre'] ?? 'Conductor')[0];
 $dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-$diaSemana = $dias[(int)date('w')];
+
+function formatearFecha($fecha) {
+    global $dias;
+    $ts = strtotime($fecha);
+    return $dias[(int)date('w', $ts)] . ' ' . date('d/m/Y', $ts);
+}
 
 $valoresDao = new ValoresDao($conexion);
 $valoresDao->sincronizarTurnosConArchivo();
@@ -20,24 +25,37 @@ $valoresDao->sincronizarTurnosConArchivo();
 $pagoDao = new PagoDao($conexion);
 $turnoHoy = $pagoDao->obtenerTurnoHoyConductor($_SESSION['usuario_id']);
 
-$disco = $_SESSION['turno_disco'] ?? null;
-if ($disco === null && $turnoHoy) {
-    $disco = $turnoHoy['disco'];
-}
-$discoMostrar = $disco !== null ? htmlspecialchars($disco) : '--';
+$pagables = [];
 
-$montoHoy = $turnoHoy ? (float)$turnoHoy['valor'] : 0.00;
-$montoMostrar = number_format($montoHoy, 2, '.', ',');
-$rutaHoy = $turnoHoy ? ($turnoHoy['ruta'] ?: 'Sin ruta') : '--';
-$hoyPagado = $turnoHoy && (int)$turnoHoy['pagado'] === 1;
-$valorDisponible = $turnoHoy && (float)$turnoHoy['valor'] > 0;
-
-$pendientes = $pagoDao->obtenerTurnosPendientesConductor($_SESSION['usuario_id']);
-function formatearFecha($fecha) {
-    global $dias;
-    $ts = strtotime($fecha);
-    return $dias[(int)date('w', $ts)] . ' ' . date('d/m/Y', $ts);
+if ($turnoHoy && (int)$turnoHoy['pagado'] === 0 && (float)$turnoHoy['valor'] > 0) {
+    $pagables[] = [
+        'id' => (int)$turnoHoy['id'],
+        'fecha' => $turnoHoy['fecha'],
+        'valor' => (float)$turnoHoy['valor'],
+        'ruta' => $turnoHoy['ruta'] ?: 'Sin ruta',
+        'disco' => $turnoHoy['disco'],
+        'hoy' => true
+    ];
 }
+
+foreach ($pagoDao->obtenerTurnosPendientesConductor($_SESSION['usuario_id']) as $t) {
+    $pagables[] = [
+        'id' => (int)$t['id'],
+        'fecha' => $t['fecha'],
+        'valor' => (float)$t['valor'],
+        'ruta' => $t['ruta'] ?: 'Sin ruta',
+        'disco' => $t['disco'],
+        'hoy' => false
+    ];
+}
+
+foreach ($pagables as $i => $p) {
+    $pagables[$i]['fechaLegible'] = formatearFecha($p['fecha']);
+    $pagables[$i]['valorFmt'] = number_format($p['valor'], 2, '.', ',');
+}
+
+$discoInicial = $_SESSION['turno_disco']
+    ?? ($turnoHoy ? $turnoHoy['disco'] : null);
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -51,123 +69,216 @@ function formatearFecha($fecha) {
 </head>
 <body class="bg-gradient-to-b from-blue-50 to-gray-100 min-h-screen text-gray-800">
 
-    <div class="flex flex-col min-h-screen max-w-xl mx-auto px-6 pt-6 pb-28">
+    <!-- Navegación superior (escritorio) -->
+    <nav class="hidden lg:flex fixed top-0 left-0 right-0 bg-white border-b border-gray-200 shadow-sm z-30">
+        <div class="w-full max-w-7xl mx-auto flex items-center justify-between px-10 py-4">
+            <span class="font-bold text-gray-800 text-lg"><i class="fas fa-clock text-blue-600 mr-2"></i>Minutos</span>
+            <div class="flex gap-2">
+                <a href="dashboard.php" class="px-5 py-2.5 rounded-xl font-semibold text-gray-500 hover:bg-gray-100 hover:text-blue-600 transition-colors">
+                    <i class="fas fa-user mr-2"></i>Perfil
+                </a>
+                <a href="pagar.php" class="px-5 py-2.5 rounded-xl font-bold text-white bg-blue-600 shadow-lg transition-colors">
+                    <i class="fas fa-money-bill-wave mr-2"></i>Pagar
+                </a>
+                <a href="pagos.php" class="px-5 py-2.5 rounded-xl font-semibold text-gray-500 hover:bg-gray-100 hover:text-blue-600 transition-colors">
+                    <i class="fas fa-receipt mr-2"></i>Pagos realizados
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="flex flex-col min-h-screen max-w-7xl mx-auto px-4 pt-6 lg:px-10 lg:pt-20 pb-32 lg:pb-16">
 
         <!-- Encabezado -->
-        <header class="flex items-center justify-between gap-3">
-            <div>
-                <p class="text-lg text-gray-500">Hola,</p>
-                <h1 class="text-3xl font-bold text-gray-800 truncate"><?php echo htmlspecialchars($nombreCorto); ?></h1>
+        <header class="lg:mt-8 mb-6 lg:mb-12 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 lg:w-16 lg:h-16 rounded-full bg-blue-600 text-white flex items-center justify-center text-xl lg:text-2xl font-extrabold shadow-lg">
+                    <?php echo htmlspecialchars(mb_strtoupper(mb_substr($nombreCorto, 0, 1))); ?>
+                </div>
+                <div>
+                    <p class="text-lg lg:text-2xl text-gray-500">Hola,</p>
+                    <h1 class="text-3xl lg:text-5xl font-bold text-gray-800 truncate"><?php echo htmlspecialchars($nombreCorto); ?></h1>
+                </div>
             </div>
-            <div class="bg-blue-600 text-white font-bold text-xl px-5 py-2.5 rounded-full shadow-lg whitespace-nowrap">
-                Disco <?php echo $discoMostrar; ?>
+
+            <div class="relative flex items-center gap-3 bg-white rounded-2xl border-2 border-blue-200 shadow-sm px-5 py-3 lg:py-4">
+                <label for="buscarDisco" class="text-lg lg:text-2xl font-bold text-gray-600 whitespace-nowrap">
+                    <i class="fas fa-compact-disc text-blue-600 mr-1.5"></i>Disco
+                </label>
+                <input type="text" id="buscarDisco" name="buscarDisco" inputmode="numeric" autocomplete="off" maxlength="6"
+                    placeholder="Buscar…"
+                    class="w-24 lg:w-44 text-2xl lg:text-4xl font-extrabold text-blue-700 outline-none bg-transparent placeholder:font-normal placeholder:text-gray-400">
+                <button id="limpiarDisco" type="button" title="Limpiar" class="hidden text-gray-400 hover:text-red-500 transition-colors">
+                    <i class="fas fa-times-circle text-2xl"></i>
+                </button>
+                <div id="listaDiscos" class="hidden absolute left-0 right-0 top-full mt-2 bg-white border-2 border-blue-100 rounded-2xl shadow-2xl overflow-hidden z-20"></div>
             </div>
         </header>
 
-        <!-- Día de la semana -->
-        <p class="text-center text-xl font-semibold text-gray-500 mt-4"><?php echo $diaSemana; ?></p>
+        <!-- ================= VISTA CARRUSEL ================= -->
+        <section id="vistaCarousel">
 
-        <!-- Monto a pagar (hoy) -->
-        <div class="mt-6">
-            <div class="bg-gradient-to-br from-blue-500 to-blue-700 rounded-3xl p-8 shadow-xl text-center">
-                <p class="text-blue-100 text-lg font-bold uppercase tracking-widest mb-4">Valor del turno de hoy</p>
-                <div class="text-7xl font-extrabold text-white mb-3">
-                    <span class="align-top text-4xl">$</span><?php echo $montoMostrar; ?>
-                </div>
-                <p class="text-blue-200 text-base mb-1">Ruta: <span class="font-bold text-white"><?php echo htmlspecialchars($rutaHoy); ?></span></p>
-                <p class="text-blue-200 text-sm">Corresponde únicamente al turno del día de hoy.</p>
+            <div id="sinSeleccion" class="bg-white rounded-3xl p-10 text-center shadow-sm border-2 border-dashed border-blue-200">
+                <i class="fas fa-compact-disc text-blue-300 text-6xl mb-4"></i>
+                <p class="text-2xl lg:text-3xl font-bold text-gray-700 mb-2">Selecciona un disco</p>
+                <p class="text-xl lg:text-2xl text-gray-500">Usa la casilla <span class="font-bold text-blue-700">Disco</span> de arriba para ver los turnos pendientes de pago.</p>
             </div>
 
-            <div id="alertaComprobante" class="hidden mt-6 p-4 rounded-2xl text-base text-center"></div>
+            <button id="verVarios" type="button"
+                class="hidden w-full mb-6 lg:mb-8 flex items-center justify-center gap-3 text-xl lg:text-2xl font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border-2 border-blue-200 rounded-2xl py-5 lg:py-6 px-4 transition-colors">
+                <i class="fas fa-calendar-check text-3xl"></i>
+                ¿Prefieres agrupar pagos de varios días?
+            </button>
 
-            <?php if ($turnoHoy && !$hoyPagado && $valorDisponible): ?>
-            <div class="mt-6">
-                <input type="file" id="inputComprobante" accept="image/*,application/pdf" class="hidden">
-                <button id="btnComprobante" type="button"
-                    class="w-full bg-green-600 hover:bg-green-700 active:scale-95 transition-all text-white text-xl font-bold py-5 px-4 rounded-2xl shadow-lg flex items-center justify-center gap-3">
-                    <i class="fas fa-paper-plane text-2xl"></i>
-                    Subir Comprobante
-                </button>
-                <p id="archivoSeleccionado" class="hidden mt-3 text-center text-lg text-gray-600 truncate px-2"></p>
-            </div>
-            <?php elseif ($turnoHoy && $hoyPagado): ?>
-            <div class="mt-6 w-full bg-green-100 border border-green-300 text-green-800 text-xl font-bold py-5 px-4 rounded-2xl text-center">
-                <i class="fas fa-check-circle mr-2"></i> Turno de hoy ya pagado
-            </div>
-            <?php elseif ($turnoHoy): ?>
-            <div class="mt-6 w-full bg-amber-50 border border-amber-300 text-amber-800 text-base font-bold py-4 px-4 rounded-2xl text-center">
-                <i class="fas fa-clock mr-2"></i> Valor pendiente de carga por el administrador
-            </div>
-            <?php else: ?>
-            <p class="mt-6 text-center text-lg text-gray-500 italic">Aún no has abierto un turno hoy.</p>
-            <?php endif; ?>
-        </div>
+            <div id="bloqueCarrusel" class="hidden">
+                <div id="carrusel" class="relative px-12 md:px-0 flex flex-col items-center gap-4 md:grid md:grid-cols-2 xl:grid-cols-3 md:gap-6">
 
-        <!-- Pagar varios días -->
-        <div class="mt-10">
-            <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-3">
-                <i class="fas fa-calendar-check text-blue-600"></i> Pagar varios días
-            </h2>
-            <p class="text-gray-500 mt-1 mb-4">Selecciona los días atrasados que quieres pagar.</p>
-
-            <?php if (empty($pendientes)): ?>
-                <div class="bg-white rounded-2xl p-6 text-center shadow-sm border border-gray-200">
-                    <i class="fas fa-check-circle text-green-500 text-3xl mb-2"></i>
-                    <p class="text-lg text-gray-600">No tienes días pendientes de pago.</p>
-                </div>
-            <?php else: ?>
-                <form id="formPagarVarios">
-                    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 divide-y divide-gray-100 max-h-96 overflow-y-auto">
-                        <?php foreach ($pendientes as $t): ?>
-                        <label class="flex items-center gap-3 p-4 cursor-pointer hover:bg-blue-50 transition-colors">
-                            <input type="checkbox" name="turnos_ids[]" value="<?php echo $t['id']; ?>"
-                                   class="checkDia w-6 h-6 accent-blue-600 shrink-0"
-                                   data-valor="<?php echo (float)$t['valor']; ?>">
-                            <div class="flex-1 min-w-0">
-                                <p class="font-bold text-gray-800"><?php echo formatearFecha($t['fecha']); ?></p>
-                                <p class="text-sm text-gray-500 truncate">Disco <?php echo htmlspecialchars($t['disco']); ?> · <?php echo htmlspecialchars($t['ruta'] ?: 'Sin ruta'); ?></p>
+                    <?php foreach ($pagables as $card): ?>
+                    <article data-id="<?php echo $card['id']; ?>"
+                             data-disco="<?php echo htmlspecialchars($card['disco']); ?>"
+                             data-fecha="<?php echo htmlspecialchars($card['fechaLegible']); ?>"
+                             data-valor="<?php echo $card['valorFmt']; ?>"
+                             class="cardPagar w-full max-w-sm md:w-auto md:max-w-none min-h-0 bg-gradient-to-br from-blue-500 to-blue-700 rounded-3xl p-7 lg:p-9 shadow-xl text-white cursor-pointer active:scale-95 transition-transform">
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <p class="text-blue-100 text-sm lg:text-base font-bold uppercase tracking-widest"><?php echo $card['hoy'] ? 'Turno de hoy' : 'Turno pendiente'; ?></p>
+                                <p class="text-2xl lg:text-3xl font-bold mt-1"><?php echo htmlspecialchars($card['fechaLegible']); ?></p>
                             </div>
-                            <p class="font-bold text-blue-700 text-lg whitespace-nowrap">$ <?php echo number_format((float)$t['valor'], 2, '.', ','); ?></p>
+                            <span class="bg-white text-blue-700 font-extrabold px-4 py-2 rounded-full text-lg lg:text-xl shadow whitespace-nowrap">Disco <?php echo htmlspecialchars($card['disco']); ?></span>
+                        </div>
+                        <div class="mt-9 lg:mt-11 text-center">
+                            <div class="text-7xl lg:text-8xl font-extrabold leading-none">
+                                <span class="align-top text-4xl lg:text-5xl">$</span><?php echo $card['valorFmt']; ?>
+                            </div>
+                        </div>
+                        <div class="mt-9 lg:mt-11 flex items-center gap-3 justify-center bg-white/20 rounded-2xl px-4 py-4">
+                            <i class="fas fa-route text-2xl"></i>
+                            <span class="text-xl lg:text-2xl font-bold truncate"><?php echo htmlspecialchars($card['ruta']); ?></span>
+                        </div>
+                    </article>
+                    <?php endforeach; ?>
+                </div>
+
+                <button id="btnAnterior" type="button" aria-label="Anterior"
+                    class="md:hidden absolute left-0 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white shadow-xl text-blue-700 text-2xl flex items-center justify-center hover:scale-110 transition-transform">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <button id="btnSiguiente" type="button" aria-label="Siguiente"
+                    class="md:hidden absolute right-0 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white shadow-xl text-blue-700 text-2xl flex items-center justify-center hover:scale-110 transition-transform">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+
+                <p id="sinResultadosDisco" class="hidden mt-6 text-center text-xl lg:text-2xl text-gray-500 italic">
+                    No hay turnos para el disco seleccionado.
+                </p>
+            </div>
+
+            <div id="alertaTarjetas" class="hidden mt-6 p-5 rounded-2xl text-center"></div>
+        </section>
+
+        <!-- ================= VISTA PAGO MULTIPLE ================= -->
+        <section id="vistaMulti" class="hidden">
+
+            <button id="volverTarjetas" type="button"
+                class="mb-5 flex items-center gap-3 text-xl lg:text-2xl font-bold text-gray-600 hover:text-blue-700 transition-colors">
+                <i class="fas fa-arrow-left text-2xl"></i> Volver a las tarjetas
+            </button>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10 items-start">
+
+                <!-- Lista de días pendientes -->
+                <div class="bg-white rounded-3xl shadow-sm border border-gray-200 divide-y divide-gray-100 overflow-hidden">
+                    <?php if (empty($pagables)): ?>
+                        <div class="p-8 text-center">
+                            <i class="fas fa-circle-check text-green-500 text-4xl mb-3"></i>
+                            <p class="text-2xl text-gray-600">No tienes días pendientes de pago.</p>
+                        </div>
+                    <?php else: ?>
+                        <?php foreach ($pagables as $dia): ?>
+                        <label class="checkDiaFila flex items-center gap-4 p-5 lg:p-6 cursor-pointer hover:bg-blue-50 transition-colors">
+                            <input type="checkbox" class="checkDia w-7 h-7 lg:w-8 lg:h-8 accent-blue-600 shrink-0"
+                                   value="<?php echo $dia['id']; ?>"
+                                   data-valor="<?php echo $dia['valor']; ?>"
+                                   data-disco="<?php echo htmlspecialchars($dia['disco']); ?>"
+                                   data-fecha="<?php echo htmlspecialchars($dia['fechaLegible']); ?>"
+                                   data-valorfmt="<?php echo $dia['valorFmt']; ?>">
+                            <div class="flex-1 min-w-0">
+                                <p class="font-bold text-gray-800 text-xl lg:text-2xl"><?php echo htmlspecialchars($dia['fechaLegible']); ?></p>
+                                <p class="text-lg text-gray-500 truncate mt-1">
+                                    <i class="fas fa-route mr-1"></i><?php echo htmlspecialchars($dia['ruta']); ?>
+                                    <span class="mx-1">·</span>Disco <?php echo htmlspecialchars($dia['disco']); ?>
+                                </p>
+                            </div>
+                            <p class="font-extrabold text-blue-700 text-2xl lg:text-3xl whitespace-nowrap">$ <?php echo $dia['valorFmt']; ?></p>
                         </label>
                         <?php endforeach; ?>
-                    </div>
+                    <?php endif; ?>
+                </div>
 
-                    <div id="alertaVarios" class="hidden mt-4 p-4 rounded-2xl text-base text-center"></div>
+                <!-- Resumen total -->
+                <div class="bg-gradient-to-br from-blue-600 to-blue-800 rounded-3xl p-6 lg:p-9 text-white shadow-xl lg:sticky lg:top-24">
+                    <p class="text-blue-100 text-xl lg:text-2xl font-bold uppercase tracking-widest mb-3">Total a pagar</p>
+                    <p class="text-6xl lg:text-7xl font-extrabold mb-2"><span class="align-top text-4xl lg:text-5xl">$</span><span id="totalVarios">0.00</span></p>
+                    <p id="detalleVarios" class="text-blue-200 text-lg lg:text-xl mt-1 mb-7">Selecciona al menos un día.</p>
 
-                    <div class="mt-4 bg-white rounded-2xl shadow-sm border border-gray-200 p-4 flex justify-between items-center">
-                        <span class="text-lg font-semibold text-gray-600">Total a pagar</span>
-                        <span id="totalVarios" class="text-3xl font-extrabold text-blue-700">$ 0.00</span>
-                    </div>
-
-                    <input type="file" id="inputVarios" accept="image/*,application/pdf" class="hidden">
+                    <input type="file" id="inputComprobante" accept="image/*,application/pdf" class="hidden">
                     <button id="btnPagarVarios" type="button"
-                        class="mt-4 w-full bg-blue-600 hover:bg-blue-700 active:scale-95 transition-all text-white text-xl font-bold py-5 px-4 rounded-2xl shadow-lg flex items-center justify-center gap-3">
-                        <i class="fas fa-paper-plane text-2xl"></i>
-                        Subir comprobante de los días seleccionados
+                        class="w-full bg-green-500 hover:bg-green-400 active:scale-95 transition-all text-white text-xl lg:text-2xl font-bold py-5 lg:py-6 px-4 rounded-2xl shadow-lg flex items-center justify-center gap-3">
+                        <i class="fas fa-upload text-3xl"></i>
+                        Subir comprobante
                     </button>
-                </form>
-            <?php endif; ?>
+                    <div id="alertaVarios" class="hidden mt-4 p-5 rounded-2xl text-center"></div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Modal de confirmación -->
+    <div id="modalConfirmar" class="hidden fixed inset-0 z-50 items-center justify-center p-4">
+        <div id="modalFondo" class="absolute inset-0 bg-black/60"></div>
+        <div class="relative bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 lg:p-10 text-center">
+            <div class="w-20 h-20 lg:w-24 lg:h-24 mx-auto rounded-full bg-amber-100 flex items-center justify-center mb-5">
+                <i class="fas fa-triangle-exclamation text-amber-500 text-4xl lg:text-5xl"></i>
+            </div>
+            <h3 class="text-3xl lg:text-4xl font-extrabold text-gray-800 mb-4">Confirmar pago</h3>
+            <p id="modalMensaje" class="text-gray-600 text-xl lg:text-2xl mb-8"></p>
+            <div class="grid grid-cols-2 gap-3">
+                <button id="modalCancelar" type="button"
+                    class="py-4 lg:py-5 rounded-xl font-bold text-xl lg:text-2xl text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors">
+                    Cancelar
+                </button>
+                <button id="modalAceptar" type="button"
+                    class="py-4 lg:py-5 rounded-xl font-bold text-xl lg:text-2xl text-white bg-blue-600 hover:bg-blue-700 transition-colors">
+                    <i class="fas fa-check mr-1.5"></i>Sí, pagar
+                </button>
+            </div>
         </div>
     </div>
 
-    <!-- Barra de navegación inferior -->
-    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 max-w-xl mx-auto shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
-        <div class="grid grid-cols-3 w-full">
-            <a href="dashboard.php" class="flex flex-col items-center py-3.5 text-gray-500 hover:text-blue-600 transition-colors">
+    <!-- Barra de navegación inferior (móvil) -->
+    <nav class="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
+        <div class="grid grid-cols-3 w-full max-w-xl mx-auto">
+            <a href="dashboard.php" class="flex flex-col items-center py-3 text-gray-500 hover:text-blue-600 transition-colors">
                 <i class="fas fa-user text-2xl"></i>
-                <span class="text-sm font-semibold mt-1">Perfil</span>
+                <span class="text-base font-semibold mt-1">Perfil</span>
             </a>
-            <a href="pagar.php" class="flex flex-col items-center py-3.5 text-white bg-blue-600 rounded-t-xl -mt-1 shadow-lg transition-colors">
+            <a href="pagar.php" class="flex flex-col items-center py-3 text-white bg-blue-600 rounded-t-xl -mt-1 shadow-lg transition-colors">
                 <i class="fas fa-money-bill-wave text-2xl"></i>
-                <span class="text-sm font-bold mt-1">Pagar</span>
+                <span class="text-base font-bold mt-1">Pagar</span>
             </a>
-            <a href="pagos.php" class="flex flex-col items-center py-3.5 text-gray-500 hover:text-blue-600 transition-colors">
+            <a href="pagos.php" class="flex flex-col items-center py-3 text-gray-500 hover:text-blue-600 transition-colors">
                 <i class="fas fa-receipt text-2xl"></i>
-                <span class="text-sm font-semibold mt-1">Pagos realizados</span>
+                <span class="text-base font-semibold mt-1">Pagos realizados</span>
             </a>
         </div>
     </nav>
 
+    <script id="datosPagar" type="application/json">
+    <?php echo json_encode([
+        'pagables' => $pagables,
+        'discoInicial' => $discoInicial
+    ], JSON_UNESCAPED_UNICODE); ?>
+    </script>
     <script src="../../Assets/js/pagar.js"></script>
 </body>
 </html>

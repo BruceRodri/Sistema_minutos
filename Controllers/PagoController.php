@@ -77,6 +77,15 @@ $valoresDao->sincronizarTurnosConArchivo();
 $pagoDao = new PagoDao($conexion);
 $turnosIds = [];
 
+if ($accion === 'listar_discos') {
+    $q = isset($_POST['q']) ? preg_replace('/\D+/', '', (string)$_POST['q']) : '';
+    echo json_encode([
+        'status' => 'success',
+        'discos' => $pagoDao->obtenerDiscosConductor($_SESSION['usuario_id'], $q)
+    ]);
+    exit;
+}
+
 if ($accion === 'enviar_comprobante') {
     $turnoHoy = $pagoDao->obtenerTurnoHoyConductor($_SESSION['usuario_id']);
     if (!$turnoHoy || (int)$turnoHoy['pagado'] === 1) {

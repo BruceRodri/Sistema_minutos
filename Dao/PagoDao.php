@@ -46,6 +46,32 @@ class PagoDao {
         return $stmt->fetchAll();
     }
 
+    public function obtenerDiscosConductor($usuarioId, $q = '', $limite = 10) {
+        $sql = "SELECT DISTINCT b.disco
+                FROM turno t
+                INNER JOIN bus b ON t.bus_id = b.id
+                WHERE t.usuario_id = :usuario_id
+                  AND t.pagado = 0
+                  AND t.valor > 0
+                  AND t.fecha <= CURDATE()";
+        $parametros = [':usuario_id' => $usuarioId];
+
+        if ($q !== '') {
+            $sql .= " AND (b.disco LIKE :q OR CAST(b.disco AS UNSIGNED) LIKE :q_normalizado)";
+            $parametros[':q'] = $q . '%';
+            $parametros[':q_normalizado'] = ltrim($q, '0') . '%';
+        }
+
+        $sql .= " ORDER BY CAST(b.disco AS UNSIGNED) ASC LIMIT :limite";
+        $stmt = $this->conexion->prepare($sql);
+        foreach ($parametros as $nombre => $valor) {
+            $stmt->bindValue($nombre, $valor, PDO::PARAM_STR);
+        }
+        $stmt->bindValue(':limite', max(1, (int)$limite), PDO::PARAM_INT);
+        $stmt->execute();
+        return array_map(fn($fila) => $fila['disco'], $stmt->fetchAll());
+    }
+
     public function registrarPago($usuarioId, array $turnosIds, $comprobante) {
         $turnosIds = array_values(array_unique(array_filter(array_map('intval', $turnosIds))));
         if (empty($turnosIds)) {
