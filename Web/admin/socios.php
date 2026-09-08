@@ -53,10 +53,10 @@ foreach ($sociosConBuses as $fila) {
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Cédula</th>
+                            <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Cédula</th>
                             <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Nombres</th>
                             <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Apellidos</th>
-                            <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Discos</th>
+                            <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Discos</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
@@ -70,7 +70,7 @@ foreach ($sociosConBuses as $fila) {
                         <?php else: ?>
                             <?php foreach ($sociosAgrupados as $socio): ?>
                             <tr class="hover:bg-gray-50 transition-colors align-top">
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-700">
+                                <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-mono text-gray-700">
                                     <?php echo htmlspecialchars($socio['cedula']); ?>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">

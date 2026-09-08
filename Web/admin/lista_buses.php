@@ -41,8 +41,8 @@ $totalBuses = count($listaBuses);
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Disco</th>
-                            <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Placa</th>
+                            <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Disco</th>
+                            <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Placa</th>
                             <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Estado</th>
                             <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Acciones</th>
                         </tr>
@@ -58,12 +58,12 @@ $totalBuses = count($listaBuses);
                         <?php else: ?>
                             <?php foreach ($listaBuses as $bus): ?>
                             <tr class="hover:bg-gray-50 transition-colors">
-                                <td class="px-6 py-4 whitespace-nowrap">
+                                <td class="px-6 py-4 whitespace-nowrap text-center">
                                     <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-blue-100 text-blue-800 border border-blue-200">
                                         Disco <?php echo htmlspecialchars($bus['disco']); ?>
                                     </span>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-700">
+                                <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-mono text-gray-700">
                                     <?php echo htmlspecialchars($bus['placa']); ?>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-center">
