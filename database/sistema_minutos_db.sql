@@ -60,17 +60,33 @@ CREATE TABLE usuario_bus (
     FOREIGN KEY (bus_id) REFERENCES bus(id)
 );
 
--- 6. TABLA TURNO (1 TURNO POR BUS AL DIA)
+-- 6. TABLA PAGO (REGISTRO DE UNO O VARIOS TURNOS PAGADOS)
+CREATE TABLE pago (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    usuario_id INT NOT NULL,
+    monto_total DECIMAL(10,2) NOT NULL,
+    fecha_pago DATE NOT NULL,
+    comprobante VARCHAR(255) NULL,
+    activo TINYINT(1) DEFAULT 1,
+    FOREIGN KEY (usuario_id) REFERENCES usuario(id)
+);
+
+-- 7. TABLA TURNO (UNO POR BUS Y UNO POR CONDUCTOR AL DIA)
 CREATE TABLE turno (
     id INT AUTO_INCREMENT PRIMARY KEY,
     usuario_id INT NOT NULL,
     bus_id INT NOT NULL,
+    pago_id INT NULL,
     fecha DATE NOT NULL,
     hora_apertura TIME NOT NULL,
     hora_cierre TIME NOT NULL DEFAULT '23:59:00',
+    valor DECIMAL(10,2) NOT NULL DEFAULT 0.00 COMMENT 'Valor tomado del archivo diario al abrir el turno',
+    ruta VARCHAR(100) NULL COMMENT 'Ruta tomada del archivo diario al abrir el turno',
     activo TINYINT(1) DEFAULT 1,
+    pagado TINYINT(1) NOT NULL DEFAULT 0 COMMENT '0 = pendiente, 1 = pagado',
     FOREIGN KEY (usuario_id) REFERENCES usuario(id),
     FOREIGN KEY (bus_id) REFERENCES bus(id),
+    FOREIGN KEY (pago_id) REFERENCES pago(id),
     UNIQUE KEY unq_bus_fecha (bus_id, fecha),
     UNIQUE KEY unq_conductor_fecha (usuario_id, fecha)
 );

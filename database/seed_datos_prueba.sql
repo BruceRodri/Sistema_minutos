@@ -49,9 +49,9 @@ INSERT INTO usuario_bus (usuario_id, bus_id, activo) VALUES
 -- ============================================================
 -- TURNOS (1 por bus al dia - UNIQUE bus_id + fecha)
 -- ============================================================
-INSERT INTO turno (usuario_id, bus_id, fecha, hora_apertura, activo) VALUES
-((SELECT id FROM usuario WHERE cedula='1234567890'), (SELECT id FROM bus WHERE disco='001'), '2026-09-08', '06:30:00', 1),
-((SELECT id FROM usuario WHERE cedula='0987654321'), (SELECT id FROM bus WHERE disco='002'), '2026-09-08', '06:45:00', 1),
-((SELECT id FROM usuario WHERE cedula='1234567890'), (SELECT id FROM bus WHERE disco='001'), '2026-09-07', '06:20:00', 1),
-((SELECT id FROM usuario WHERE cedula='0987654321'), (SELECT id FROM bus WHERE disco='002'), '2026-09-07', '06:50:00', 1),
-((SELECT id FROM usuario WHERE cedula='0967123456'), (SELECT id FROM bus WHERE disco='003'), '2026-09-05', '07:00:00', 1);
+INSERT INTO turno (usuario_id, bus_id, fecha, hora_apertura, valor, ruta, activo) VALUES
+((SELECT id FROM usuario WHERE cedula='1234567890'), (SELECT id FROM bus WHERE disco='001'), '2026-09-08', '06:30:00', 1.00, 'LINEA 23B', 1),
+((SELECT id FROM usuario WHERE cedula='0987654321'), (SELECT id FROM bus WHERE disco='002'), '2026-09-08', '06:45:00', 3.00, 'LINEA 23B', 1),
+((SELECT id FROM usuario WHERE cedula='1234567890'), (SELECT id FROM bus WHERE disco='001'), '2026-09-07', '06:20:00', 2.00, 'LINEA 23B', 1),
+((SELECT id FROM usuario WHERE cedula='0987654321'), (SELECT id FROM bus WHERE disco='002'), '2026-09-07', '06:50:00', 1.00, 'LINEA 23B', 1),
+((SELECT id FROM usuario WHERE cedula='0967123456'), (SELECT id FROM bus WHERE disco='003'), '2026-09-05', '07:00:00', 2.00, 'LINEA 54', 1);

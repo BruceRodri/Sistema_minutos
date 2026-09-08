@@ -24,7 +24,7 @@ class TurnoDao {
         return $stmt->fetch();
     }
 
-    public function abrirTurno($usuario_id, $bus_id) {
+    public function abrirTurno($usuario_id, $bus_id, $valor, $ruta) {
         try {
             $this->cerrarTurnosVencidos();
 
@@ -38,8 +38,9 @@ class TurnoDao {
 
             // El conductor se obtiene de la sesión y se valida nuevamente en la BD.
             // El navegador nunca envía ni decide el código del conductor.
-            $sql = "INSERT INTO turno (usuario_id, bus_id, fecha, hora_apertura, hora_cierre)
-                    SELECT u.id, :bus_id, CURDATE(), CURTIME(), '23:59:00'
+            $sql = "INSERT INTO turno
+                        (usuario_id, bus_id, fecha, hora_apertura, hora_cierre, valor, ruta)
+                    SELECT u.id, :bus_id, CURDATE(), CURTIME(), '23:59:00', :valor, :ruta
                     FROM usuario u
                     INNER JOIN rol r ON u.rol_id = r.id
                     INNER JOIN estado_usuario eu ON u.estado_usuario_id = eu.id
@@ -52,7 +53,9 @@ class TurnoDao {
             $stmt = $this->conexion->prepare($sql);
             $stmt->execute([
                 ':usuario_id' => $usuario_id,
-                ':bus_id' => $bus_id
+                ':bus_id' => $bus_id,
+                ':valor' => $valor,
+                ':ruta' => $ruta
             ]);
 
             if ($stmt->rowCount() !== 1) {
@@ -61,7 +64,7 @@ class TurnoDao {
 
             $turnoId = $this->conexion->lastInsertId();
             $stmtTurno = $this->conexion->prepare(
-                "SELECT t.fecha, t.hora_apertura, u.codigo_conductor
+                "SELECT t.fecha, t.hora_apertura, t.valor, t.ruta, u.codigo_conductor
                  FROM turno t
                  INNER JOIN usuario u ON t.usuario_id = u.id
                  WHERE t.id = :turno_id"
@@ -74,7 +77,9 @@ class TurnoDao {
                 'fecha' => $turnoCreado['fecha'],
                 'hora' => $turnoCreado['hora_apertura'],
                 'hora_cierre' => '23:59:00',
-                'codigo_conductor' => $turnoCreado['codigo_conductor']
+                'codigo_conductor' => $turnoCreado['codigo_conductor'],
+                'valor' => (float)$turnoCreado['valor'],
+                'ruta' => $turnoCreado['ruta']
             ];
         } catch (PDOException $e) {
             // 1062 protege también ante dos solicitudes simultáneas.
@@ -186,19 +191,6 @@ class TurnoDao {
         return [$condiciones, $parametros];
     }
 
-    public function obtenerTurnosHoyConductor($usuario_id) {
-        $this->cerrarTurnosVencidos();
-
-        $sql = "SELECT t.id, t.hora_apertura, t.hora_cierre, b.disco
-                FROM turno t
-                INNER JOIN bus b ON t.bus_id = b.id
-                WHERE t.usuario_id = :uid AND t.fecha = CURDATE() AND t.activo = 1
-                ORDER BY t.hora_apertura DESC";
-        $stmt = $this->conexion->prepare($sql);
-        $stmt->execute([':uid' => $usuario_id]);
-        return $stmt->fetchAll();
-    }
-
     public function cerrarTurnosVencidos() {
         $sql = "UPDATE turno
                 SET activo = 0
@@ -216,5 +208,6 @@ class TurnoDao {
             ':id' => $bus_id
         ]);
     }
+
 }
 ?>
