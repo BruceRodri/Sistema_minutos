@@ -206,6 +206,36 @@ class ValoresDao {
         return $this->actualizarTurnosDesdeFilas($this->leerFilas());
     }
 
+    public function sincronizarObligacionesDesdeFilas(array $filas) {
+        $sincronizadas = 0;
+        $sql = "INSERT INTO obligacion_pago (disco, fecha, valor, ruta, pagado, activo)
+                VALUES (:disco, :fecha, :valor, :ruta, 0, 1)
+                ON DUPLICATE KEY UPDATE
+                    valor = IF(pagado = 0, VALUES(valor), valor),
+                    ruta = IF(pagado = 0, VALUES(ruta), ruta),
+                    activo = 1";
+        $stmt = $this->conexion->prepare($sql);
+
+        foreach ($filas as $fila) {
+            if (empty($fila['disco']) || empty($fila['fecha']) || (float)$fila['valor'] <= 0) {
+                continue;
+            }
+            $stmt->execute([
+                ':disco' => $this->normalizarDisco($fila['disco']),
+                ':fecha' => $fila['fecha'],
+                ':valor' => $fila['valor'],
+                ':ruta' => $fila['ruta'] ?: null
+            ]);
+            $sincronizadas++;
+        }
+
+        return $sincronizadas;
+    }
+
+    public function sincronizarObligacionesConArchivo() {
+        return $this->sincronizarObligacionesDesdeFilas($this->leerFilas());
+    }
+
     private function obtenerParaDiscoFechaISHoy() {
         return null;
     }

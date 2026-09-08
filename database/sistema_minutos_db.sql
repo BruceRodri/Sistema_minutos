@@ -71,7 +71,22 @@ CREATE TABLE pago (
     FOREIGN KEY (usuario_id) REFERENCES usuario(id)
 );
 
--- 7. TABLA TURNO (UNO POR BUS Y UNO POR CONDUCTOR AL DIA)
+-- 7. OBLIGACIONES DE PAGO (IMPORTADAS DESDE EXCEL, INDEPENDIENTES DE TURNOS)
+CREATE TABLE obligacion_pago (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    disco VARCHAR(20) NOT NULL,
+    fecha DATE NOT NULL,
+    valor DECIMAL(10,2) NOT NULL,
+    ruta VARCHAR(100) NULL,
+    pago_id INT NULL,
+    pagado TINYINT(1) NOT NULL DEFAULT 0,
+    activo TINYINT(1) NOT NULL DEFAULT 1,
+    UNIQUE KEY unq_obligacion_disco_fecha (disco, fecha),
+    KEY idx_obligacion_pendiente (disco, pagado, activo),
+    FOREIGN KEY (pago_id) REFERENCES pago(id)
+);
+
+-- 8. TABLA TURNO (UNO POR BUS Y UNO POR CONDUCTOR AL DIA)
 CREATE TABLE turno (
     id INT AUTO_INCREMENT PRIMARY KEY,
     usuario_id INT NOT NULL,
