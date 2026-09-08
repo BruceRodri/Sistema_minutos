@@ -53,7 +53,7 @@ $listaUsuarios = $usuarioDao->obtenerTodos();
                 <table class="min-w-full divide-y divide-gray-200" id="tablaUsuarios">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Cédula</th>
+                            <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Cédula</th>
                             <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Nombre</th>
                             <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Rol en Sistema</th>
                             <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Estado</th>
@@ -75,7 +75,7 @@ $listaUsuarios = $usuarioDao->obtenerTodos();
                             };
                         ?>
                         <tr class="fila-usuario <?php echo $claseFila; ?> transition-colors">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-700 data-cedula">
+                            <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-mono text-gray-700 data-cedula">
                                 <?php echo htmlspecialchars($user['cedula']); ?>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900 data-nombre">

@@ -47,9 +47,9 @@ class TurnoDao {
     }
 
     public function obtenerTurnosHoy() {
-        $sql = "SELECT t.id, t.hora_apertura,
+        $sql = "SELECT t.id, t.fecha, t.hora_apertura,
                        b.id AS bus_id, b.disco, b.placa, b.activo AS bus_activo,
-                       u.id AS conductor_id, u.nombres, u.apellidos
+                       u.id AS conductor_id, u.codigo_conductor, u.nombres, u.apellidos
                 FROM turno t
                 INNER JOIN bus b ON t.bus_id = b.id
                 INNER JOIN usuario u ON t.usuario_id = u.id
