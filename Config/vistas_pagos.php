@@ -43,3 +43,26 @@ function snapshotConductor($dao, $usuarioId) {
         'pagos' => pagosParaVista($dao, $usuarioId),
     ];
 }
+
+function obtenerFiltrosPagosAdmin() {
+    $filtros = [
+        'conductor' => isset($_GET['conductor']) && is_scalar($_GET['conductor']) ? trim((string)$_GET['conductor']) : '',
+        'disco' => isset($_GET['disco']) && is_scalar($_GET['disco']) ? trim((string)$_GET['disco']) : '',
+        'fecha_desde' => isset($_GET['fecha_desde']) && is_scalar($_GET['fecha_desde']) ? trim((string)$_GET['fecha_desde']) : '',
+        'fecha_hasta' => isset($_GET['fecha_hasta']) && is_scalar($_GET['fecha_hasta']) ? trim((string)$_GET['fecha_hasta']) : '',
+        'ruta' => isset($_GET['ruta']) && is_scalar($_GET['ruta']) ? trim((string)$_GET['ruta']) : '',
+        'estado' => isset($_GET['estado']) && is_scalar($_GET['estado']) ? trim((string)$_GET['estado']) : '',
+    ];
+    if (!in_array($filtros['estado'], ['en_espera', 'aprobado', 'anulado'], true)) {
+        $filtros['estado'] = '';
+    }
+    foreach (['fecha_desde', 'fecha_hasta'] as $clave) {
+        if ($filtros[$clave] !== '') {
+            $fechaValida = DateTime::createFromFormat('!Y-m-d', $filtros[$clave]);
+            if (!$fechaValida || $fechaValida->format('Y-m-d') !== $filtros[$clave]) {
+                $filtros[$clave] = '';
+            }
+        }
+    }
+    return $filtros;
+}

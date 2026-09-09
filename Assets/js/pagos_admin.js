@@ -2,8 +2,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     const URL_CONTROLADOR = '../../Controllers/AdminPagoController.php';
 
-    const modalComprobante = document.getElementById('modalComprobante');
-    const contenedorComprobante = document.getElementById('contenedorComprobante');
+    const modalAlertaComprobante = document.getElementById('modalAlertaComprobante');
     const modalAprobar = document.getElementById('modalAprobar');
     const modalDesaprobar = document.getElementById('modalDesaprobar');
     const motivoRechazo = document.getElementById('motivoRechazo');
@@ -15,7 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let actualizacionPendiente = null;
     const aplicarActualizacion = () => {
         if (!actualizacionPendiente || document.querySelector('[data-pago][data-editando]') ||
-            [modalComprobante, modalAprobar, modalDesaprobar].some((modal) => !modal.classList.contains('hidden'))) return;
+            [modalAprobar, modalDesaprobar, modalAlertaComprobante].some((modal) => modal && !modal.classList.contains('hidden'))) return;
         tablaPagos.innerHTML = actualizacionPendiente.html;
         tablaPagos.dataset.hash = actualizacionPendiente.hash;
         actualizacionPendiente = null;
@@ -23,10 +22,10 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     tablaPagos.addEventListener('input', (evento) => {
         const raiz = evento.target.closest('[data-pago]');
-        if (raiz) raiz.dataset.editando = '1';
+        if (raiz && raiz.dataset.bloqueado !== '1') raiz.dataset.editando = '1';
     });
     if (typeof EventSource !== 'undefined') {
-        const eventos = new EventSource('../../Controllers/PagosStreamController.php');
+        const eventos = new EventSource('../../Controllers/PagosStreamController.php' + window.location.search);
         eventos.addEventListener('pagos', (evento) => {
             try {
                 const datos = JSON.parse(evento.data);
@@ -52,36 +51,6 @@ document.addEventListener('DOMContentLoaded', () => {
         aplicarActualizacion();
     }
 
-    function esImagen(ruta) {
-        return /\.(jpe?g|png|webp|gif)$/i.test(ruta);
-    }
-
-    function mostrarComprobante(ruta) {
-        if (!contenedorComprobante) return;
-        contenedorComprobante.innerHTML = '';
-        document.getElementById('descargarComprobante').href = ruta + '&descargar=1';
-        if (esImagen(ruta)) {
-            const img = document.createElement('img');
-            img.src = ruta;
-            img.alt = 'Comprobante de pago';
-            img.className = 'max-w-full max-h-[70vh] object-contain rounded-lg shadow-lg';
-            img.onerror = () => {
-                contenedorComprobante.innerHTML = '<p class="text-gray-500 p-8"><i class="fas fa-triangle-exclamation mr-2 text-amber-500"></i>No se pudo cargar el comprobante.</p>';
-            };
-            contenedorComprobante.appendChild(img);
-        } else {
-            const frame = document.createElement('iframe');
-            frame.src = ruta;
-            frame.title = 'Comprobante de pago';
-            frame.className = 'w-full h-[70vh] rounded-lg bg-white shadow-lg';
-            frame.onerror = () => {
-                contenedorComprobante.innerHTML = '<p class="text-gray-500 p-8">No se pudo cargar el comprobante.</p>';
-            };
-            contenedorComprobante.appendChild(frame);
-        }
-        abrirModal(modalComprobante);
-    }
-
     async function enviarAccion(datos) {
         const formData = new FormData();
         Object.entries(datos).forEach(([clave, valor]) => formData.append(clave, valor));
@@ -89,12 +58,34 @@ document.addEventListener('DOMContentLoaded', () => {
         return response.json();
     }
 
+    // ---------- Búsqueda automática en los filtros (debounce 400ms) ----------
+    const formularioFiltros = document.querySelector('form[action="pagos.php"]');
+    let temporizadorFiltros = null;
+    const aplicarFiltrosAutomaticos = () => {
+        if (temporizadorFiltros) clearTimeout(temporizadorFiltros);
+        temporizadorFiltros = setTimeout(() => {
+            if (formularioFiltros) formularioFiltros.requestSubmit();
+        }, 400);
+    };
+    if (formularioFiltros) {
+        formularioFiltros.querySelectorAll('input, select').forEach((control) => {
+            const enviar = () => aplicarFiltrosAutomaticos();
+            if (control.tagName === 'SELECT') {
+                control.addEventListener('change', enviar);
+            } else {
+                control.addEventListener('input', enviar);
+            }
+        });
+    }
+
     // ---------- Códigos de comprobante (inputs + botón "+") ----------
     function actualizarBotonesQuitar(contenedor) {
+        const raiz = contenedor.closest('[data-pago]');
+        const bloqueado = !!(raiz && raiz.dataset.bloqueado === '1');
         const unico = contenedor.querySelectorAll('input').length <= 1;
         contenedor.querySelectorAll('[data-quitar-codigo]').forEach((boton) => {
-            boton.disabled = unico;
-            boton.title = unico ? 'Debe quedar al menos un comprobante' : 'Quitar';
+            boton.disabled = bloqueado || unico;
+            boton.title = bloqueado ? 'Comprobante bloqueado' : (unico ? 'Debe quedar al menos un comprobante' : 'Quitar');
         });
     }
 
@@ -140,6 +131,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 .filter(Boolean);
             const inicial = codigosGuardados.length > 0 ? codigosGuardados : [''];
             inicial.forEach((codigo) => agregarInputCodigo(contenedor, codigo));
+
+            if (raiz.dataset.bloqueado === '1') {
+                contenedor.querySelectorAll('input').forEach((input) => { input.disabled = true; });
+                return;
+            }
 
             raiz.querySelectorAll('[data-agregar-codigo]').forEach((boton) => {
                 boton.addEventListener('click', () => {
@@ -234,21 +230,13 @@ document.addEventListener('DOMContentLoaded', () => {
             finally { espera.disabled = false; }
             return;
         }
-        const botonVer = evento.target.closest('[data-ver-comprobante]');
-        if (botonVer) {
-            mostrarComprobante(botonVer.dataset.verComprobante);
-            return;
-        }
 
         const botonAprobar = evento.target.closest('[data-aprobar]');
         if (botonAprobar) {
             const raiz = botonAprobar.closest('tr').querySelector('[data-pago]');
             const codigos = [...raiz.querySelectorAll('input')].map((input) => input.value.trim()).filter(Boolean);
             if (!codigos.length || codigos.some((codigo) => !/^[0-9]+$/.test(codigo))) {
-                const aviso = raiz.querySelector('[data-estado-codigos]');
-                aviso.textContent = 'Ingresa el número de comprobante antes de aprobar.';
-                aviso.className = 'text-xs font-bold text-red-600';
-                raiz.querySelector('input').focus();
+                if (modalAlertaComprobante) abrirModal(modalAlertaComprobante);
                 return;
             }
             pagoAprobar = botonAprobar.dataset.aprobar;
@@ -275,6 +263,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (modal) cerrarModal(modal);
         }
     });
+
+    if (modalAlertaComprobante) {
+        document.getElementById('btnCerrarAlertaComprobante').addEventListener('click', () => cerrarModal(modalAlertaComprobante));
+    }
 
     const confirmarAprobar = document.getElementById('confirmarAprobar');
     if (confirmarAprobar) {

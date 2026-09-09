@@ -26,6 +26,16 @@ if ($pagoId <= 0) {
 
 $pagoDao = new PagoDao($conexion);
 
+$estadoPago = $pagoDao->obtenerEstadoPago($pagoId);
+if (!$estadoPago || (int)$estadoPago['activo'] !== 1) {
+    echo json_encode(['status' => 'error', 'message' => 'El pago ya no está disponible.']);
+    exit;
+}
+if ($estadoPago['estado'] === 'anulado') {
+    echo json_encode(['status' => 'error', 'message' => 'Este pago está anulado y no puede editarse.']);
+    exit;
+}
+
 if ($accion === 'guardar_comprobantes') {
     $codigos = [];
     foreach ((array)($_POST['codigos'] ?? []) as $codigo) {

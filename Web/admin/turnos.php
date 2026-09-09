@@ -336,6 +336,7 @@ function formatearDiscoHistorial($disco) {
 
     <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/es.js"></script>
+    <script src="../../Assets/js/turnos.js?v=<?php echo hash_file('sha256', __DIR__ . '/../../Assets/js/turnos.js'); ?>"></script>
     <script>
         if (typeof flatpickr === 'function') {
             flatpickr('#filtroFecha', {

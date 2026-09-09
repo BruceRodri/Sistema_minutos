@@ -36,32 +36,33 @@ if (isset($_SESSION['usuario_id'])) {
     <title>Sistema de Conteo - Ingreso</title>
     <link rel="icon" href="Assets/icons/icon-192x192.png" type="image/png">
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#1f2937">
+    <meta name="theme-color" content="#3b82f6">
     <link rel="apple-touch-icon" href="Assets/icons/icon-192x192.png">
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-900 flex items-center justify-center h-screen">
+<body class="bg-gradient-to-br from-blue-50 via-gray-50 to-blue-100 flex items-center justify-center h-screen">
 
-    <div class="bg-gray-800 p-8 rounded-lg shadow-lg w-full max-w-sm">
-        <h2 class="text-2xl text-white font-bold text-center mb-6">Acceso al Sistema</h2>
+    <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-sm">
+        <h2 class="text-2xl text-gray-800 font-bold text-center mb-2">Acceso al Sistema</h2>
+        <p class="text-sm text-gray-500 text-center mb-6">Ingrese sus credenciales para continuar</p>
         
         <div id="alertaError" class="hidden mb-4 p-3 bg-red-500 text-white rounded text-sm text-center"></div>
         
         <form id="loginForm">
             <div class="mb-4">
-                <label for="cedula" class="block text-gray-400 text-sm font-bold mb-2">Número de Cédula</label>
+                <label for="cedula" class="block text-gray-700 text-sm font-bold mb-2">Número de Cédula</label>
                 <input type="text" id="cedula" name="cedula" required autocomplete="off"
-                    class="w-full px-3 py-2 bg-gray-700 text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    class="w-full px-3 py-2 bg-gray-50 border border-gray-300 text-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
             </div>
             
             <div class="mb-6">
-                <label for="password" class="block text-gray-400 text-sm font-bold mb-2">Contraseña</label>
+                <label for="password" class="block text-gray-700 text-sm font-bold mb-2">Contraseña</label>
                 <input type="password" id="password" name="password" required 
-                    class="w-full px-3 py-2 bg-gray-700 text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    class="w-full px-3 py-2 bg-gray-50 border border-gray-300 text-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
             </div>
             
             <button type="submit" id="btnSubmit"
-                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200">
+                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-200">
                 Ingresar
             </button>
             <p class="mt-4 text-xs text-gray-500 text-center">Ingrese su número de cédula en ambos campos.</p>
