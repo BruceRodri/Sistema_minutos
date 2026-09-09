@@ -72,7 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
             listaDiscos.classList.remove('hidden');
             return;
         }
-        candidatos.forEach((disco) => {
+        candidatos.slice(0, 5).forEach((disco) => {
             const boton = document.createElement('button');
             boton.type = 'button';
             boton.className = 'w-full text-left px-5 py-4 flex items-center gap-3 hover:bg-blue-50 transition-colors';
@@ -80,6 +80,12 @@ document.addEventListener('DOMContentLoaded', () => {
             boton.addEventListener('click', () => seleccionarDisco(disco));
             listaDiscos.appendChild(boton);
         });
+        if (candidatos.length > 5) {
+            const aviso = document.createElement('p');
+            aviso.className = 'px-5 py-3 text-sm font-semibold text-gray-400 border-t border-gray-100';
+            aviso.textContent = `Hay ${candidatos.length} discos. Escribe el número para filtrar.`;
+            listaDiscos.appendChild(aviso);
+        }
         listaDiscos.classList.remove('hidden');
     }
 
@@ -103,6 +109,18 @@ document.addEventListener('DOMContentLoaded', () => {
     inputDisco.addEventListener('blur', () => setTimeout(() => listaDiscos && listaDiscos.classList.add('hidden'), 200));
 
     if (limpiarDisco) limpiarDisco.addEventListener('click', limpiarSeleccion);
+
+    // Todo el recuadro del disco abre la lista (no solo el input).
+    const contenedorDisco = inputDisco.closest('.relative');
+    if (contenedorDisco) {
+        contenedorDisco.addEventListener('click', (evento) => {
+            const origen = evento.target;
+            if (origen.closest('#listaDiscos') || origen.closest('#limpiarDisco')) return;
+            evento.preventDefault();
+            inputDisco.focus();
+            renderLista(inputDisco.value);
+        });
+    }
 
     aplicarFiltro();
 });

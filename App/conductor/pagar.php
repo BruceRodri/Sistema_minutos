@@ -52,6 +52,10 @@ $discoInicial = null;
     <link rel="icon" href="../../Assets/icons/icon-192x192.png" type="image/png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .sin-scrollbar::-webkit-scrollbar { display: none; }
+        .sin-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
 </head>
 <body class="bg-gradient-to-b from-blue-50 to-gray-100 min-h-screen text-gray-800">
 
@@ -111,20 +115,20 @@ $discoInicial = null;
             </div>
 
             <button id="verVarios" type="button"
-                class="hidden w-full mb-6 lg:mb-8 flex items-center justify-center gap-3 text-xl lg:text-2xl font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border-2 border-blue-200 rounded-2xl py-5 lg:py-6 px-4 transition-colors">
-                <i class="fas fa-calendar-check text-3xl"></i>
+                class="hidden w-full mb-6 lg:mb-8 flex items-center justify-center gap-3 text-xl lg:text-2xl font-bold text-white bg-green-600 hover:bg-green-700 border-2 border-green-800 rounded-2xl py-5 lg:py-6 px-4 shadow-lg transition-colors">
+                <i class="fas fa-calendar-check text-4xl"></i>
                 ¿Prefieres agrupar pagos de varios días?
             </button>
 
             <div id="bloqueCarrusel" class="hidden">
-                <div id="carrusel" class="relative px-12 md:px-0 flex flex-col items-center gap-4 md:grid md:grid-cols-2 xl:grid-cols-3 md:gap-6">
+                <div id="carrusel" class="relative flex gap-4 overflow-x-auto snap-x snap-mandatory sin-scrollbar px-4 py-1 items-stretch md:grid md:grid-cols-2 xl:grid-cols-3 md:gap-6 md:overflow-visible md:px-0">
 
                     <?php foreach ($pagables as $card): ?>
                     <article data-id="<?php echo $card['id']; ?>"
                              data-disco="<?php echo htmlspecialchars($card['disco']); ?>"
                              data-fecha="<?php echo htmlspecialchars($card['fechaLegible']); ?>"
                              data-valor="<?php echo $card['valorFmt']; ?>"
-                             class="cardPagar w-full max-w-sm md:w-auto md:max-w-none min-h-0 bg-gradient-to-br from-blue-500 to-blue-700 rounded-3xl p-7 lg:p-9 shadow-xl text-white cursor-pointer active:scale-95 transition-transform">
+                             class="cardPagar snap-center shrink-0 w-[82%] max-w-[340px] md:w-auto md:max-w-none md:shrink min-h-0 bg-gradient-to-br from-blue-500 to-blue-700 rounded-3xl p-7 lg:p-9 shadow-xl text-white cursor-pointer active:scale-95 transition-transform">
                         <div class="flex items-start justify-between gap-3">
                             <div>
                                 <p class="text-blue-100 text-sm lg:text-base font-bold uppercase tracking-widest"><?php echo $card['hoy'] ? 'Pago de hoy' : 'Pago pendiente'; ?></p>
@@ -145,14 +149,7 @@ $discoInicial = null;
                     <?php endforeach; ?>
                 </div>
 
-                <button id="btnAnterior" type="button" aria-label="Anterior"
-                    class="md:hidden absolute left-0 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white shadow-xl text-blue-700 text-2xl flex items-center justify-center hover:scale-110 transition-transform">
-                    <i class="fas fa-chevron-left"></i>
-                </button>
-                <button id="btnSiguiente" type="button" aria-label="Siguiente"
-                    class="md:hidden absolute right-0 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white shadow-xl text-blue-700 text-2xl flex items-center justify-center hover:scale-110 transition-transform">
-                    <i class="fas fa-chevron-right"></i>
-                </button>
+                <div id="puntosTarjetas" class="hidden md:hidden flex items-center justify-center gap-2 mt-5"></div>
 
                 <p id="sinResultadosDisco" class="hidden mt-6 text-center text-xl lg:text-2xl text-gray-500 italic">
                     No hay pagos pendientes para el disco seleccionado.
@@ -227,7 +224,7 @@ $discoInicial = null;
                 <i class="fas fa-triangle-exclamation text-amber-500 text-4xl lg:text-5xl"></i>
             </div>
             <h3 class="text-3xl lg:text-4xl font-extrabold text-gray-800 mb-4">Confirmar pago</h3>
-            <p id="modalMensaje" class="text-gray-600 text-xl lg:text-2xl mb-8"></p>
+            <p id="modalMensaje" class="text-gray-700 text-2xl lg:text-3xl font-medium mb-8"></p>
             <div class="grid grid-cols-2 gap-3">
                 <button id="modalCancelar" type="button"
                     class="py-4 lg:py-5 rounded-xl font-bold text-xl lg:text-2xl text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors">

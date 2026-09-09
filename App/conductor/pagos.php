@@ -87,21 +87,35 @@ function formatearFechaPago($fecha) {
                     <?php foreach ($pagos as $p): ?>
                     <div class="cardPago bg-white rounded-3xl p-6 lg:p-7 shadow-sm border border-gray-200" data-discos="<?php echo htmlspecialchars(implode(' ', $p['discos'] ?? [])); ?>">
                         <div class="flex items-center justify-between gap-3 mb-3">
-                            <p class="text-xl lg:text-2xl font-bold text-gray-800">
-                                <?php
-                                $fechasPagos = !empty($p['fechas']) ? $p['fechas'] : [$p['fecha_pago']];
-                                echo implode(' · ', array_map('formatearFechaPago', $fechasPagos));
-                                ?>
+                            <?php
+                            $fechasPagos = !empty($p['fechas']) ? $p['fechas'] : [$p['fecha_pago']];
+                            $cantidadDias = count($fechasPagos);
+                            if ($cantidadDias > 1):
+                                $desde = min($fechasPagos);
+                                $hasta = max($fechasPagos);
+                                $rango = date('d/m/Y', strtotime($desde));
+                                if ($hasta !== $desde) $rango .= ' al ' . date('d/m/Y', strtotime($hasta));
+                            ?>
+                            <div class="flex flex-col gap-1">
+                                <p class="text-2xl lg:text-3xl font-extrabold text-gray-800">
+                                    Se pagaron <span class="inline-block align-middle bg-green-600 text-white px-3 py-0.5 rounded-full text-xl lg:text-2xl"><?php echo $cantidadDias; ?> días</span>
+                                </p>
+                                <p class="text-base lg:text-lg text-gray-500 font-semibold">del <?php echo $rango; ?></p>
+                            </div>
+                            <?php else: ?>
+                            <p class="text-2xl lg:text-3xl font-extrabold text-gray-800">
+                                <?php echo formatearFechaPago($fechasPagos[0]); ?>
                             </p>
+                            <?php endif; ?>
                             <span class="bg-green-100 text-green-700 text-lg font-bold px-4 py-1.5 rounded-full flex items-center gap-2 shrink-0">
                                 <i class="fas fa-check-circle"></i> Pagado
                             </span>
                         </div>
-                        <p class="text-xs lg:text-sm text-gray-400">
+                        <p class="text-lg lg:text-xl text-gray-500 mt-1">
                             <?php if (!empty($p['discos'])): ?>
-                            <span class="inline-flex items-center gap-1 mr-2 font-bold text-blue-700"><i class="fas fa-compact-disc"></i>Disco <?php echo htmlspecialchars(implode(' · ', $p['discos'])); ?></span>
+                            <span class="inline-flex items-center gap-1 mr-2 font-extrabold text-blue-700 text-xl lg:text-2xl"><i class="fas fa-compact-disc"></i>Disco <?php echo htmlspecialchars(implode(' · ', $p['discos'])); ?></span>
                             <?php endif; ?>
-                            Pagado el <?php echo formatearFechaPago($p['fecha_pago']); ?>
+                            <span class="font-bold text-gray-600">Pagado el <?php echo formatearFechaPago($p['fecha_pago']); ?></span>
                         </p>
                         <hr class="border-gray-100 my-3">
                         <div class="flex items-center justify-between gap-3">
