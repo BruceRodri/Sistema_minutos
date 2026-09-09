@@ -138,6 +138,7 @@ class PagoDao {
             $detallePagos = json_encode(
                 array_map(
                     static fn($o) => [
+                        'obligacion_id' => (int)$o['id'],
                         'fecha' => $o['fecha'],
                         'disco' => $o['disco'],
                         'ruta' => $o['ruta'] ?? null
@@ -246,6 +247,7 @@ class PagoDao {
             $detallePagos = json_encode(
                 array_map(
                     static fn($t) => [
+                        'turno_id' => (int)$t['id'],
                         'fecha' => $t['fecha'],
                         'disco' => $t['disco'],
                         'ruta' => $t['ruta'] ?? null
@@ -363,6 +365,7 @@ class PagoDao {
             $codigo = trim((string)$codigo);
             $codigo = preg_replace('/\s*\|\s*/', ' | ', $codigo);
             $codigo = trim($codigo);
+            if ($codigo !== '' && !preg_match('/^[0-9]+$/D', $codigo)) return ['status' => 'comprobante_invalido'];
             if ($codigo !== '') {
                 $codigosLimpios[] = $codigo;
             }
@@ -371,6 +374,7 @@ class PagoDao {
             $codigosLimpios = array_values(array_unique($codigosLimpios));
         }
 
+        if (!$codigosLimpios) return ['status' => 'comprobante_obligatorio'];
         $guardado = null;
         if (!empty($codigosLimpios)) {
             $guardado = implode(' | ', array_slice($codigosLimpios, 0, 20));
@@ -393,54 +397,78 @@ class PagoDao {
         }
     }
 
-    public function actualizarEstadoPago($pagoId, $estado, $motivo = null) {
-        if (!in_array($estado, ['en_espera', 'aprobado', 'anulado'], true)) {
-            return ['status' => 'estado_invalido'];
-        }
-
-        $manejaTransaccion = !$this->conexion->inTransaction();
-        if ($manejaTransaccion) {
-            $this->conexion->beginTransaction();
-        }
+    public function actualizarEstadoPago($pagoId, $estado, $motivo = null, $codigos = null) {
+        if (!in_array($estado, ['en_espera', 'aprobado', 'anulado'], true)) return ['status' => 'estado_invalido'];
+        $propia = !$this->conexion->inTransaction();
+        if ($propia) $this->conexion->beginTransaction();
         try {
-            $stmt = $this->conexion->prepare(
-                "UPDATE pago
-                 SET estado = :estado, motivo_rechazo = :motivo
-                 WHERE id = :pago_id AND activo = 1"
-            );
-            $stmt->execute([
-                ':estado' => $estado,
-                ':motivo' => $estado === 'anulado' ? $motivo : null,
-                ':pago_id' => (int)$pagoId
-            ]);
+            $stmt = $this->conexion->prepare("SELECT * FROM pago WHERE id = ? AND activo = 1 FOR UPDATE");
+            $stmt->execute([(int)$pagoId]);
+            $pago = $stmt->fetch();
+            if (!$pago) throw new RuntimeException('no_encontrado');
+            $numero = trim($codigos ?? $pago['nro_comprobante'] ?? '');
+            if ($estado === 'aprobado' && !preg_match('/[^\s|]/u', $numero)) throw new RuntimeException('comprobante_obligatorio');
+            if ($estado === 'aprobado' && !preg_match('/^[0-9]+(?: \| [0-9]+)*$/D', $numero)) throw new RuntimeException('comprobante_invalido');
+            if (mb_strlen($numero) > 255) throw new RuntimeException('muy_largo');
+            if ($estado === 'anulado' && trim($motivo ?? '') === '') throw new RuntimeException('motivo_obligatorio');
 
-            if ($stmt->rowCount() === 0) {
-                if ($manejaTransaccion) {
-                    $this->conexion->rollBack();
+            $detalle = json_decode($pago['detalle_pagos'] ?? '', true) ?: [];
+            if ($estado === 'anulado' && $pago['estado'] !== 'anulado') {
+                // Conservar los IDs antes de liberar las deudas para poder corregir una anulación.
+                $detalle = [];
+                foreach (['obligacion_pago' => 'obligacion_id', 'turno' => 'turno_id'] as $tabla => $clave) {
+                    $sql = $tabla === 'turno'
+                        ? "SELECT t.id, t.fecha, b.disco, t.ruta FROM turno t JOIN bus b ON b.id = t.bus_id WHERE t.pago_id = ? FOR UPDATE"
+                        : "SELECT id, fecha, disco, ruta FROM obligacion_pago WHERE pago_id = ? FOR UPDATE";
+                    $stmt = $this->conexion->prepare($sql);
+                    $stmt->execute([(int)$pagoId]);
+                    foreach ($stmt->fetchAll() as $fila) {
+                        $detalle[] = [$clave => (int)$fila['id'], 'fecha' => $fila['fecha'], 'disco' => $fila['disco'], 'ruta' => $fila['ruta']];
+                    }
                 }
-                return ['status' => 'no_encontrado'];
+                if (!$detalle) $detalle = json_decode($pago['detalle_pagos'] ?? '', true) ?: [];
             }
-
+            if ($pago['estado'] === 'anulado' && $estado !== 'anulado') {
+                if (!$detalle) throw new RuntimeException('detalle_no_disponible');
+                foreach ($detalle as $fila) {
+                    $candidatos = [];
+                    foreach (['obligacion_pago' => 'obligacion_id', 'turno' => 'turno_id'] as $tabla => $clave) {
+                        if (isset($fila['obligacion_id']) || isset($fila['turno_id'])) {
+                            if (!isset($fila[$clave])) continue;
+                            $stmt = $this->conexion->prepare("SELECT id, pago_id, pagado FROM $tabla WHERE id = ? FOR UPDATE");
+                            $stmt->execute([(int)$fila[$clave]]);
+                        } else {
+                            // Compatibilidad con comprobantes anteriores que solo guardaban disco y fecha.
+                            $sql = $tabla === 'turno'
+                                ? "SELECT t.id, t.pago_id, t.pagado FROM turno t JOIN bus b ON b.id=t.bus_id WHERE b.disco=? AND t.fecha=? AND t.usuario_id=" . (int)$pago['usuario_id'] . " FOR UPDATE"
+                                : "SELECT id, pago_id, pagado FROM obligacion_pago WHERE disco=? AND fecha=? AND activo=1 FOR UPDATE";
+                            $stmt = $this->conexion->prepare($sql);
+                            $stmt->execute([$fila['disco'], $fila['fecha']]);
+                        }
+                        foreach ($stmt->fetchAll() as $deuda) $candidatos[] = [$tabla, $deuda];
+                    }
+                    if (count($candidatos) !== 1) throw new RuntimeException('detalle_no_disponible');
+                    [$tabla, $deuda] = $candidatos[0];
+                    if (($deuda['pago_id'] !== null && (int)$deuda['pago_id'] !== (int)$pagoId) || ((int)$deuda['pagado'] === 1 && (int)$deuda['pago_id'] !== (int)$pagoId)) {
+                        throw new RuntimeException('deuda_pagada');
+                    }
+                    $stmt = $this->conexion->prepare("UPDATE $tabla SET pagado=1, pago_id=? WHERE id=?");
+                    $stmt->execute([(int)$pagoId, $deuda['id']]);
+                }
+            }
+            $stmt = $this->conexion->prepare("UPDATE pago SET estado=?, motivo_rechazo=?, nro_comprobante=?, detalle_pagos=? WHERE id=?");
+            $stmt->execute([$estado, $estado === 'anulado' ? $motivo : null, $numero ?: null, $detalle ? json_encode($detalle, JSON_UNESCAPED_UNICODE) : $pago['detalle_pagos'], (int)$pagoId]);
             if ($estado === 'anulado') {
-                $stmt = $this->conexion->prepare(
-                    "UPDATE obligacion_pago SET pagado = 0, pago_id = NULL WHERE pago_id = :pago_id"
-                );
-                $stmt->execute([':pago_id' => (int)$pagoId]);
-                $stmt = $this->conexion->prepare(
-                    "UPDATE turno SET pagado = 0, pago_id = NULL WHERE pago_id = :pago_id"
-                );
-                $stmt->execute([':pago_id' => (int)$pagoId]);
+                foreach (['obligacion_pago', 'turno'] as $tabla) {
+                    $stmt = $this->conexion->prepare("UPDATE $tabla SET pagado=0, pago_id=NULL WHERE pago_id=?");
+                    $stmt->execute([(int)$pagoId]);
+                }
             }
-
-            if ($manejaTransaccion) {
-                $this->conexion->commit();
-            }
+            if ($propia) $this->conexion->commit();
             return ['status' => 'success'];
         } catch (Throwable $e) {
-            if ($manejaTransaccion && $this->conexion->inTransaction()) {
-                $this->conexion->rollBack();
-            }
-            return ['status' => 'error'];
+            if ($propia && $this->conexion->inTransaction()) $this->conexion->rollBack();
+            return ['status' => $e instanceof RuntimeException ? $e->getMessage() : 'error'];
         }
     }
 }

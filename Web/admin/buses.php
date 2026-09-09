@@ -52,26 +52,6 @@ $totalResultados = count($listaBuses);
 
         <div class="p-4 md:p-8 w-full max-w-7xl mx-auto">
 
-            <!-- Resumen -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                    <p class="text-sm text-gray-500">Total de buses</p>
-                    <p class="text-3xl font-bold text-blue-700"><?php echo $totalBuses; ?></p>
-                </div>
-                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                    <p class="text-sm text-gray-500">Habilitados</p>
-                    <p class="text-3xl font-bold text-green-600">
-                        <?php echo count(array_filter($todosLosBuses, fn($b) => $b['activo'] == 1)); ?>
-                    </p>
-                </div>
-                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                    <p class="text-sm text-gray-500">Deshabilitados</p>
-                    <p class="text-3xl font-bold text-red-600">
-                        <?php echo count(array_filter($todosLosBuses, fn($b) => $b['activo'] == 0)); ?>
-                    </p>
-                </div>
-            </div>
-
             <!-- Filtros -->
             <form method="GET" action="buses.php" class="mb-5 rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -11,6 +11,33 @@ document.addEventListener('DOMContentLoaded', () => {
     const errorAprobar = document.getElementById('errorAprobar');
     const errorDesaprobar = document.getElementById('errorDesaprobar');
 
+    const tablaPagos = document.getElementById('tablaPagos');
+    let actualizacionPendiente = null;
+    const aplicarActualizacion = () => {
+        if (!actualizacionPendiente || document.querySelector('[data-pago][data-editando]') ||
+            [modalComprobante, modalAprobar, modalDesaprobar].some((modal) => !modal.classList.contains('hidden'))) return;
+        tablaPagos.innerHTML = actualizacionPendiente.html;
+        tablaPagos.dataset.hash = actualizacionPendiente.hash;
+        actualizacionPendiente = null;
+        inicializarCodigos();
+    };
+    tablaPagos.addEventListener('input', (evento) => {
+        const raiz = evento.target.closest('[data-pago]');
+        if (raiz) raiz.dataset.editando = '1';
+    });
+    if (typeof EventSource !== 'undefined') {
+        const eventos = new EventSource('../../Controllers/PagosStreamController.php');
+        eventos.addEventListener('pagos', (evento) => {
+            try {
+                const datos = JSON.parse(evento.data);
+                if (datos.hash === tablaPagos.dataset.hash) return;
+                actualizacionPendiente = datos;
+                aplicarActualizacion();
+            } catch (error) { console.error('No se pudieron actualizar los pagos.', error); }
+        });
+        window.addEventListener('beforeunload', () => eventos.close());
+    }
+
     let pagoAprobar = null;
     let pagoDesaprobar = null;
 
@@ -22,6 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function cerrarModal(modal) {
         modal.classList.add('hidden');
         modal.classList.remove('flex');
+        aplicarActualizacion();
     }
 
     function esImagen(ruta) {
@@ -31,6 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function mostrarComprobante(ruta) {
         if (!contenedorComprobante) return;
         contenedorComprobante.innerHTML = '';
+        document.getElementById('descargarComprobante').href = ruta + '&descargar=1';
         if (esImagen(ruta)) {
             const img = document.createElement('img');
             img.src = ruta;
@@ -61,23 +90,41 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ---------- Códigos de comprobante (inputs + botón "+") ----------
+    function actualizarBotonesQuitar(contenedor) {
+        const unico = contenedor.querySelectorAll('input').length <= 1;
+        contenedor.querySelectorAll('[data-quitar-codigo]').forEach((boton) => {
+            boton.disabled = unico;
+            boton.title = unico ? 'Debe quedar al menos un comprobante' : 'Quitar';
+        });
+    }
+
     function agregarInputCodigo(contenedor, valor) {
         const fila = document.createElement('div');
         fila.className = 'flex items-center gap-1.5';
         const input = document.createElement('input');
         input.type = 'text';
+        input.inputMode = 'numeric';
+        input.pattern = '[0-9]+';
+        input.addEventListener('input', () => { input.value = input.value.replace(/[^0-9]/g, ''); });
         input.value = valor || '';
         input.placeholder = 'Código del comprobante';
         input.className = 'flex-1 min-w-0 rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-sm font-mono outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200';
         const quitar = document.createElement('button');
         quitar.type = 'button';
         quitar.title = 'Quitar';
-        quitar.className = 'text-gray-400 hover:text-red-500 transition-colors shrink-0';
+        quitar.dataset.quitarCodigo = '';
+        quitar.className = 'text-gray-400 hover:text-red-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors shrink-0';
         quitar.innerHTML = '<i class="fas fa-times-circle"></i>';
-        quitar.addEventListener('click', () => fila.remove());
+        quitar.addEventListener('click', () => {
+            if (contenedor.querySelectorAll('input').length <= 1) return;
+            contenedor.closest('[data-pago]').dataset.editando = '1';
+            fila.remove();
+            actualizarBotonesQuitar(contenedor);
+        });
         fila.appendChild(input);
         fila.appendChild(quitar);
         contenedor.appendChild(fila);
+        actualizarBotonesQuitar(contenedor);
         return input;
     }
 
@@ -96,6 +143,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             raiz.querySelectorAll('[data-agregar-codigo]').forEach((boton) => {
                 boton.addEventListener('click', () => {
+                    raiz.dataset.editando = '1';
                     const input = agregarInputCodigo(contenedor, '');
                     input.focus();
                 });
@@ -123,11 +171,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const textoOriginal = boton.textContent;
         boton.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i>Guardando…';
         try {
-            if (codigos.length === 0) {
+            if (codigos.length === 0 || codigos.some((codigo) => !/^[0-9]+$/.test(codigo))) {
                 boton.innerHTML = textoOriginal;
                 boton.disabled = false;
                 if (estado) {
-                    estado.textContent = 'Ingresa al menos un código.';
+                    estado.textContent = 'Ingresa al menos un número de comprobante, solo con dígitos.';
                     estado.className = 'text-xs font-bold text-red-600';
                 }
                 return;
@@ -139,6 +187,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch(URL_CONTROLADOR, { method: 'POST', body: formData });
             const data = await response.json();
             if (data.status === 'success') {
+                delete raiz.dataset.editando;
+                raiz.dataset.codigos = data.codigos || '';
+                actualizacionPendiente = null;
                 if (estado) {
                     estado.textContent = 'Guardado.';
                     estado.className = 'text-xs font-bold text-green-600';
@@ -165,7 +216,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     inicializarCodigos();
 
-    document.addEventListener('click', (evento) => {
+    document.addEventListener('click', async (evento) => {
+        const editar = evento.target.closest('[data-editar-estado]');
+        if (editar) {
+            editar.nextElementSibling.classList.toggle('hidden');
+            return;
+        }
+        const espera = evento.target.closest('[data-espera]');
+        if (espera) {
+            if (!confirm('¿Cambiar este pago a En espera?')) return;
+            espera.disabled = true;
+            try {
+                const data = await enviarAccion({ accion: 'en_espera', pago_id: espera.dataset.espera });
+                if (data.status === 'success') window.location.reload();
+                else alert(data.message);
+            } catch (error) { alert('No se pudo actualizar el estado.'); }
+            finally { espera.disabled = false; }
+            return;
+        }
         const botonVer = evento.target.closest('[data-ver-comprobante]');
         if (botonVer) {
             mostrarComprobante(botonVer.dataset.verComprobante);
@@ -174,6 +242,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const botonAprobar = evento.target.closest('[data-aprobar]');
         if (botonAprobar) {
+            const raiz = botonAprobar.closest('tr').querySelector('[data-pago]');
+            const codigos = [...raiz.querySelectorAll('input')].map((input) => input.value.trim()).filter(Boolean);
+            if (!codigos.length || codigos.some((codigo) => !/^[0-9]+$/.test(codigo))) {
+                const aviso = raiz.querySelector('[data-estado-codigos]');
+                aviso.textContent = 'Ingresa el número de comprobante antes de aprobar.';
+                aviso.className = 'text-xs font-bold text-red-600';
+                raiz.querySelector('input').focus();
+                return;
+            }
             pagoAprobar = botonAprobar.dataset.aprobar;
             if (errorAprobar) errorAprobar.classList.add('hidden');
             abrirModal(modalAprobar);
@@ -208,7 +285,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const textoOriginal = boton.textContent;
             boton.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i>Procesando…';
             try {
-                const data = await enviarAccion({ accion: 'aprobar', pago_id: pagoAprobar });
+                const raiz = [...document.querySelectorAll('[data-pago]')].find((fila) => fila.dataset.pago === pagoAprobar);
+                const codigos = [...raiz.querySelectorAll('input')].map((input) => input.value.trim()).filter(Boolean).join(' | ');
+                const data = await enviarAccion({ accion: 'aprobar', pago_id: pagoAprobar, codigos });
                 if (data.status === 'success') {
                     window.location.reload();
                 } else {

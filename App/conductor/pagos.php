@@ -16,11 +16,7 @@ $pagoDao = new PagoDao($conexion);
 $pagos = $pagoDao->obtenerPagosConductor($_SESSION['usuario_id']);
 $discosTodos = $pagoDao->obtenerTodosDiscos();
 
-function formatearFechaPago($fecha) {
-    global $dias;
-    $ts = strtotime($fecha);
-    return ($dias[(int)date('w', $ts)] ?? $dias[0]) . ' ' . date('d/m/Y', $ts);
-}
+require_once '../../Config/vistas_pagos.php';
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -77,79 +73,23 @@ function formatearFechaPago($fecha) {
         <div class="mt-4 lg:mt-6">
             <h2 class="text-center text-2xl lg:text-3xl font-bold text-gray-600 mb-6 lg:mb-8">Pagos realizados</h2>
 
-            <div id="grillaPagos" class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
-                <?php if (empty($pagos)): ?>
-                    <div class="lg:col-span-full bg-white rounded-3xl p-10 text-center shadow-sm border border-gray-200">
-                        <i class="fas fa-receipt text-gray-300 text-6xl mb-4"></i>
-                        <p class="text-2xl text-gray-500">Aún no has realizado ningún pago.</p>
-                    </div>
-                <?php else: ?>
-                    <?php foreach ($pagos as $p):
-                        $estado = $p['estado'] ?? 'aprobado';
-                        $esEspera = $estado === 'en_espera';
-                        $esAnulado = $estado === 'anulado';
-                        $etiquetaEstado = $esAnulado ? 'Anulado' : ($esEspera ? 'En espera…' : 'Aprobado');
-                        $etiquetaClase = $esAnulado
-                            ? 'bg-red-100 text-red-700'
-                            : ($esEspera ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700');
-                        $etiquetaIcono = $esAnulado ? 'fa-circle-xmark' : ($esEspera ? 'fa-clock' : 'fa-check-circle');
-                        $bordeTarjeta = $esAnulado ? 'border-red-200' : ($esEspera ? 'border-amber-200' : 'border-green-200');
-                        $iconoEstado = $esAnulado ? 'text-red-500' : ($esEspera ? 'text-amber-500' : 'text-green-500');
-                        $verboPago = $esAnulado ? 'Ingresado el' : ($esEspera ? 'Subido el' : 'Pagado el');
-                        $diaClase = $esAnulado ? 'bg-red-600' : ($esEspera ? 'bg-amber-500' : 'bg-green-600');
-                    ?>
-                    <div class="cardPago bg-white rounded-3xl p-6 lg:p-7 shadow-sm border-2 <?php echo $bordeTarjeta; ?>" data-discos="<?php echo htmlspecialchars(implode(' ', $p['discos'] ?? [])); ?>">
-                        <div class="flex items-center justify-between gap-3 mb-3">
-                            <?php
-                            $fechasPagos = !empty($p['fechas']) ? $p['fechas'] : [$p['fecha_pago']];
-                            $cantidadDias = count($fechasPagos);
-                            if ($cantidadDias > 1):
-                                $desde = min($fechasPagos);
-                                $hasta = max($fechasPagos);
-                                $rango = date('d/m/Y', strtotime($desde));
-                                if ($hasta !== $desde) $rango .= ' al ' . date('d/m/Y', strtotime($hasta));
-                            ?>
-                            <div class="flex flex-col gap-1">
-                                <p class="text-2xl lg:text-3xl font-extrabold text-gray-800">
-                                    Se pagaron <span class="inline-block align-middle <?php echo $diaClase; ?> text-white px-3 py-0.5 rounded-full text-xl lg:text-2xl"><?php echo $cantidadDias; ?> días</span>
-                                </p>
-                                <p class="text-base lg:text-lg text-gray-500 font-semibold">del <?php echo $rango; ?></p>
-                            </div>
-                            <?php else: ?>
-                            <p class="text-2xl lg:text-3xl font-extrabold text-gray-800">
-                                <?php echo formatearFechaPago($fechasPagos[0]); ?>
-                            </p>
-                            <?php endif; ?>
-                            <span class="<?php echo $etiquetaClase; ?> text-lg font-bold px-4 py-1.5 rounded-full flex items-center gap-2 shrink-0">
-                                <i class="fas <?php echo $etiquetaIcono; ?>"></i> <?php echo $etiquetaEstado; ?>
-                            </span>
-                        </div>
-                        <p class="text-lg lg:text-xl text-gray-500 mt-1">
-                            <?php if (!empty($p['discos'])): ?>
-                            <span class="inline-flex items-center gap-1 mr-2 font-extrabold text-blue-700 text-xl lg:text-2xl"><i class="fas fa-compact-disc"></i>Disco <?php echo htmlspecialchars(implode(' · ', $p['discos'])); ?></span>
-                            <?php endif; ?>
-                            <span class="font-bold text-gray-600"><?php echo $verboPago; ?> <?php echo formatearFechaPago($p['fecha_pago']); ?></span>
-                        </p>
-                        <hr class="border-gray-100 my-3">
-                        <div class="flex items-center justify-between gap-3">
-                            <p class="text-lg lg:text-xl text-gray-500">
-                                <?php echo (int)$p['dias']; ?> día(s) · <span class="font-bold text-gray-700">$ <?php echo number_format((float)$p['monto'], 2, '.', ','); ?></span>
-                            </p>
-                            <i class="fas <?php echo $esAnulado ? 'fa-circle-xmark' : ($esEspera ? 'fa-clock' : 'fa-check-circle'); ?> <?php echo $iconoEstado; ?> text-4xl lg:text-5xl shrink-0"></i>
-                        </div>
-                        <?php if ($esAnulado): ?>
-                        <div class="mt-3 rounded-xl bg-red-50 border border-red-200 p-4">
-                            <p class="font-bold text-red-700 text-lg">Motivo: <span class="font-semibold"><?php echo htmlspecialchars($p['motivo_rechazo'] ?: 'Sin motivo especificado.'); ?></span></p>
-                        </div>
-                        <?php endif; ?>
-                    </div>
-                    <?php endforeach; ?>
-                <?php endif; ?>
+            <div id="grillaPagos" data-hash="<?php echo hash('sha256', json_encode([$pagos, $discosTodos])); ?>" class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
+<?php include __DIR__ . '/components/tarjetas_pagos.php'; ?>
             </div>
 
             <p id="sinResultados" class="hidden mt-6 text-center text-xl lg:text-2xl text-blue-700 italic">Selecciona un disco para ver tu historial.</p>
         </div>
     </div>
+
+    <dialog id="visorRecibo" class="w-[95vw] max-w-3xl rounded-2xl p-4 backdrop:bg-black/60">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="font-bold text-xl">Comprobante de pago</h2>
+            <button id="cerrarRecibo" type="button" class="p-3 rounded-xl bg-gray-100" aria-label="Cerrar comprobante"><i class="fas fa-times"></i></button>
+        </div>
+        <div id="contenidoRecibo" class="overflow-auto max-h-[70vh]"></div>
+        <a id="descargarRecibo" class="block mt-4 rounded-xl bg-blue-600 py-3 text-center text-white font-bold">Descargar comprobante</a>
+        <a id="abrirRecibo" target="_blank" rel="noopener" class="block mt-4 text-center text-blue-700 font-bold underline">Abrir comprobante en otra pestaña</a>
+    </dialog>
 
     <!-- Barra de navegación inferior (móvil) -->
     <nav class="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
@@ -172,6 +112,6 @@ function formatearFechaPago($fecha) {
     <script id="datosDiscos" type="application/json">
     <?php echo json_encode($discosTodos, JSON_UNESCAPED_UNICODE); ?>
     </script>
-    <script src="../../Assets/js/pagos.js"></script>
+    <script src="../../Assets/js/pagos.js?v=<?php echo hash_file('sha256', __DIR__ . '/../../Assets/js/pagos.js'); ?>"></script>
 </body>
 </html>

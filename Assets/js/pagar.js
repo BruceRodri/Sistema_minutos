@@ -127,16 +127,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ---------- Lista de discos (solo se abre cuando el usuario interactúa) ----------
     let debounceTimer = null;
+    let solicitudDiscos = 0;
+    let listaSolicitada = false;
 
     async function cargarDiscos(q, abrir = false) {
+        const solicitud = ++solicitudDiscos;
         const body = new URLSearchParams();
         body.append('accion', 'listar_discos');
         body.append('q', q);
         try {
             const response = await fetch(urlControlador, { method: 'POST', body });
             const data = await response.json();
+            if (solicitud !== solicitudDiscos) return;
             if (data.status === 'success') discosDisponibles = data.discos || [];
-            if (abrir) renderListaDiscos();
+            if (abrir && listaSolicitada) renderListaDiscos();
         } catch (error) {
             console.error(error);
         }
@@ -168,15 +172,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function abrirLista() {
-        cargarDiscos('', true);
+        listaSolicitada = true;
+        cargarDiscos(inputDisco.value, true);
     }
 
     function abrirListaConBusqueda(q) {
+        listaSolicitada = true;
         cargarDiscos(q, true);
     }
 
     // ---------- Selección y limpieza de disco ----------
     function seleccionarDisco(disco) {
+        listaSolicitada = false;
+        solicitudDiscos++;
         filtroDisco = normalizarDiscoBruto(disco);
         inputDisco.value = disco;
         limpiarDisco.classList.remove('hidden');
@@ -192,6 +200,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function limpiarSeleccion() {
+        listaSolicitada = false;
+        solicitudDiscos++;
         filtroDisco = null;
         inputDisco.value = '';
         limpiarDisco.classList.add('hidden');
@@ -284,6 +294,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const visibles = tarjetasFiltradas();
         todasLasTarjetas.forEach((c) => {
             c.classList.toggle('hidden', !visibles.includes(c));
+            c.style.marginInline = visibles.length === 1 && esMovil() ? 'auto' : '';
         });
         if (carrusel) carrusel.scrollLeft = 0;
         renderPuntos();
@@ -296,9 +307,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // ---------- Validación estricta: solo números ----------
     if (inputDisco) {
         inputDisco.addEventListener('keydown', soloNumeros);
-        inputDisco.addEventListener('click', () => { abrirLista(); });
         inputDisco.addEventListener('focus', () => {
-            if (!filtroDisco && inputDisco.value === '') abrirLista();
+            abrirLista();
         });
         inputDisco.addEventListener('input', () => {
             if (inputDisco.value.replace(/\D/g, '') !== inputDisco.value) {
@@ -306,7 +316,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             abrirListaConBusqueda(inputDisco.value);
         });
-        inputDisco.addEventListener('blur', () => setTimeout(() => listaDiscos.classList.add('hidden'), 200));
+
     }
 
     if (limpiarDisco) limpiarDisco.addEventListener('click', limpiarSeleccion);
@@ -317,11 +327,25 @@ document.addEventListener('DOMContentLoaded', () => {
         contenedorDisco.addEventListener('click', (evento) => {
             const origen = evento.target;
             if (origen.closest('#listaDiscos') || origen.closest('#limpiarDisco')) return;
-            evento.preventDefault();
-            inputDisco.focus();
-            abrirLista();
+            if (document.activeElement !== inputDisco) inputDisco.focus();
+            else if (!listaSolicitada) abrirLista();
         });
     }
+
+    const cerrarListaDiscos = () => {
+        listaSolicitada = false;
+        solicitudDiscos++;
+        listaDiscos.classList.add('hidden');
+    };
+    document.addEventListener('pointerdown', (evento) => {
+        if (contenedorDisco && !contenedorDisco.contains(evento.target)) cerrarListaDiscos();
+    });
+    if (contenedorDisco) contenedorDisco.addEventListener('focusout', (evento) => {
+        if (evento.relatedTarget && !contenedorDisco.contains(evento.relatedTarget)) cerrarListaDiscos();
+    });
+    if (inputDisco) inputDisco.addEventListener('keydown', (evento) => {
+        if (evento.key === 'Escape') cerrarListaDiscos();
+    });
 
     // ---------- Cambio entre carrusel y pago múltiple ----------
     if (verVarios && volverTarjetas) {
@@ -362,7 +386,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function mensajeConfirmar(titulo, disco, fecha, valor) {
-        return `${titulo} del disco ${resaltar(disco)} del ${resaltar(fecha)} por $ ${resaltar(valor)}?`;
+        return `${titulo} del ${resaltar('DISCO ' + disco)} del ${resaltar(fecha)} por $ ${resaltar(valor)}?`;
     }
 
     document.querySelectorAll('.checkDia').forEach((c) => c.addEventListener('change', calcularTotal));
@@ -382,7 +406,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 mensaje = mensajeConfirmar('¿Está seguro de registrar el pago', seleccionados[0].dataset.disco, seleccionados[0].dataset.fecha, seleccionados[0].dataset.valorfmt);
             } else {
                 const fechas = seleccionados.map((c) => esc(c.dataset.fecha)).join(', ');
-                mensaje = `¿Está seguro de registrar el pago de ${resaltar(`${seleccionados.length} día(s)`)} del disco ${resaltar(disco)} (${fechas}) por un total de $ ${resaltar(total.toFixed(2))}?`;
+                mensaje = `¿Está seguro de registrar el pago de ${resaltar(`${seleccionados.length} día(s)`)} del ${resaltar('DISCO ' + disco)} (${fechas}) por un total de $ ${resaltar(total.toFixed(2))}?`;
             }
             abrirModal(mensaje, 'multi', seleccionados.map((c) => c.value));
         });

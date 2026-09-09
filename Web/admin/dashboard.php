@@ -45,6 +45,11 @@ $turnosHoyPendientes = contar($conexion, "SELECT COUNT(DISTINCT t.id)
 $turnosTotales = contar($conexion, "SELECT COUNT(*) FROM turno");
 
 // ---- Pagos ----
+$conteos = ['en_espera' => 0, 'aprobado' => 0, 'anulado' => 0];
+foreach ($conexion->query("SELECT estado, COUNT(*) AS cantidad FROM pago WHERE activo = 1 GROUP BY estado") as $fila) {
+    $conteos[$fila['estado']] = (int)$fila['cantidad'];
+}
+
 $pagosHoy = contar($conexion, "SELECT COUNT(*) FROM pago WHERE fecha_pago = CURDATE() AND activo = 1");
 $montoPagosHoy = sumar($conexion, "SELECT SUM(monto_total) FROM pago WHERE fecha_pago = CURDATE() AND activo = 1");
 $pagosTotales = contar($conexion, "SELECT COUNT(*) FROM pago WHERE activo = 1");
@@ -95,6 +100,37 @@ $nombreAdmin = explode(' ', $_SESSION['nombre'] ?? 'Administrador')[0];
                 </div>
             </div>
             <?php endif; ?>
+
+            <h2 class="text-lg font-bold text-gray-700 mb-3">Estado de pagos</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                <div class="bg-white rounded-xl border border-amber-200 shadow-sm p-5 flex items-center gap-4">
+                    <span class="w-12 h-12 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                        <i class="fas fa-clock text-2xl"></i>
+                    </span>
+                    <div>
+                        <p class="text-3xl font-bold text-amber-600"><?php echo $conteos['en_espera']; ?></p>
+                        <p class="text-sm font-semibold text-gray-500">En espera</p>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl border border-green-200 shadow-sm p-5 flex items-center gap-4">
+                    <span class="w-12 h-12 rounded-xl bg-green-100 text-green-600 flex items-center justify-center shrink-0">
+                        <i class="fas fa-circle-check text-2xl"></i>
+                    </span>
+                    <div>
+                        <p class="text-3xl font-bold text-green-600"><?php echo $conteos['aprobado']; ?></p>
+                        <p class="text-sm font-semibold text-gray-500">Aprobados</p>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl border border-red-200 shadow-sm p-5 flex items-center gap-4">
+                    <span class="w-12 h-12 rounded-xl bg-red-100 text-red-600 flex items-center justify-center shrink-0">
+                        <i class="fas fa-circle-xmark text-2xl"></i>
+                    </span>
+                    <div>
+                        <p class="text-3xl font-bold text-red-600"><?php echo $conteos['anulado']; ?></p>
+                        <p class="text-sm font-semibold text-gray-500">Anulados</p>
+                    </div>
+                </div>
+            </div>
 
             <!-- Tarjetas principales -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">

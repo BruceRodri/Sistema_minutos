@@ -51,6 +51,16 @@ foreach ($sociosConBuses as $fila) {
 
         <div class="p-4 md:p-8 w-full max-w-7xl mx-auto">
 
+            <div class="mb-5">
+                <label for="buscarSocio" class="block mb-2 text-sm font-bold text-gray-700">Buscar socio</label>
+                <div class="relative w-full md:max-w-md">
+                    <i class="fas fa-search absolute left-3 top-3.5 text-gray-400"></i>
+                    <input id="buscarSocio" type="search" placeholder="Buscar por cédula o nombres..." autocomplete="off"
+                           class="w-full rounded-lg border border-gray-300 bg-white pl-10 pr-3 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none">
+                </div>
+                <p id="resultadoBusquedaSocios" role="status" class="mt-2 text-sm text-gray-500"></p>
+            </div>
+
             <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
@@ -71,7 +81,7 @@ foreach ($sociosConBuses as $fila) {
                         </tr>
                         <?php else: ?>
                             <?php foreach ($sociosAgrupados as $socio): ?>
-                            <tr class="hover:bg-gray-50 transition-colors align-top">
+                            <tr data-busqueda-socio="<?php echo htmlspecialchars($socio['cedula'] . ' ' . $socio['nombres'] . ' ' . $socio['apellidos'], ENT_QUOTES, 'UTF-8'); ?>" class="hover:bg-gray-50 transition-colors align-top">
                                 <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-mono text-gray-700">
                                     <?php echo htmlspecialchars($socio['cedula']); ?>
                                 </td>
@@ -129,6 +139,9 @@ foreach ($sociosConBuses as $fila) {
                             </tr>
                             <?php endforeach; ?>
                         <?php endif; ?>
+                        <tr id="sinCoincidenciasSocios" class="hidden">
+                            <td colspan="4" class="px-6 py-10 text-center text-gray-500">No se encontraron socios con esa cédula o nombre.</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>

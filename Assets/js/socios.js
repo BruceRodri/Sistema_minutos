@@ -3,6 +3,26 @@
 document.addEventListener('DOMContentLoaded', () => {
     const urlControlador = '../../Controllers/SocioController.php';
 
+    const buscarSocio = document.getElementById('buscarSocio');
+    if (buscarSocio) {
+        const filas = [...document.querySelectorAll('[data-busqueda-socio]')];
+        const normalizarBusqueda = (texto) => texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+        buscarSocio.addEventListener('input', () => {
+            const terminos = normalizarBusqueda(buscarSocio.value).split(/\s+/).filter(Boolean);
+            let visibles = 0;
+            filas.forEach((fila) => {
+                const texto = normalizarBusqueda(fila.dataset.busquedaSocio);
+                const coincide = terminos.every((termino) => texto.includes(termino));
+                fila.classList.toggle('hidden', !coincide);
+                if (coincide) visibles++;
+            });
+            document.getElementById('sinCoincidenciasSocios').classList.toggle('hidden', visibles > 0 || filas.length === 0);
+            document.getElementById('resultadoBusquedaSocios').textContent = terminos.length
+                ? visibles + ' socios encontrados.'
+                : '';
+        });
+    }
+
     // ---------- Asignar un disco disponible ----------
     const modalAgregarDisco = document.getElementById('modalAgregarDisco');
     const formAgregarDisco = document.getElementById('formAgregarDisco');

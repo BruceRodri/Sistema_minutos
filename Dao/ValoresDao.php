@@ -5,7 +5,7 @@
 class ValoresDao {
     private $conexion;
 
-    const RUTA_XLSX = __DIR__ . '/../database/valores_diarios.xlsx';
+    const RUTA_XLSX = __DIR__ . '/../data/valores_diarios.xlsx';
 
     public function __construct($conexion) {
         $this->conexion = $conexion;

@@ -44,6 +44,10 @@ if ($accion === 'guardar_comprobantes') {
         ]);
     } elseif ($resultado['status'] === 'no_encontrado') {
         echo json_encode(['status' => 'error', 'message' => 'El pago ya no está disponible.']);
+    } elseif ($resultado['status'] === 'comprobante_obligatorio') {
+        echo json_encode(['status' => 'error', 'message' => 'Ingresa al menos un número de comprobante.']);
+    } elseif ($resultado['status'] === 'comprobante_invalido') {
+        echo json_encode(['status' => 'error', 'message' => 'El número de comprobante solo puede contener dígitos.']);
     } elseif ($resultado['status'] === 'muy_largo') {
         echo json_encode(['status' => 'error', 'message' => 'El código no puede superar los 255 caracteres en total.']);
     } else {
@@ -52,14 +56,22 @@ if ($accion === 'guardar_comprobantes') {
     exit;
 }
 
-if ($accion === 'aprobar') {
-    $resultado = $pagoDao->actualizarEstadoPago($pagoId, 'aprobado');
+if (in_array($accion, ['aprobar', 'en_espera'], true)) {
+    $numero = isset($_POST['codigos']) && is_string($_POST['codigos']) ? trim($_POST['codigos']) : null;
+    $resultado = $pagoDao->actualizarEstadoPago($pagoId, $accion === 'aprobar' ? 'aprobado' : 'en_espera', null, $numero);
     if ($resultado['status'] === 'success') {
-        echo json_encode(['status' => 'success', 'message' => 'Pago aprobado correctamente.']);
+        echo json_encode(['status' => 'success', 'message' => 'Estado del pago actualizado correctamente.']);
     } elseif ($resultado['status'] === 'no_encontrado') {
         echo json_encode(['status' => 'error', 'message' => 'El pago ya no está disponible.']);
     } else {
-        echo json_encode(['status' => 'error', 'message' => 'No se pudo aprobar el pago.']);
+        $mensajes = [
+            'comprobante_obligatorio' => 'Ingresa el número de comprobante antes de aprobar.',
+            'comprobante_invalido' => 'El número de comprobante solo puede contener dígitos.',
+            'muy_largo' => 'Los números de comprobante no pueden superar 255 caracteres.',
+            'detalle_no_disponible' => 'No se pueden identificar las deudas originales de este pago. Revisa su detalle antes de cambiarlo.',
+            'deuda_pagada' => 'Una deuda de este comprobante ya tiene otro pago. No se puede cobrar dos veces.'
+        ];
+        echo json_encode(['status' => 'error', 'message' => $mensajes[$resultado['status']] ?? 'No se pudo actualizar el pago.']);
     }
     exit;
 }

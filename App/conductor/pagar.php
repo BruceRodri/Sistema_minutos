@@ -13,33 +13,13 @@ require_once '../../Dao/ValoresDao.php';
 $nombreCorto = explode(' ', $_SESSION['nombre'] ?? 'Conductor')[0];
 $dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
-function formatearFecha($fecha) {
-    global $dias;
-    $ts = strtotime($fecha);
-    return $dias[(int)date('w', $ts)] . ' ' . date('d/m/Y', $ts);
-}
+require_once '../../Config/vistas_pagos.php';
 
 $valoresDao = new ValoresDao($conexion);
 $valoresDao->sincronizarObligacionesConArchivo();
 
 $pagoDao = new PagoDao($conexion);
-$pagables = [];
-
-foreach ($pagoDao->obtenerObligacionesPendientes() as $pendiente) {
-    $pagables[] = [
-        'id' => (int)$pendiente['id'],
-        'fecha' => $pendiente['fecha'],
-        'valor' => (float)$pendiente['valor'],
-        'ruta' => $pendiente['ruta'] ?: 'Sin ruta',
-        'disco' => $pendiente['disco'],
-        'hoy' => $pendiente['fecha'] === date('Y-m-d')
-    ];
-}
-
-foreach ($pagables as $i => $p) {
-    $pagables[$i]['fechaLegible'] = formatearFecha($p['fecha']);
-    $pagables[$i]['valorFmt'] = number_format($p['valor'], 2, '.', ',');
-}
+$pagables = obtenerPagablesVista($pagoDao);
 
 $discoInicial = null;
 ?>
@@ -121,32 +101,9 @@ $discoInicial = null;
             </button>
 
             <div id="bloqueCarrusel" class="hidden">
-                <div id="carrusel" class="relative flex gap-4 overflow-x-auto snap-x snap-mandatory sin-scrollbar px-4 py-1 items-stretch md:grid md:grid-cols-2 xl:grid-cols-3 md:gap-6 md:overflow-visible md:px-0">
+                <div id="carrusel" data-hash="<?php echo hash('sha256', json_encode($pagables)); ?>" class="relative flex gap-4 overflow-x-auto snap-x snap-mandatory sin-scrollbar px-4 py-1 items-stretch md:grid md:grid-cols-2 xl:grid-cols-3 md:gap-6 md:overflow-visible md:px-0">
 
-                    <?php foreach ($pagables as $card): ?>
-                    <article data-id="<?php echo $card['id']; ?>"
-                             data-disco="<?php echo htmlspecialchars($card['disco']); ?>"
-                             data-fecha="<?php echo htmlspecialchars($card['fechaLegible']); ?>"
-                             data-valor="<?php echo $card['valorFmt']; ?>"
-                             class="cardPagar snap-center shrink-0 w-[82%] max-w-[340px] md:w-auto md:max-w-none md:shrink min-h-0 bg-gradient-to-br from-blue-500 to-blue-700 rounded-3xl p-7 lg:p-9 shadow-xl text-white cursor-pointer active:scale-95 transition-transform">
-                        <div class="flex items-start justify-between gap-3">
-                            <div>
-                                <p class="text-blue-100 text-sm lg:text-base font-bold uppercase tracking-widest"><?php echo $card['hoy'] ? 'Pago de hoy' : 'Pago pendiente'; ?></p>
-                                <p class="text-2xl lg:text-3xl font-bold mt-1"><?php echo htmlspecialchars($card['fechaLegible']); ?></p>
-                            </div>
-                            <span class="bg-white text-blue-700 font-extrabold px-4 py-2 rounded-full text-lg lg:text-xl shadow whitespace-nowrap">Disco <?php echo htmlspecialchars($card['disco']); ?></span>
-                        </div>
-                        <div class="mt-9 lg:mt-11 text-center">
-                            <div class="text-7xl lg:text-8xl font-extrabold leading-none">
-                                <span class="align-top text-4xl lg:text-5xl">$</span><?php echo $card['valorFmt']; ?>
-                            </div>
-                        </div>
-                        <div class="mt-9 lg:mt-11 flex items-center gap-3 justify-center bg-white/20 rounded-2xl px-4 py-4">
-                            <i class="fas fa-route text-2xl"></i>
-                            <span class="text-xl lg:text-2xl font-bold truncate"><?php echo htmlspecialchars($card['ruta']); ?></span>
-                        </div>
-                    </article>
-                    <?php endforeach; ?>
+<?php include __DIR__ . '/components/tarjetas_pagar.php'; ?>
                 </div>
 
                 <div id="puntosTarjetas" class="hidden md:hidden flex items-center justify-center gap-2 mt-5"></div>
@@ -170,32 +127,8 @@ $discoInicial = null;
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10 items-start">
 
                 <!-- Lista de días pendientes -->
-                <div class="bg-white rounded-3xl shadow-sm border border-gray-200 divide-y divide-gray-100 overflow-hidden">
-                    <?php if (empty($pagables)): ?>
-                        <div class="p-8 text-center">
-                            <i class="fas fa-circle-check text-green-500 text-4xl mb-3"></i>
-                            <p class="text-2xl text-gray-600">No hay pagos pendientes para este disco.</p>
-                        </div>
-                    <?php else: ?>
-                        <?php foreach ($pagables as $dia): ?>
-                        <label class="checkDiaFila flex items-center gap-4 p-5 lg:p-6 cursor-pointer hover:bg-blue-50 transition-colors">
-                            <input type="checkbox" class="checkDia w-7 h-7 lg:w-8 lg:h-8 accent-blue-600 shrink-0"
-                                   value="<?php echo $dia['id']; ?>"
-                                   data-valor="<?php echo $dia['valor']; ?>"
-                                   data-disco="<?php echo htmlspecialchars($dia['disco']); ?>"
-                                   data-fecha="<?php echo htmlspecialchars($dia['fechaLegible']); ?>"
-                                   data-valorfmt="<?php echo $dia['valorFmt']; ?>">
-                            <div class="flex-1 min-w-0">
-                                <p class="font-bold text-gray-800 text-xl lg:text-2xl"><?php echo htmlspecialchars($dia['fechaLegible']); ?></p>
-                                <p class="text-lg text-gray-500 truncate mt-1">
-                                    <i class="fas fa-route mr-1"></i><?php echo htmlspecialchars($dia['ruta']); ?>
-                                    <span class="mx-1">·</span>Disco <?php echo htmlspecialchars($dia['disco']); ?>
-                                </p>
-                            </div>
-                            <p class="font-extrabold text-blue-700 text-2xl lg:text-3xl whitespace-nowrap">$ <?php echo $dia['valorFmt']; ?></p>
-                        </label>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
+                <div id="listaDiasPagables" class="bg-white rounded-3xl shadow-sm border border-gray-200 divide-y divide-gray-100 overflow-hidden">
+<?php include __DIR__ . '/components/dias_pagar.php'; ?>
                 </div>
 
                 <!-- Resumen total -->
@@ -262,6 +195,6 @@ $discoInicial = null;
         'discoInicial' => $discoInicial
     ], JSON_UNESCAPED_UNICODE); ?>
     </script>
-    <script src="../../Assets/js/pagar.js"></script>
+    <script src="../../Assets/js/pagar.js?v=<?php echo hash_file('sha256', __DIR__ . '/../../Assets/js/pagar.js'); ?>"></script>
 </body>
 </html>

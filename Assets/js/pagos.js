@@ -124,3 +124,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
     aplicarFiltro();
 });
+document.addEventListener('DOMContentLoaded', () => {
+    const visor = document.getElementById('visorRecibo');
+    const contenido = document.getElementById('contenidoRecibo');
+    const enlace = document.getElementById('abrirRecibo');
+    if (!visor) return;
+    document.querySelectorAll('[data-ver-recibo]').forEach((boton) => {
+        boton.addEventListener('click', () => {
+            const ruta = boton.dataset.verRecibo;
+            contenido.replaceChildren();
+            enlace.href = ruta;
+            const pdf = /\.pdf$/i.test(ruta);
+            const archivo = document.createElement(pdf ? 'iframe' : 'img');
+            archivo.src = ruta;
+            if (pdf) {
+                archivo.title = 'Comprobante de pago';
+                archivo.className = 'w-full h-[65vh] border-0';
+            } else {
+                archivo.alt = 'Comprobante de pago';
+                archivo.className = 'w-full h-auto rounded-lg';
+                archivo.onerror = () => {
+                    contenido.textContent = 'No se pudo cargar la imagen. Intenta abrir el comprobante en otra pestaña.';
+                };
+            }
+            contenido.append(archivo);
+            visor.showModal();
+        });
+    });
+    const cerrar = () => { visor.close(); contenido.replaceChildren(); };
+    document.getElementById('cerrarRecibo').addEventListener('click', cerrar);
+    visor.addEventListener('click', (evento) => {
+        if (evento.target === visor) {
+            const rect = visor.getBoundingClientRect();
+            if (evento.clientX < rect.left || evento.clientX > rect.right || evento.clientY < rect.top || evento.clientY > rect.bottom) cerrar();
+        }
+    });
+});
