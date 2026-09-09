@@ -4,14 +4,16 @@
 // cada vez que cambia, calculando un hash SHA-256 del JSON completo.
 session_start();
 
+require_once __DIR__ . '/../Config/conexion.php';
+require_once __DIR__ . '/../Config/permisos.php';
+
 $usuarioId = (int)($_SESSION['usuario_id'] ?? 0);
-if ($usuarioId <= 0 || ($_SESSION['rol'] ?? '') !== 'conductor') {
+if ($usuarioId <= 0 || !usuarioPuedeVerModulo($conexion, 'app_pagos')) {
     http_response_code(403);
     exit;
 }
 session_write_close();
 
-require_once __DIR__ . '/../Config/conexion.php';
 require_once __DIR__ . '/../Dao/PagoDao.php';
 require_once __DIR__ . '/../Config/vistas_pagos.php';
 
@@ -63,6 +65,7 @@ do {
             'hash' => $hash,
             'pendientes' => $snapshot['pendientes'],
             'pagos' => $snapshot['pagos'],
+            'discos' => $pagoDao->obtenerTodosDiscos(),
         ]);
     } else {
         echo ": ping\n\n";

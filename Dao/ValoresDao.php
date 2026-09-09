@@ -12,7 +12,8 @@ class ValoresDao {
     }
 
     public function archivoExiste() {
-        return is_file(self::RUTA_XLSX);
+        $stmt = $this->conexion->query("SELECT EXISTS(SELECT 1 FROM obligacion_pago WHERE activo = 1)");
+        return (bool)$stmt->fetchColumn();
     }
 
     public function fechaSubida() {
@@ -112,12 +113,14 @@ class ValoresDao {
     public function obtenerParaDiscoFecha($disco, $fechaSql) {
         $discoNorm = $this->normalizarDisco($disco);
         $fechaSql = date('Y-m-d', strtotime($fechaSql));
-        foreach ($this->leerFilas() as $fila) {
-            if ($fila['disco'] === $discoNorm && $fila['fecha'] === $fechaSql) {
-                return $fila;
-            }
-        }
-        return null;
+        $stmt = $this->conexion->prepare(
+            "SELECT id, disco, fecha, valor, ruta, pagado
+             FROM obligacion_pago
+             WHERE disco = :disco AND fecha = :fecha AND activo = 1
+             LIMIT 1"
+        );
+        $stmt->execute([':disco' => $discoNorm, ':fecha' => $fechaSql]);
+        return $stmt->fetch() ?: null;
     }
 
     public function obtenerValorHoy() {
@@ -135,32 +138,40 @@ class ValoresDao {
         $ruta = trim((string)$ruta);
         $valorNumerico = str_replace(',', '.', $valor);
 
-        return array_values(array_filter(
-            $this->leerFilas(),
-            static function ($fila) use ($disco, $fecha, $valor, $valorNumerico, $ruta) {
-                if ($disco !== '' && stripos((string)$fila['disco'], $disco) === false) {
-                    return false;
-                }
-                if ($fecha !== '' && (string)$fila['fecha'] !== $fecha) {
-                    return false;
-                }
-                if ($valor !== '' && (!is_numeric($valorNumerico) || abs((float)$fila['valor'] - (float)$valorNumerico) > 0.00001)) {
-                    return false;
-                }
-                if ($ruta !== '' && stripos((string)$fila['ruta'], $ruta) === false) {
-                    return false;
-                }
-                return true;
-            }
-        ));
+        $sql = "SELECT id, disco, fecha, valor, ruta, pagado
+                FROM obligacion_pago
+                WHERE activo = 1";
+        $parametros = [];
+        if ($disco !== '') {
+            $sql .= " AND disco LIKE :disco";
+            $parametros[':disco'] = '%' . $this->normalizarDisco($disco) . '%';
+        }
+        if ($fecha !== '') {
+            $sql .= " AND fecha = :fecha";
+            $parametros[':fecha'] = $fecha;
+        }
+        if ($valor !== '' && is_numeric($valorNumerico)) {
+            $sql .= " AND valor = :valor";
+            $parametros[':valor'] = (float)$valorNumerico;
+        }
+        if ($ruta !== '') {
+            $sql .= " AND ruta LIKE :ruta";
+            $parametros[':ruta'] = '%' . $ruta . '%';
+        }
+        $sql .= " ORDER BY fecha DESC, CAST(disco AS UNSIGNED), id DESC";
+        $stmt = $this->conexion->prepare($sql);
+        $stmt->execute($parametros);
+        return $stmt->fetchAll();
     }
 
     public function firmaArchivo() {
-        clearstatcache(true, self::RUTA_XLSX);
-        if (!is_file(self::RUTA_XLSX)) {
-            return 'sin-archivo';
-        }
-        return filemtime(self::RUTA_XLSX) . ':' . filesize(self::RUTA_XLSX);
+        $stmt = $this->conexion->query(
+            "SELECT COUNT(*) AS total, COALESCE(MAX(id), 0) AS ultimo,
+                    COALESCE(SUM(pagado), 0) AS pagados
+             FROM obligacion_pago WHERE activo = 1"
+        );
+        $firma = $stmt->fetch();
+        return $firma['total'] . ':' . $firma['ultimo'] . ':' . $firma['pagados'];
     }
 
     public function actualizarTurnosDesdeFilas(array $filas) {
@@ -207,13 +218,10 @@ class ValoresDao {
     }
 
     public function sincronizarObligacionesDesdeFilas(array $filas) {
-        $sincronizadas = 0;
-        $sql = "INSERT INTO obligacion_pago (disco, fecha, valor, ruta, pagado, activo)
-                VALUES (:disco, :fecha, :valor, :ruta, 0, 1)
-                ON DUPLICATE KEY UPDATE
-                    valor = IF(pagado = 0, VALUES(valor), valor),
-                    ruta = IF(pagado = 0, VALUES(ruta), ruta),
-                    activo = 1";
+        $insertadas = 0;
+        $omitidas = 0;
+        $sql = "INSERT IGNORE INTO obligacion_pago (disco, fecha, valor, ruta, pagado, activo)
+                VALUES (:disco, :fecha, :valor, :ruta, 0, 1)";
         $stmt = $this->conexion->prepare($sql);
 
         foreach ($filas as $fila) {
@@ -226,10 +234,14 @@ class ValoresDao {
                 ':valor' => $fila['valor'],
                 ':ruta' => $fila['ruta'] ?: null
             ]);
-            $sincronizadas++;
+            if ($stmt->rowCount() === 1) {
+                $insertadas++;
+            } else {
+                $omitidas++;
+            }
         }
 
-        return $sincronizadas;
+        return ['insertadas' => $insertadas, 'omitidas' => $omitidas];
     }
 
     public function sincronizarObligacionesConArchivo() {

@@ -1,12 +1,14 @@
 <?php
 // Web/admin/dashboard.php
 session_start();
-if (!isset($_SESSION['usuario_id']) || !in_array($_SESSION['rol'] ?? '', ['admin', 'secretaria', 'operativo'])) {
+if (!isset($_SESSION['usuario_id'])) {
     header("Location: ../../index.php");
     exit;
 }
 
 require_once '../../Config/conexion.php';
+require_once '../../Config/permisos.php';
+exigirPermisoModulo($conexion, 'web_dashboard', '../../index.php');
 require_once '../../Dao/ValoresDao.php';
 
 function contar($conexion, $sql, $parametros = []) {
@@ -46,7 +48,7 @@ $turnosPendientes = contar($conexion, "SELECT COUNT(DISTINCT t.id)
     INNER JOIN bus b ON t.bus_id = b.id
     INNER JOIN obligacion_pago o
         ON CAST(b.disco AS UNSIGNED) = CAST(o.disco AS UNSIGNED)
-       AND o.pagado = 0 AND o.activo = 1 AND o.valor > 0
+       AND o.pagado = 0 AND o.pago_id IS NULL AND o.activo = 1 AND o.valor > 0
     WHERE t.fecha = :fecha", [':fecha' => $fechaSeleccionada]);
 $turnosHistorial = contar($conexion, "SELECT COUNT(*) FROM turno WHERE fecha = :fecha", [':fecha' => $fechaSeleccionada]);
 
@@ -166,67 +168,67 @@ $esHoy = $fechaSeleccionada === date('Y-m-d');
             </div>
 
             <!-- Tarjetas principales -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4">
 
-                <a href="socios.php" class="group bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-3xl p-6 shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all">
+                <a href="socios.php" class="order-2 lg:col-span-3 group bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-3xl p-5 min-h-64 shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all">
                     <div class="flex items-center justify-between">
                         <i class="fas fa-id-card text-white/40 text-5xl"></i>
                         <span class="bg-white/20 text-white text-sm font-bold px-3 py-1 rounded-full">SOCIOS</span>
                     </div>
-                    <p class="text-6xl font-extrabold text-white mt-6"><?php echo $totalSocios; ?></p>
-                    <p class="text-white/80 text-lg mt-1">socios registrados</p>
+                    <p class="text-5xl xl:text-4xl font-extrabold text-white mt-6"><?php echo $totalSocios; ?></p>
+                    <p class="text-white/80 text-base mt-1">socios registrados</p>
                     <p class="text-white/70 text-sm mt-3"><i class="fas fa-link mr-1"></i><?php echo $sociosConBuses; ?> con buses asignados</p>
                 </a>
 
-                <a href="usuarios.php" class="group bg-gradient-to-br from-purple-500 to-purple-700 rounded-3xl p-6 shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all">
+                <a href="usuarios.php" class="order-2 lg:col-span-3 group bg-gradient-to-br from-purple-500 to-purple-700 rounded-3xl p-5 min-h-64 shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all">
                     <div class="flex items-center justify-between">
                         <i class="fas fa-user-tie text-white/40 text-5xl"></i>
                         <span class="bg-white/20 text-white text-sm font-bold px-3 py-1 rounded-full">CONDUCTORES</span>
                     </div>
-                    <p class="text-6xl font-extrabold text-white mt-6"><?php echo $totalConductores; ?></p>
-                    <p class="text-white/80 text-lg mt-1">conductores activos</p>
+                    <p class="text-5xl xl:text-4xl font-extrabold text-white mt-6"><?php echo $totalConductores; ?></p>
+                    <p class="text-white/80 text-base mt-1">conductores activos</p>
                     <p class="text-white/70 text-sm mt-3"><i class="fas fa-users mr-1"></i><?php echo $totalUsuarios; ?> usuarios en total</p>
                 </a>
 
-                <a href="buses.php" class="group bg-gradient-to-br from-blue-500 to-blue-700 rounded-3xl p-6 shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all">
+                <a href="buses.php" class="order-2 lg:col-span-3 group bg-gradient-to-br from-blue-500 to-blue-700 rounded-3xl p-5 min-h-64 shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all">
                     <div class="flex items-center justify-between">
                         <i class="fas fa-bus text-white/40 text-5xl"></i>
                         <span class="bg-white/20 text-white text-sm font-bold px-3 py-1 rounded-full">DISCOS</span>
                     </div>
-                    <p class="text-6xl font-extrabold text-white mt-6"><?php echo $totalBuses; ?></p>
-                    <p class="text-white/80 text-lg mt-1">discos / buses</p>
+                    <p class="text-5xl xl:text-4xl font-extrabold text-white mt-6"><?php echo $totalBuses; ?></p>
+                    <p class="text-white/80 text-base mt-1">discos / buses</p>
                     <p class="text-white/70 text-sm mt-3"><i class="fas fa-check-circle mr-1"></i><?php echo $busesActivos; ?> activos · <i class="fas fa-link mr-1"></i><?php echo $busesAsignados; ?> asignados</p>
                 </a>
 
-                <a href="turnos.php" class="group bg-gradient-to-br from-cyan-500 to-cyan-700 rounded-3xl p-6 shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all">
+                <a href="turnos.php" class="order-2 lg:col-span-3 group bg-gradient-to-br from-cyan-500 to-cyan-700 rounded-3xl p-5 min-h-64 shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all">
                     <div class="flex items-center justify-between">
                         <i class="fas fa-clock text-white/40 text-5xl"></i>
                         <span class="bg-white/20 text-white text-sm font-bold px-3 py-1 rounded-full">TURNOS</span>
                     </div>
-                    <p class="text-6xl font-extrabold text-white mt-6"><?php echo $turnosFecha; ?></p>
-                    <p class="text-white/80 text-lg mt-1">turnos del día</p>
+                    <p class="text-5xl xl:text-4xl font-extrabold text-white mt-6"><?php echo $turnosFecha; ?></p>
+                    <p class="text-white/80 text-base mt-1">turnos del día</p>
                     <p class="text-white/70 text-sm mt-3"><i class="fas fa-circle-notch mr-1"></i><?php echo $turnosAbiertos; ?> abiertos · <i class="fas fa-hourglass-half mr-1"></i><?php echo $turnosPendientes; ?> por pagar</p>
                 </a>
 
-                <div class="bg-white rounded-3xl p-6 shadow-sm border border-gray-200 hover:shadow-lg transition-all">
+                <div class="order-1 lg:col-span-4 bg-gradient-to-br from-white to-cyan-50 rounded-3xl p-5 shadow-sm border border-cyan-200 hover:shadow-lg transition-all">
                     <div class="flex items-center justify-between mb-3">
                         <p class="font-bold text-gray-700 text-lg">Historial de turnos</p>
                         <i class="fas fa-list-check text-cyan-600 text-3xl"></i>
                     </div>
-                    <p class="text-5xl font-extrabold text-cyan-700"><?php echo $turnosHistorial; ?></p>
+                    <p class="text-5xl xl:text-4xl font-extrabold text-cyan-700"><?php echo $turnosHistorial; ?></p>
                     <p class="text-gray-500 text-base mt-1">turnos del <?php echo date('d/m/Y', $tsFecha); ?></p>
                 </div>
 
-                <div class="bg-white rounded-3xl p-6 shadow-sm border border-gray-200 hover:shadow-lg transition-all">
+                <div class="order-1 lg:col-span-4 bg-gradient-to-br from-white to-green-50 rounded-3xl p-5 shadow-sm border border-green-200 hover:shadow-lg transition-all">
                     <div class="flex items-center justify-between mb-3">
                         <p class="font-bold text-gray-700 text-lg">Pagos del día</p>
                         <i class="fas fa-money-bill-wave text-green-600 text-3xl"></i>
                     </div>
-                    <p class="text-5xl font-extrabold text-green-700"><?php echo $pagosFecha; ?></p>
+                    <p class="text-5xl xl:text-4xl font-extrabold text-green-700"><?php echo $pagosFecha; ?></p>
                     <p class="text-gray-500 text-base mt-1">por $ <?php echo number_format($montoPagosFecha, 2, '.', ','); ?></p>
                 </div>
 
-                <div class="bg-white rounded-3xl p-6 shadow-sm border border-gray-200 hover:shadow-lg transition-all">
+                <div class="order-1 lg:col-span-4 bg-gradient-to-br from-white to-emerald-50 rounded-3xl p-5 shadow-sm border border-emerald-200 hover:shadow-lg transition-all">
                     <div class="flex items-center justify-between mb-3">
                         <p class="font-bold text-gray-700 text-lg">Valores diarios</p>
                         <i class="fas fa-file-excel text-emerald-600 text-3xl"></i>

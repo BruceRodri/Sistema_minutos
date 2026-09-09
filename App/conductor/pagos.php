@@ -1,12 +1,15 @@
 <?php
 // conductor/pagos.php
 session_start();
-if (!isset($_SESSION['usuario_id']) || $_SESSION['rol'] !== 'conductor') {
+if (!isset($_SESSION['usuario_id'])) {
     header("Location: ../../index.php");
     exit;
 }
 
 require_once '../../Config/conexion.php';
+require_once '../../Config/permisos.php';
+exigirPermisoModulo($conexion, 'app_pagos', usuarioPuedeVerModulo($conexion, 'app_qr') ? 'dashboard.php' : '../../index.php');
+$puedeQr = usuarioPuedeVerModulo($conexion, 'app_qr');
 require_once '../../Dao/PagoDao.php';
 require_once '../../Config/vistas_pagos.php';
 
@@ -30,15 +33,16 @@ $discosTodos = $pagoDao->obtenerTodosDiscos();
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body class="bg-gradient-to-b from-blue-50 to-gray-100 min-h-screen text-gray-800">
+    <?php include __DIR__ . '/components/cambio_interfaz.php'; ?>
 
     <!-- Navegación superior (escritorio) -->
     <nav class="hidden lg:flex fixed top-0 left-0 right-0 bg-white border-b border-gray-200 shadow-sm z-30">
         <div class="w-full max-w-7xl mx-auto flex items-center justify-between px-10 py-4">
             <span class="font-bold text-gray-800 text-lg"><i class="fas fa-clock text-blue-600 mr-2"></i>Minutos</span>
             <div class="flex gap-2">
-                <a href="dashboard.php" class="px-5 py-2.5 rounded-xl font-semibold text-gray-500 hover:bg-gray-100 hover:text-blue-600 transition-colors">
+                <?php if ($puedeQr): ?><a href="dashboard.php" class="px-5 py-2.5 rounded-xl font-semibold text-gray-500 hover:bg-gray-100 hover:text-blue-600 transition-colors">
                     <i class="fas fa-user mr-2"></i>Perfil
-                </a>
+                </a><?php endif; ?>
                 <a href="pagar.php" class="px-5 py-2.5 rounded-xl font-semibold text-gray-500 hover:bg-gray-100 hover:text-blue-600 transition-colors">
                     <i class="fas fa-money-bill-wave mr-2"></i>Pagar
                 </a>
@@ -93,10 +97,10 @@ $discosTodos = $pagoDao->obtenerTodosDiscos();
     <!-- Barra de navegación inferior (móvil) -->
     <nav class="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
         <div class="grid grid-cols-3 w-full max-w-xl mx-auto">
-            <a href="dashboard.php" class="flex flex-col items-center py-3 text-gray-500 hover:text-blue-600 transition-colors">
+            <?php if ($puedeQr): ?><a href="dashboard.php" class="flex flex-col items-center py-3 text-gray-500 hover:text-blue-600 transition-colors">
                 <i class="fas fa-user text-2xl"></i>
                 <span class="text-base font-semibold mt-1">Perfil</span>
-            </a>
+            </a><?php endif; ?>
             <a href="pagar.php" class="flex flex-col items-center py-3 text-gray-500 hover:text-blue-600 transition-colors">
                 <i class="fas fa-money-bill-wave text-2xl"></i>
                 <span class="text-base font-semibold mt-1">Pagar</span>

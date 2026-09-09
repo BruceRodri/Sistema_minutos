@@ -1,12 +1,14 @@
 <?php
 // Web/admin/turnos.php
 session_start();
-if (!isset($_SESSION['usuario_id']) || !in_array($_SESSION['rol'] ?? '', ['admin', 'secretaria', 'operativo'])) {
+if (!isset($_SESSION['usuario_id'])) {
     header("Location: ../../index.php");
     exit;
 }
 
 require_once '../../Config/conexion.php';
+require_once '../../Config/permisos.php';
+exigirPermisoModulo($conexion, 'web_turnos', 'dashboard.php');
 require_once '../../Dao/TurnoDao.php';
 
 $turnoDao = new TurnoDao($conexion);
@@ -243,7 +245,7 @@ function formatearDiscoHistorial($disco) {
             </div>
 
             <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
+                <table data-server-pagination="true" class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
                             <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Disco</th>
@@ -415,9 +417,14 @@ function formatearDiscoHistorial($disco) {
             };
 
             const renderizar = (datos) => {
-                total.textContent = datos.total;
+                if (!datos || typeof datos !== 'object' || !Array.isArray(datos.turnos)) {
+                    console.warn('Se ignoró una actualización SSE de turnos con formato incompleto.');
+                    return;
+                }
+                const totalRegistros = Math.max(0, Number.parseInt(datos.total, 10) || 0);
+                total.textContent = totalRegistros;
 
-                if (datos.total === 0) {
+                if (totalRegistros === 0) {
                     rango.textContent = '';
                     rango.classList.add('hidden');
                     tabla.innerHTML = `
@@ -428,7 +435,7 @@ function formatearDiscoHistorial($disco) {
                             </td>
                         </tr>`;
                 } else {
-                    rango.textContent = `Mostrando ${datos.primero}–${datos.ultimo} de ${datos.total}`;
+                    rango.textContent = `Mostrando ${datos.primero}–${datos.ultimo} de ${totalRegistros}`;
                     rango.classList.remove('hidden');
                     tabla.innerHTML = datos.turnos.map((turno) => `
                         <tr class="${turno.conductor_duplicado ? 'bg-red-50/70 hover:bg-red-100/70' : (turno.estado === 'fallido' ? 'bg-amber-50/70 hover:bg-amber-100/70' : 'hover:bg-gray-50')} transition-colors">
@@ -452,10 +459,14 @@ function formatearDiscoHistorial($disco) {
             const eventos = new EventSource(streamUrl.toString());
             eventos.addEventListener('turnos', (evento) => {
                 try {
+                    if (typeof evento.data !== 'string' || evento.data.trim() === '') return;
                     renderizar(JSON.parse(evento.data));
                 } catch (error) {
                     console.error('No se pudo actualizar el historial de turnos.', error);
                 }
+            });
+            eventos.addEventListener('error', () => {
+                console.warn('La conexión en tiempo real de turnos se está reconectando.');
             });
 
             window.addEventListener('beforeunload', () => eventos.close());

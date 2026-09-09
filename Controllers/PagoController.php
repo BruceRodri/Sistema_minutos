@@ -2,12 +2,12 @@
 // Controllers/PagoController.php
 session_start();
 require_once '../Config/conexion.php';
+require_once '../Config/permisos.php';
 require_once '../Dao/PagoDao.php';
-require_once '../Dao/ValoresDao.php';
 
 header('Content-Type: application/json');
 
-if (!isset($_SESSION['usuario_id']) || ($_SESSION['rol'] ?? '') !== 'conductor') {
+if (!isset($_SESSION['usuario_id']) || !usuarioPuedeVerModulo($conexion, 'app_pagos')) {
     echo json_encode(['status' => 'error', 'message' => 'Acceso denegado.']);
     exit;
 }
@@ -74,9 +74,6 @@ function responderErrorComprobante($estado) {
 }
 
 $accion = $_POST['accion'] ?? '';
-$valoresDao = new ValoresDao($conexion);
-$valoresDao->sincronizarObligacionesConArchivo();
-
 $pagoDao = new PagoDao($conexion);
 $obligacionesIds = [];
 

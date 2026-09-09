@@ -1,10 +1,15 @@
 <?php
 // conductor/dashboard.php
 session_start();
-if (!isset($_SESSION['usuario_id']) || $_SESSION['rol'] !== 'conductor') {
+if (!isset($_SESSION['usuario_id'])) {
     header("Location: ../../index.php");
     exit;
 }
+
+require_once '../../Config/conexion.php';
+require_once '../../Config/permisos.php';
+exigirPermisoModulo($conexion, 'app_qr', usuarioPuedeVerModulo($conexion, 'app_pagos') ? 'pagar.php' : '../../index.php');
+$puedePagos = usuarioPuedeVerModulo($conexion, 'app_pagos');
 
 $nombreCorto = explode(' ', $_SESSION['nombre'] ?? 'Conductor')[0];
 $codigoConductor = $_SESSION['codigo_conductor'] ?? null;
@@ -46,7 +51,8 @@ $fechaHoy = date('d/m/Y');
         }
     </style>
 </head>
-<body class="bg-gray-100 text-gray-800 min-h-screen">
+<body class="bg-gradient-to-br from-slate-100 via-blue-50 to-cyan-100 text-gray-800 min-h-screen">
+    <?php include __DIR__ . '/components/cambio_interfaz.php'; ?>
 
     <div class="flex flex-col min-h-screen max-w-md mx-auto p-4 md:py-6">
 
@@ -77,35 +83,36 @@ $fechaHoy = date('d/m/Y');
                 <span class="mt-2 text-sm font-normal text-blue-800/80">Escanear código QR del bus</span>
             </button>
 
-            <a href="pagar.php" class="group bg-white hover:bg-green-50 border-2 border-green-200 hover:border-green-500 text-gray-900 font-bold py-14 px-4 rounded-2xl shadow-md hover:shadow-lg text-2xl transition-all flex flex-col items-center justify-center active:scale-95">
+            <?php if ($puedePagos): ?><a href="pagar.php" class="group bg-white hover:bg-green-50 border-2 border-green-200 hover:border-green-500 text-gray-900 font-bold py-14 px-4 rounded-2xl shadow-md hover:shadow-lg text-2xl transition-all flex flex-col items-center justify-center active:scale-95">
                 <span class="w-20 h-20 mb-5 rounded-2xl bg-green-600 group-hover:bg-green-700 text-white flex items-center justify-center shadow-lg transition-colors">
                     <i class="fas fa-money-bill-wave text-5xl"></i>
                 </span>
                 PAGOS
                 <span class="mt-2 text-sm font-normal text-gray-500">Consultar y registrar pagos</span>
-            </a>
+            </a><?php endif; ?>
         </div>
     </div>
 
     <!-- Overlay del escáner QR -->
-    <div id="scannerOverlay" class="hidden fixed inset-0 bg-gray-100 z-50 flex flex-col">
-        <div class="flex items-center justify-end p-4 bg-white border-b border-gray-200 text-gray-900 shadow-sm">
-            <button id="btnCerrarScanner" class="bg-gray-100 hover:bg-gray-200 text-gray-700 w-10 h-10 rounded-full flex items-center justify-center transition-colors" title="Cerrar">
+    <div id="scannerOverlay" class="hidden fixed inset-0 bg-gradient-to-br from-slate-950 via-blue-950 to-blue-800 z-50 flex flex-col">
+        <div class="flex items-center justify-between p-4 bg-blue-950/80 border-b border-white/10 text-white shadow-sm backdrop-blur">
+            <div class="flex items-center gap-3"><img src="../../Assets/icons/icon-192x192.png" alt="Ejecuttrans" class="h-9 w-9 rounded-lg"><span class="font-extrabold tracking-wide">ABRIR TURNO</span></div>
+            <button id="btnCerrarScanner" class="bg-white/10 hover:bg-white/20 text-white w-10 h-10 rounded-full flex items-center justify-center transition-colors" title="Cerrar">
                 <i class="fas fa-times text-xl"></i>
             </button>
         </div>
         <div class="flex-1 overflow-y-auto p-4">
             <div class="mx-auto flex min-h-full w-full max-w-md flex-col items-center justify-center py-5">
-                <div class="mb-6 w-full rounded-2xl border border-blue-100 bg-white p-5 text-center shadow-sm">
-                    <span class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100 text-blue-700">
+                <div class="mb-6 w-full rounded-2xl border border-cyan-300/30 bg-white/95 p-5 text-center shadow-xl backdrop-blur">
+                    <span class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-cyan-500 text-white shadow">
                         <i class="fas fa-qrcode text-2xl"></i>
                     </span>
                     <h3 class="text-xl font-bold text-gray-900">Por favor, escanee el código QR de su unidad</h3>
                     <p class="mt-2 text-sm text-gray-500">Mantenga el código completo y bien iluminado.</p>
                 </div>
                 <div id="qr-reader"></div>
-                <p class="mt-5 text-center text-sm font-medium text-gray-600">
-                    <i class="fas fa-camera mr-2 text-blue-600"></i>Apunta la cámara al código QR del bus
+                <p class="mt-5 rounded-full bg-white/10 px-5 py-2 text-center text-sm font-medium text-blue-50 backdrop-blur">
+                    <i class="fas fa-camera mr-2 text-cyan-300"></i>Apunta la cámara al código QR del bus
                 </p>
             </div>
         </div>
@@ -113,7 +120,7 @@ $fechaHoy = date('d/m/Y');
 
     <!-- Modal de confirmación -->
     <div id="modalConfirmacion" class="hidden fixed inset-0 bg-gray-900 bg-opacity-40 backdrop-blur-sm z-50 flex items-center justify-center p-6">
-        <div class="bg-white rounded-2xl p-8 w-full max-w-sm text-center shadow-2xl border border-gray-200">
+        <div class="overflow-hidden bg-gradient-to-br from-white via-blue-50 to-cyan-100 rounded-2xl p-8 w-full max-w-sm text-center shadow-2xl border border-blue-200">
             <div id="modalIcono" class="mx-auto mb-4 w-20 h-20 rounded-full flex items-center justify-center bg-green-600">
                 <i class="fas fa-check text-white text-4xl"></i>
             </div>

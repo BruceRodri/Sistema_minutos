@@ -7,6 +7,28 @@ class PagoDao {
         $this->conexion = $conexion;
     }
 
+    private function encontrarPagoAnuladoReutilizable($usuarioId, array $ids, $claveDetalle) {
+        sort($ids, SORT_NUMERIC);
+        $stmt = $this->conexion->prepare(
+            "SELECT id, detalle_pagos FROM pago
+             WHERE usuario_id = ? AND estado = 'anulado' AND activo = 1
+             ORDER BY id DESC FOR UPDATE"
+        );
+        $stmt->execute([(int)$usuarioId]);
+        foreach ($stmt->fetchAll() as $pago) {
+            $detalle = json_decode($pago['detalle_pagos'] ?? '', true);
+            if (!is_array($detalle)) continue;
+            $idsDetalle = [];
+            foreach ($detalle as $fila) {
+                if (!is_array($fila) || !isset($fila[$claveDetalle])) continue 2;
+                $idsDetalle[] = (int)$fila[$claveDetalle];
+            }
+            sort($idsDetalle, SORT_NUMERIC);
+            if ($idsDetalle === $ids) return (int)$pago['id'];
+        }
+        return null;
+    }
+
     public function obtenerTurnoHoyConductor($usuarioId) {
         $sql = "SELECT t.id, t.fecha, t.hora_apertura, t.valor, t.ruta, t.pagado, b.disco
                 FROM turno t
@@ -42,6 +64,25 @@ class PagoDao {
         $stmt = $this->conexion->prepare($sql);
         $stmt->execute([':usuario_id' => $usuarioId]);
         $pagos = $stmt->fetchAll();
+
+        // Un mismo conjunto de deudas conserva una sola tarjeta en la app.
+        // Los registros antiguos duplicados quedan auditables en la BD y la vista usa el más reciente.
+        $vistos = [];
+        $pagos = array_values(array_filter($pagos, static function ($pago) use (&$vistos) {
+            $detalle = json_decode($pago['detalle_pagos'] ?? '', true);
+            if (!is_array($detalle) || !$detalle) return true;
+            $claves = [];
+            foreach ($detalle as $fila) {
+                if (isset($fila['obligacion_id'])) $claves[] = 'o:' . (int)$fila['obligacion_id'];
+                elseif (isset($fila['turno_id'])) $claves[] = 't:' . (int)$fila['turno_id'];
+                else return true;
+            }
+            sort($claves, SORT_STRING);
+            $clave = implode('|', $claves);
+            if (isset($vistos[$clave])) return false;
+            $vistos[$clave] = true;
+            return true;
+        }));
 
         $stmtFechas = $this->conexion->prepare(
             "SELECT fecha, disco FROM turno t
@@ -94,7 +135,7 @@ class PagoDao {
     public function obtenerObligacionesPendientes() {
         $sql = "SELECT id, disco, fecha, valor, ruta
                 FROM obligacion_pago
-                WHERE pagado = 0 AND activo = 1 AND valor > 0
+                WHERE pagado = 0 AND pago_id IS NULL AND activo = 1 AND valor > 0
                 ORDER BY fecha ASC, CAST(disco AS UNSIGNED), id";
         $stmt = $this->conexion->prepare($sql);
         $stmt->execute();
@@ -116,7 +157,7 @@ class PagoDao {
             $stmt = $this->conexion->prepare(
                 "SELECT id, valor, fecha, disco, ruta
                  FROM obligacion_pago
-                 WHERE id IN ({$placeholders}) AND pagado = 0 AND activo = 1 AND valor > 0
+                 WHERE id IN ({$placeholders}) AND pagado = 0 AND pago_id IS NULL AND activo = 1 AND valor > 0
                  FOR UPDATE"
             );
             $stmt->execute($obligacionesIds);
@@ -148,22 +189,27 @@ class PagoDao {
                 JSON_UNESCAPED_UNICODE
             );
 
-            $stmt = $this->conexion->prepare(
-                "INSERT INTO pago (usuario_id, monto_total, fecha_pago, comprobante, estado, detalle_pagos, activo)
-                 VALUES (:usuario_id, :monto, CURDATE(), :comprobante, 'en_espera', :detalle, 1)"
-            );
-            $stmt->execute([
-                ':usuario_id' => $usuarioId,
-                ':monto' => $montoTotal,
-                ':comprobante' => $comprobante,
-                ':detalle' => $detallePagos
-            ]);
-            $pagoId = $this->conexion->lastInsertId();
+            $pagoId = $this->encontrarPagoAnuladoReutilizable($usuarioId, $obligacionesIds, 'obligacion_id');
+            if ($pagoId) {
+                $stmt = $this->conexion->prepare(
+                    "UPDATE pago SET monto_total=:monto, fecha_pago=CURDATE(), comprobante=:comprobante,
+                     estado='en_espera', motivo_rechazo=NULL, nro_comprobante=NULL, detalle_pagos=:detalle
+                     WHERE id=:id"
+                );
+                $stmt->execute([':monto' => $montoTotal, ':comprobante' => $comprobante, ':detalle' => $detallePagos, ':id' => $pagoId]);
+            } else {
+                $stmt = $this->conexion->prepare(
+                    "INSERT INTO pago (usuario_id, monto_total, fecha_pago, comprobante, estado, detalle_pagos, activo)
+                     VALUES (:usuario_id, :monto, CURDATE(), :comprobante, 'en_espera', :detalle, 1)"
+                );
+                $stmt->execute([':usuario_id' => $usuarioId, ':monto' => $montoTotal, ':comprobante' => $comprobante, ':detalle' => $detallePagos]);
+                $pagoId = (int)$this->conexion->lastInsertId();
+            }
 
             $stmt = $this->conexion->prepare(
                 "UPDATE obligacion_pago
-                 SET pagado = 1, pago_id = :pago_id
-                 WHERE id = :id AND pagado = 0"
+                 SET pagado = 0, pago_id = :pago_id
+                 WHERE id = :id AND pagado = 0 AND pago_id IS NULL"
             );
             foreach ($obligaciones as $obligacion) {
                 $stmt->execute([':pago_id' => $pagoId, ':id' => $obligacion['id']]);
@@ -257,17 +303,22 @@ class PagoDao {
                 JSON_UNESCAPED_UNICODE
             );
 
-            $stmt = $this->conexion->prepare(
-                "INSERT INTO pago (usuario_id, monto_total, fecha_pago, comprobante, estado, detalle_pagos, activo)
-                 VALUES (:usuario_id, :monto, CURDATE(), :comprobante, 'en_espera', :detalle, 1)"
-            );
-            $stmt->execute([
-                ':usuario_id' => $usuarioId,
-                ':monto' => $montoTotal,
-                ':comprobante' => $comprobante,
-                ':detalle' => $detallePagos
-            ]);
-            $pagoId = $this->conexion->lastInsertId();
+            $pagoId = $this->encontrarPagoAnuladoReutilizable($usuarioId, $turnosIds, 'turno_id');
+            if ($pagoId) {
+                $stmt = $this->conexion->prepare(
+                    "UPDATE pago SET monto_total=:monto, fecha_pago=CURDATE(), comprobante=:comprobante,
+                     estado='en_espera', motivo_rechazo=NULL, nro_comprobante=NULL, detalle_pagos=:detalle
+                     WHERE id=:id"
+                );
+                $stmt->execute([':monto' => $montoTotal, ':comprobante' => $comprobante, ':detalle' => $detallePagos, ':id' => $pagoId]);
+            } else {
+                $stmt = $this->conexion->prepare(
+                    "INSERT INTO pago (usuario_id, monto_total, fecha_pago, comprobante, estado, detalle_pagos, activo)
+                     VALUES (:usuario_id, :monto, CURDATE(), :comprobante, 'en_espera', :detalle, 1)"
+                );
+                $stmt->execute([':usuario_id' => $usuarioId, ':monto' => $montoTotal, ':comprobante' => $comprobante, ':detalle' => $detallePagos]);
+                $pagoId = (int)$this->conexion->lastInsertId();
+            }
 
             $stmtActualizar = $this->conexion->prepare(
                 "UPDATE turno
@@ -537,7 +588,7 @@ class PagoDao {
                     if (($deuda['pago_id'] !== null && (int)$deuda['pago_id'] !== (int)$pagoId) || ((int)$deuda['pagado'] === 1 && (int)$deuda['pago_id'] !== (int)$pagoId)) {
                         throw new RuntimeException('deuda_pagada');
                     }
-                    $stmt = $this->conexion->prepare("UPDATE $tabla SET pagado=1, pago_id=? WHERE id=?");
+                    $stmt = $this->conexion->prepare("UPDATE $tabla SET pagado=0, pago_id=? WHERE id=?");
                     $stmt->execute([(int)$pagoId, $deuda['id']]);
                 }
             }
@@ -547,6 +598,12 @@ class PagoDao {
                 foreach (['obligacion_pago', 'turno'] as $tabla) {
                     $stmt = $this->conexion->prepare("UPDATE $tabla SET pagado=0, pago_id=NULL WHERE pago_id=?");
                     $stmt->execute([(int)$pagoId]);
+                }
+            } else {
+                $pagado = $estado === 'aprobado' ? 1 : 0;
+                foreach (['obligacion_pago', 'turno'] as $tabla) {
+                    $stmt = $this->conexion->prepare("UPDATE $tabla SET pagado=? WHERE pago_id=?");
+                    $stmt->execute([$pagado, (int)$pagoId]);
                 }
             }
             if ($propia) $this->conexion->commit();

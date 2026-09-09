@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ejecuttrans-v3';
+const CACHE_NAME = 'ejecuttrans-v4';
 const urlsToCache = [
     './',
     './index.php',
@@ -31,10 +31,15 @@ self.addEventListener('activate', event => {
 // Estrategia Network-First (prioriza internet para no mostrar datos PHP viejos)
 self.addEventListener('fetch', event => {
     if (event.request.method !== 'GET') return;
+    const url = new URL(event.request.url);
+    // No clonar ni almacenar streams: la copia mantiene viva la conexión
+    // incluso cuando la página cierra EventSource para cambiar sus filtros.
+    if (event.request.headers.get('Accept')?.includes('text/event-stream') ||
+        /\/Controllers\//i.test(url.pathname)) return;
     event.respondWith(
         fetch(event.request)
             .then(response => {
-                if (response.ok) {
+                if (response.ok && !response.headers.get('Content-Type')?.includes('text/event-stream')) {
                     const copy = response.clone();
                     const url = new URL(event.request.url);
                     if (url.origin === self.location.origin) {

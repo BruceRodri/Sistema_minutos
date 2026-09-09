@@ -176,11 +176,51 @@ class UsuarioDao {
         return $stmt->fetchAll();
     }
 
+    public function buscarUsuariosParaPermisos($termino, $limite = 5) {
+        $sql = "SELECT u.id, u.nombres, u.apellidos, u.cedula, r.nombre AS rol
+                FROM usuario u
+                INNER JOIN rol r ON r.id = u.rol_id
+                WHERE u.activo = 1
+                  AND (u.cedula LIKE :termino_cedula OR CONCAT(u.nombres, ' ', u.apellidos) LIKE :termino_nombre)
+                ORDER BY u.nombres, u.apellidos
+                LIMIT :limite";
+        $stmt = $this->conexion->prepare($sql);
+        $coincidencia = '%' . trim((string)$termino) . '%';
+        $stmt->bindValue(':termino_cedula', $coincidencia, PDO::PARAM_STR);
+        $stmt->bindValue(':termino_nombre', $coincidencia, PDO::PARAM_STR);
+        $stmt->bindValue(':limite', min(5, max(1, (int)$limite)), PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll();
+    }
+
     public function obtenerRolesActivos() {
         $sql = "SELECT nombre FROM rol WHERE activo = 1 ORDER BY id";
         $stmt = $this->conexion->prepare($sql);
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_COLUMN);
+    }
+
+    public function obtenerPermisosModulosActuales($usuarioId) {
+        $stmt = $this->conexion->prepare('SELECT modulo FROM usuario_permiso_modulo WHERE usuario_id=? AND habilitado=1 ORDER BY modulo');
+        $stmt->execute([(int)$usuarioId]);
+        return $stmt->fetchAll(PDO::FETCH_COLUMN);
+    }
+
+    public function guardarPermisosModulos($usuarioId, array $modulos, array $catalogo) {
+        $propia = !$this->conexion->inTransaction();
+        if ($propia) $this->conexion->beginTransaction();
+        try {
+            $stmt = $this->conexion->prepare('DELETE FROM usuario_permiso_modulo WHERE usuario_id=?');
+            $stmt->execute([(int)$usuarioId]);
+            $habilitados = array_flip(array_values(array_unique($modulos)));
+            $stmt = $this->conexion->prepare('INSERT INTO usuario_permiso_modulo (usuario_id, modulo, habilitado) VALUES (?, ?, ?)');
+            foreach ($catalogo as $modulo) $stmt->execute([(int)$usuarioId, $modulo, isset($habilitados[$modulo]) ? 1 : 0]);
+            if ($propia) $this->conexion->commit();
+            return true;
+        } catch (Throwable $e) {
+            if ($propia && $this->conexion->inTransaction()) $this->conexion->rollBack();
+            return false;
+        }
     }
 
     public function rolActivoExiste($rol) {
@@ -201,13 +241,17 @@ class UsuarioDao {
         return $stmt->fetch();
     }
 
-    private function siguienteCodigoBloqueante($columna) {
+    private function siguienteCodigoBloqueante($columna = null) {
         $propia = !$this->conexion->inTransaction();
         if ($propia) {
             $this->conexion->beginTransaction();
         }
         $stmt = $this->conexion->prepare(
-            "SELECT MAX(CAST($columna AS UNSIGNED)) FROM usuario WHERE $columna IS NOT NULL FOR UPDATE"
+            "SELECT MAX(codigo) FROM (
+                SELECT CAST(codigo_conductor AS UNSIGNED) AS codigo FROM usuario WHERE codigo_conductor IS NOT NULL
+                UNION ALL
+                SELECT CAST(codigo_socio AS UNSIGNED) AS codigo FROM usuario WHERE codigo_socio IS NOT NULL
+             ) codigos FOR UPDATE"
         );
         $stmt->execute();
         $maximo = $stmt->fetchColumn();
@@ -219,11 +263,11 @@ class UsuarioDao {
     }
 
     public function generarCodigoConductor() {
-        return $this->siguienteCodigoBloqueante('codigo_conductor');
+        return $this->siguienteCodigoBloqueante();
     }
 
     public function generarCodigoSocio() {
-        return $this->siguienteCodigoBloqueante('codigo_socio');
+        return $this->siguienteCodigoBloqueante();
     }
 
     public function registrarUsuario($nombres, $apellidos, $fechaNacimiento, $cedula, $rolNombre) {
@@ -237,9 +281,9 @@ class UsuarioDao {
             $rolNombreBajado = strtolower($rolNombre);
 
             if ($rolNombreBajado === 'conductor') {
-                $codigoConductor = $this->siguienteCodigoBloqueante('codigo_conductor');
+                $codigoConductor = $this->siguienteCodigoBloqueante();
             } elseif ($rolNombreBajado === 'socio') {
-                $codigoSocio = $this->siguienteCodigoBloqueante('codigo_socio');
+                $codigoSocio = $this->siguienteCodigoBloqueante();
             }
 
             $sql = "INSERT INTO usuario (nombres, apellidos, fecha_nacimiento, cedula, codigo_conductor, codigo_socio, rol_id, estado_usuario_id, activo)

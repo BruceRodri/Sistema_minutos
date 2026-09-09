@@ -3,6 +3,7 @@
 session_start();
 require_once '../Config/conexion.php';
 require_once '../Dao/UsuarioDao.php';
+require_once '../Config/permisos.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -32,6 +33,45 @@ if (!is_string($token) || !isset($_SESSION['csrf_admin_usuarios']) || !hash_equa
 
 $accion = $_POST['accion'] ?? '';
 $usuarioDao = new UsuarioDao($conexion);
+
+if ($accion === 'buscar_usuarios_permisos') {
+    $termino = is_scalar($_POST['termino'] ?? '') ? trim((string)$_POST['termino']) : '';
+    responderUsuario('success', 'Usuarios encontrados.', [
+        'usuarios' => $usuarioDao->buscarUsuariosParaPermisos($termino, 5)
+    ]);
+}
+
+if ($accion === 'obtener_permisos') {
+    $usuarioId = filter_var($_POST['usuario_id'] ?? null, FILTER_VALIDATE_INT);
+    $usuario = $usuarioId ? $usuarioDao->obtenerUsuarioAdministrablePorId($usuarioId) : null;
+    if (!$usuario) responderUsuario('error', 'El usuario seleccionado no existe.');
+    responderUsuario('success', 'Permisos cargados.', [
+        'permisos' => permisosEfectivosUsuario($conexion, (int)$usuarioId, (string)$usuario['rol'])
+    ]);
+}
+
+if ($accion === 'guardar_permisos') {
+    $idsRecibidos = (array)($_POST['usuario_ids'] ?? []);
+    if (!$idsRecibidos && isset($_POST['usuario_id'])) $idsRecibidos = [$_POST['usuario_id']];
+    $usuariosIds = array_values(array_unique(array_filter(array_map('intval', $idsRecibidos))));
+    if (!$usuariosIds) responderUsuario('error', 'Agregue al menos un usuario a la lista.');
+    $catalogo = array_keys(catalogoModulosSistema());
+    $permisos = array_values(array_intersect((array)($_POST['permisos'] ?? []), $catalogo));
+    $conexion->beginTransaction();
+    try {
+        foreach ($usuariosIds as $usuarioId) {
+            $usuario = $usuarioDao->obtenerUsuarioAdministrablePorId($usuarioId);
+            if (!$usuario) throw new RuntimeException('Uno de los usuarios seleccionados ya no existe.');
+            if (($usuario['rol'] ?? '') === 'admin') throw new RuntimeException('El administrador mantiene acceso completo y no necesita permisos individuales.');
+            if (!$usuarioDao->guardarPermisosModulos($usuarioId, $permisos, $catalogo)) throw new RuntimeException('No se pudieron guardar los permisos.');
+        }
+        $conexion->commit();
+    } catch (Throwable $e) {
+        if ($conexion->inTransaction()) $conexion->rollBack();
+        responderUsuario('error', $e->getMessage());
+    }
+    responderUsuario('success', 'Permisos actualizados para ' . count($usuariosIds) . ' usuario(s).');
+}
 
 if ($accion === 'cambiar_estado') {
     $usuarioId = filter_var($_POST['usuario_id'] ?? null, FILTER_VALIDATE_INT);

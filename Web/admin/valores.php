@@ -1,12 +1,14 @@
 <?php
 // Web/admin/valores.php
 session_start();
-if (!isset($_SESSION['usuario_id']) || !in_array($_SESSION['rol'] ?? '', ['admin', 'secretaria', 'operativo'], true)) {
+if (!isset($_SESSION['usuario_id'])) {
     header('Location: ../../index.php');
     exit;
 }
 
 require_once '../../Config/conexion.php';
+require_once '../../Config/permisos.php';
+exigirPermisoModulo($conexion, 'web_valores', 'dashboard.php');
 require_once '../../Dao/ValoresDao.php';
 
 function parametroVistaValores($nombre) {
@@ -131,19 +133,20 @@ $fechaSubida = $valoresDao->fechaSubida();
                 </form>
 
                 <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
+                    <table data-server-pagination="true" class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
                             <tr>
                                 <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Disco</th>
                                 <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Fecha</th>
                                 <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Valor</th>
                                 <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Ruta</th>
+                                <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Estado</th>
                             </tr>
                         </thead>
                         <tbody id="tablaValores" class="bg-white divide-y divide-gray-200">
                             <?php if (empty($filasPagina)): ?>
                                 <tr>
-                                    <td colspan="4" class="px-6 py-14 text-center text-gray-500">
+                                    <td colspan="5" class="px-6 py-14 text-center text-gray-500">
                                         <i class="fas fa-table-list text-3xl text-gray-300 mb-3"></i>
                                         <p><?php echo $existeArchivo ? 'No se encontraron datos con los filtros seleccionados.' : 'Aún no se ha cargado un archivo de valores.'; ?></p>
                                     </td>
@@ -155,6 +158,7 @@ $fechaSubida = $valoresDao->fechaSubida();
                                         <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-700"><?php echo htmlspecialchars(date('d/m/Y', strtotime($fila['fecha']))); ?></td>
                                         <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-bold text-gray-800">$ <?php echo number_format((float)$fila['valor'], 2, '.', ','); ?></td>
                                         <td class="px-6 py-4 text-sm text-gray-700"><?php echo htmlspecialchars($fila['ruta'] ?: '—'); ?></td>
+                                        <td class="px-6 py-4 text-center"><span class="inline-flex rounded-full px-3 py-1 text-xs font-bold <?php echo (int)$fila['pagado'] === 1 ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'; ?>"><?php echo (int)$fila['pagado'] === 1 ? 'Pagado' : 'No pagado'; ?></span></td>
                                     </tr>
                                 <?php endforeach; ?>
                             <?php endif; ?>

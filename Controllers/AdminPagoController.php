@@ -2,11 +2,12 @@
 // Controllers/AdminPagoController.php
 session_start();
 require_once '../Config/conexion.php';
+require_once '../Config/permisos.php';
 require_once '../Dao/PagoDao.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
-if (!isset($_SESSION['usuario_id']) || !in_array($_SESSION['rol'] ?? '', ['admin', 'secretaria', 'operativo'], true)) {
+if (!isset($_SESSION['usuario_id']) || !usuarioPuedeVerModulo($conexion, 'web_pagos')) {
     echo json_encode(['status' => 'error', 'message' => 'Acceso denegado.']);
     exit;
 }

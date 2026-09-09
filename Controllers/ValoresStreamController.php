@@ -1,18 +1,20 @@
 <?php
 // Controllers/ValoresStreamController.php
 session_start();
+require_once '../Config/conexion.php';
+require_once '../Config/permisos.php';
 
-if (!isset($_SESSION['usuario_id']) || !in_array($_SESSION['rol'] ?? '', ['admin', 'secretaria', 'operativo'], true)) {
+if (!isset($_SESSION['usuario_id']) || !usuarioPuedeVerModulo($conexion, 'web_valores')) {
     http_response_code(403);
     exit;
 }
 
 session_write_close();
 
-require_once '../Config/conexion.php';
 require_once '../Dao/ValoresDao.php';
 
-header('Content-Type: text/event-stream; charset=utf-8');
+$consultaUnica = ($_GET['consulta'] ?? '') === '1';
+header('Content-Type: ' . ($consultaUnica ? 'application/json' : 'text/event-stream') . '; charset=utf-8');
 header('Cache-Control: no-cache, no-store, must-revalidate');
 header('X-Accel-Buffering: no');
 header('Connection: keep-alive');
@@ -47,8 +49,10 @@ $valoresDao = new ValoresDao($conexion);
 $ultimaFirma = null;
 $inicio = time();
 
-echo "retry: 2000\n\n";
-flush();
+if (!$consultaUnica) {
+    echo "retry: 2000\n\n";
+    flush();
+}
 
 do {
     $firma = $valoresDao->firmaArchivo();
@@ -72,6 +76,10 @@ do {
             'fecha_subida' => $valoresDao->fechaSubida()
         ];
 
+        if ($consultaUnica) {
+            echo json_encode($respuesta, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+            exit;
+        }
         echo "event: valores\n";
         echo 'data: ' . json_encode($respuesta, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n\n";
         $ultimaFirma = $firma;

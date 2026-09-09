@@ -220,7 +220,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     inputDisco.addEventListener('click', () => renderLista(inputDisco.value));
     inputDisco.addEventListener('focus', () => renderLista(inputDisco.value));
-    inputDisco.addEventListener('input', () => renderLista(inputDisco.value));
+    inputDisco.addEventListener('input', () => {
+        inputDisco.value = normalizarDiscoBruto(inputDisco.value);
+        if (limpiarDisco) limpiarDisco.classList.toggle('hidden', inputDisco.value === '');
+        renderLista(inputDisco.value);
+        aplicarFiltro();
+    });
     inputDisco.addEventListener('blur', () => setTimeout(() => listaDiscos && listaDiscos.classList.add('hidden'), 200));
 
     if (limpiarDisco) limpiarDisco.addEventListener('click', limpiarSeleccion);
@@ -249,6 +254,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!datos || !Array.isArray(datos.pagos)) return;
             if (datos.hash && datos.hash === ultimoHash) return;
             ultimoHash = datos.hash || null;
+            if (Array.isArray(datos.discos)) discos = datos.discos;
             window.renderizarPagos(datos.pagos);
         } catch (error) {
             console.error(error);
