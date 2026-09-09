@@ -65,6 +65,9 @@ function formatearDiscoHistorial($disco) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Historial de turnos - Ejecuttrans</title>
     <link rel="icon" href="../../Assets/icons/icon-192x192.png" type="image/png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="apple-touch-icon" href="/Assets/icons/icon-192x192.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
@@ -336,6 +339,7 @@ function formatearDiscoHistorial($disco) {
 
     <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/es.js"></script>
+    <script src="../../Assets/js/turnos.js?v=<?php echo hash_file('sha256', __DIR__ . '/../../Assets/js/turnos.js'); ?>"></script>
     <script>
         if (typeof flatpickr === 'function') {
             flatpickr('#filtroFecha', {
@@ -456,6 +460,15 @@ function formatearDiscoHistorial($disco) {
 
             window.addEventListener('beforeunload', () => eventos.close());
         })();
+    </script>
+<script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('Service Worker registrado correctamente.', reg))
+                    .catch(err => console.log('Falló el registro del Service Worker.', err));
+            });
+        }
     </script>
 </body>
 </html>

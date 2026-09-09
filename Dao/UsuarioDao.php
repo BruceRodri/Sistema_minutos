@@ -201,34 +201,45 @@ class UsuarioDao {
         return $stmt->fetch();
     }
 
-    public function generarCodigoConductor() {
-        $sql = "SELECT MAX(CAST(codigo_conductor AS UNSIGNED)) FROM usuario WHERE codigo_conductor IS NOT NULL";
-        $stmt = $this->conexion->prepare($sql);
+    private function siguienteCodigoBloqueante($columna) {
+        $propia = !$this->conexion->inTransaction();
+        if ($propia) {
+            $this->conexion->beginTransaction();
+        }
+        $stmt = $this->conexion->prepare(
+            "SELECT MAX(CAST($columna AS UNSIGNED)) FROM usuario WHERE $columna IS NOT NULL FOR UPDATE"
+        );
         $stmt->execute();
         $maximo = $stmt->fetchColumn();
+        if ($propia) {
+            $this->conexion->commit();
+        }
         $siguiente = $maximo ? ($maximo + 1) : 1;
         return str_pad((string)$siguiente, 3, '0', STR_PAD_LEFT);
+    }
+
+    public function generarCodigoConductor() {
+        return $this->siguienteCodigoBloqueante('codigo_conductor');
     }
 
     public function generarCodigoSocio() {
-        $sql = "SELECT MAX(CAST(codigo_socio AS UNSIGNED)) FROM usuario WHERE codigo_socio IS NOT NULL";
-        $stmt = $this->conexion->prepare($sql);
-        $stmt->execute();
-        $maximo = $stmt->fetchColumn();
-        $siguiente = $maximo ? ($maximo + 1) : 1;
-        return str_pad((string)$siguiente, 3, '0', STR_PAD_LEFT);
+        return $this->siguienteCodigoBloqueante('codigo_socio');
     }
 
     public function registrarUsuario($nombres, $apellidos, $fechaNacimiento, $cedula, $rolNombre) {
+        $propia = !$this->conexion->inTransaction();
+        if ($propia) {
+            $this->conexion->beginTransaction();
+        }
         try {
             $codigoConductor = null;
             $codigoSocio = null;
             $rolNombreBajado = strtolower($rolNombre);
 
             if ($rolNombreBajado === 'conductor') {
-                $codigoConductor = $this->generarCodigoConductor();
+                $codigoConductor = $this->siguienteCodigoBloqueante('codigo_conductor');
             } elseif ($rolNombreBajado === 'socio') {
-                $codigoSocio = $this->generarCodigoSocio();
+                $codigoSocio = $this->siguienteCodigoBloqueante('codigo_socio');
             }
 
             $sql = "INSERT INTO usuario (nombres, apellidos, fecha_nacimiento, cedula, codigo_conductor, codigo_socio, rol_id, estado_usuario_id, activo)
@@ -245,12 +256,18 @@ class UsuarioDao {
                 ':codigo_socio' => $codigoSocio,
                 ':rol' => $rolNombre
             ]);
+            if ($propia) {
+                $this->conexion->commit();
+            }
             return [
                 'id' => $this->conexion->lastInsertId(),
                 'codigo_conductor' => $codigoConductor,
                 'codigo_socio' => $codigoSocio
             ];
         } catch (PDOException $e) {
+            if ($propia && $this->conexion->inTransaction()) {
+                $this->conexion->rollBack();
+            }
             return ($e->errorInfo[1] == 1062) ? 'duplicado' : false;
         }
     }

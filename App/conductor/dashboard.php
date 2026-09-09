@@ -18,6 +18,10 @@ $fechaHoy = date('d/m/Y');
     <meta name="color-scheme" content="light">
     <meta name="theme-color" content="#f3f4f6">
     <title>Conductor - Sistema de Minutos</title>
+    <link rel="icon" href="../../Assets/icons/icon-192x192.png" type="image/png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="apple-touch-icon" href="/Assets/icons/icon-192x192.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -65,12 +69,12 @@ $fechaHoy = date('d/m/Y');
 
         <!-- Botones principales -->
         <div class="flex-1 flex flex-col justify-center gap-6">
-            <button id="btnAbrirTurno" class="group bg-white hover:bg-blue-50 border-2 border-blue-200 hover:border-blue-500 text-gray-900 font-bold py-14 px-4 rounded-2xl shadow-md hover:shadow-lg text-2xl transition-all flex flex-col items-center justify-center active:scale-95">
+            <button id="btnAbrirTurno" class="group bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 border-2 border-blue-300 hover:border-blue-500 text-blue-900 font-bold py-14 px-4 rounded-2xl shadow-md hover:shadow-lg text-2xl transition-all flex flex-col items-center justify-center active:scale-95">
                 <span class="w-20 h-20 mb-5 rounded-2xl bg-blue-600 group-hover:bg-blue-700 text-white flex items-center justify-center shadow-lg transition-colors">
                     <i class="fas fa-qrcode text-5xl"></i>
                 </span>
                 ABRIR TURNO
-                <span class="mt-2 text-sm font-normal text-gray-500">Escanear código QR del bus</span>
+                <span class="mt-2 text-sm font-normal text-blue-800/80">Escanear código QR del bus</span>
             </button>
 
             <a href="pagar.php" class="group bg-white hover:bg-green-50 border-2 border-green-200 hover:border-green-500 text-gray-900 font-bold py-14 px-4 rounded-2xl shadow-md hover:shadow-lg text-2xl transition-all flex flex-col items-center justify-center active:scale-95">
@@ -121,6 +125,15 @@ $fechaHoy = date('d/m/Y');
     </div>
 
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-    <script src="../../Assets/js/conductor.js?v=2"></script>
+    <script src="../../Assets/js/conductor.js?v=3"></script>
+<script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('Service Worker registrado correctamente.', reg))
+                    .catch(err => console.log('Falló el registro del Service Worker.', err));
+            });
+        }
+    </script>
 </body>
 </html>

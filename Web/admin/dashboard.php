@@ -9,17 +9,23 @@ if (!isset($_SESSION['usuario_id']) || !in_array($_SESSION['rol'] ?? '', ['admin
 require_once '../../Config/conexion.php';
 require_once '../../Dao/ValoresDao.php';
 
-function contar($conexion, $sql) {
+function contar($conexion, $sql, $parametros = []) {
     $stmt = $conexion->prepare($sql);
-    $stmt->execute();
+    $stmt->execute($parametros);
     return (int)$stmt->fetchColumn();
 }
 
-function sumar($conexion, $sql) {
+function sumar($conexion, $sql, $parametros = []) {
     $stmt = $conexion->prepare($sql);
-    $stmt->execute();
+    $stmt->execute($parametros);
     $valor = $stmt->fetchColumn();
     return $valor === null ? 0.0 : (float)$valor;
+}
+
+$fechaSeleccionada = trim((string)($_GET['fecha'] ?? ''));
+$fechaValida = DateTime::createFromFormat('!Y-m-d', $fechaSeleccionada);
+if (!$fechaValida || $fechaValida->format('Y-m-d') !== $fechaSeleccionada) {
+    $fechaSeleccionada = date('Y-m-d');
 }
 
 // ---- Conteos globales ----
@@ -32,36 +38,41 @@ $busesActivos = contar($conexion, "SELECT COUNT(*) FROM bus WHERE activo = 1");
 $sociosConBuses = contar($conexion, "SELECT COUNT(DISTINCT usuario_id) FROM usuario_bus WHERE activo = 1");
 $busesAsignados = contar($conexion, "SELECT COUNT(*) FROM usuario_bus WHERE activo = 1");
 
-// ---- Turnos ----
-$turnosHoy = contar($conexion, "SELECT COUNT(*) FROM turno t INNER JOIN bus b ON t.bus_id = b.id WHERE t.fecha = CURDATE()");
-$turnosHoyAbiertos = contar($conexion, "SELECT COUNT(*) FROM turno WHERE fecha = CURDATE() AND activo = 1");
-$turnosHoyPendientes = contar($conexion, "SELECT COUNT(DISTINCT t.id)
+// ---- Turnos (según la fecha seleccionada) ----
+$turnosFecha = contar($conexion, "SELECT COUNT(*) FROM turno t INNER JOIN bus b ON t.bus_id = b.id WHERE t.fecha = :fecha", [':fecha' => $fechaSeleccionada]);
+$turnosAbiertos = contar($conexion, "SELECT COUNT(*) FROM turno WHERE fecha = :fecha AND activo = 1", [':fecha' => $fechaSeleccionada]);
+$turnosPendientes = contar($conexion, "SELECT COUNT(DISTINCT t.id)
     FROM turno t
     INNER JOIN bus b ON t.bus_id = b.id
     INNER JOIN obligacion_pago o
         ON CAST(b.disco AS UNSIGNED) = CAST(o.disco AS UNSIGNED)
        AND o.pagado = 0 AND o.activo = 1 AND o.valor > 0
-    WHERE t.fecha = CURDATE()");
-$turnosTotales = contar($conexion, "SELECT COUNT(*) FROM turno");
+    WHERE t.fecha = :fecha", [':fecha' => $fechaSeleccionada]);
+$turnosHistorial = contar($conexion, "SELECT COUNT(*) FROM turno WHERE fecha = :fecha", [':fecha' => $fechaSeleccionada]);
 
-// ---- Pagos ----
+// ---- Pagos (según la fecha seleccionada) ----
 $conteos = ['en_espera' => 0, 'aprobado' => 0, 'anulado' => 0];
-foreach ($conexion->query("SELECT estado, COUNT(*) AS cantidad FROM pago WHERE activo = 1 GROUP BY estado") as $fila) {
+$stmtConteos = $conexion->prepare("SELECT estado, COUNT(*) AS cantidad FROM pago WHERE activo = 1 AND fecha_pago = :fecha GROUP BY estado");
+$stmtConteos->execute([':fecha' => $fechaSeleccionada]);
+foreach ($stmtConteos as $fila) {
     $conteos[$fila['estado']] = (int)$fila['cantidad'];
 }
 
-$pagosHoy = contar($conexion, "SELECT COUNT(*) FROM pago WHERE fecha_pago = CURDATE() AND activo = 1");
-$montoPagosHoy = sumar($conexion, "SELECT SUM(monto_total) FROM pago WHERE fecha_pago = CURDATE() AND activo = 1");
-$pagosTotales = contar($conexion, "SELECT COUNT(*) FROM pago WHERE activo = 1");
+$pagosFecha = contar($conexion, "SELECT COUNT(*) FROM pago WHERE fecha_pago = :fecha AND activo = 1", [':fecha' => $fechaSeleccionada]);
+$montoPagosFecha = sumar($conexion, "SELECT SUM(monto_total) FROM pago WHERE fecha_pago = :fecha AND activo = 1", [':fecha' => $fechaSeleccionada]);
 
-// ---- Valores diarios ----
+// ---- Valores diarios (según la fecha seleccionada) ----
 $valoresDao = new ValoresDao($conexion);
 $valoresSubido = $valoresDao->archivoExiste();
-$valoresFilas = $valoresSubido ? count($valoresDao->leerFilas()) : 0;
-$valoresFecha = $valoresSubido ? $valoresDao->fechaSubida() : '';
+$valoresFecha = $valoresDao->fechaSubida();
+$valoresFilasFecha = $valoresSubido
+    ? count($valoresDao->obtenerFilasFiltradas('', $fechaSeleccionada, '', ''))
+    : 0;
 
 $dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+$tsFecha = strtotime($fechaSeleccionada);
 $nombreAdmin = explode(' ', $_SESSION['nombre'] ?? 'Administrador')[0];
+$esHoy = $fechaSeleccionada === date('Y-m-d');
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -70,6 +81,9 @@ $nombreAdmin = explode(' ', $_SESSION['nombre'] ?? 'Administrador')[0];
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - Sistema de Minutos</title>
     <link rel="icon" href="../../Assets/icons/icon-192x192.png" type="image/png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="apple-touch-icon" href="/Assets/icons/icon-192x192.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -78,13 +92,32 @@ $nombreAdmin = explode(' ', $_SESSION['nombre'] ?? 'Administrador')[0];
     <?php include 'components/sidebar.php'; ?>
 
     <main class="flex-1 flex flex-col overflow-y-auto mt-16 md:mt-0 w-full">
-        <header class="h-16 bg-white shadow-sm flex items-center px-4 md:px-8 justify-between border-b border-gray-200">
+        <header class="h-16 bg-white shadow-sm flex items-center px-4 md:px-8 justify-between gap-3 border-b border-gray-200">
             <div>
                 <h2 class="text-xl md:text-2xl font-bold text-gray-800">Dashboard</h2>
-                <p class="text-xs text-gray-500"><?php echo $dias[(int)date('w')] . ' ' . date('d/m/Y'); ?></p>
+                <p class="text-xs text-gray-500">
+                    <i class="far fa-calendar-alt mr-1 text-blue-600"></i>
+                    <?php echo $dias[(int)date('w', $tsFecha)] . ' ' . date('d/m/Y', $tsFecha); ?>
+                    <?php echo $esHoy ? '(hoy)' : ''; ?>
+                </p>
             </div>
-            <div class="bg-blue-50 border border-blue-200 text-blue-700 font-bold px-4 py-2 rounded-xl">
-                <i class="fas fa-user-shield mr-2"></i><?php echo htmlspecialchars($nombreAdmin); ?>
+            <div class="flex items-center gap-3">
+                <form method="GET" action="dashboard.php" class="flex items-center gap-2" id="formFechaDashboard">
+                    <label for="fechaDashboard" class="hidden sm:inline text-xs font-bold text-gray-500">Fecha:</label>
+                    <input type="date" id="fechaDashboard" name="fecha" value="<?php echo htmlspecialchars($fechaSeleccionada); ?>" max="today"
+                           class="rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
+                    <button type="submit" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow hover:bg-blue-700 transition-colors">
+                        <i class="fas fa-magnifying-glass mr-1.5"></i>Ir
+                    </button>
+                    <?php if (!$esHoy): ?>
+                        <a href="dashboard.php" class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-bold text-gray-700 hover:bg-gray-50" title="Volver a hoy">
+                            <i class="fas fa-calendar-day"></i>
+                        </a>
+                    <?php endif; ?>
+                </form>
+                <div class="bg-blue-50 border border-blue-200 text-blue-700 font-bold px-4 py-2 rounded-xl">
+                    <i class="fas fa-user-shield mr-2"></i><?php echo htmlspecialchars($nombreAdmin); ?>
+                </div>
             </div>
         </header>
 
@@ -101,7 +134,7 @@ $nombreAdmin = explode(' ', $_SESSION['nombre'] ?? 'Administrador')[0];
             </div>
             <?php endif; ?>
 
-            <h2 class="text-lg font-bold text-gray-700 mb-3">Estado de pagos</h2>
+            <h2 class="text-lg font-bold text-gray-700 mb-3">Estado de pagos · <?php echo date('d/m/Y', $tsFecha); ?></h2>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
                 <div class="bg-white rounded-xl border border-amber-200 shadow-sm p-5 flex items-center gap-4">
                     <span class="w-12 h-12 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
@@ -133,7 +166,7 @@ $nombreAdmin = explode(' ', $_SESSION['nombre'] ?? 'Administrador')[0];
             </div>
 
             <!-- Tarjetas principales -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
 
                 <a href="socios.php" class="group bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-3xl p-6 shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all">
                     <div class="flex items-center justify-between">
@@ -168,33 +201,29 @@ $nombreAdmin = explode(' ', $_SESSION['nombre'] ?? 'Administrador')[0];
                 <a href="turnos.php" class="group bg-gradient-to-br from-cyan-500 to-cyan-700 rounded-3xl p-6 shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all">
                     <div class="flex items-center justify-between">
                         <i class="fas fa-clock text-white/40 text-5xl"></i>
-                        <span class="bg-white/20 text-white text-sm font-bold px-3 py-1 rounded-full">TURNOS HOY</span>
+                        <span class="bg-white/20 text-white text-sm font-bold px-3 py-1 rounded-full">TURNOS</span>
                     </div>
-                    <p class="text-6xl font-extrabold text-white mt-6"><?php echo $turnosHoy; ?></p>
-                    <p class="text-white/80 text-lg mt-1">turnos de hoy</p>
-                    <p class="text-white/70 text-sm mt-3"><i class="fas fa-circle-notch mr-1"></i><?php echo $turnosHoyAbiertos; ?> abiertos · <i class="fas fa-hourglass-half mr-1"></i><?php echo $turnosHoyPendientes; ?> por pagar</p>
+                    <p class="text-6xl font-extrabold text-white mt-6"><?php echo $turnosFecha; ?></p>
+                    <p class="text-white/80 text-lg mt-1">turnos del día</p>
+                    <p class="text-white/70 text-sm mt-3"><i class="fas fa-circle-notch mr-1"></i><?php echo $turnosAbiertos; ?> abiertos · <i class="fas fa-hourglass-half mr-1"></i><?php echo $turnosPendientes; ?> por pagar</p>
                 </a>
-            </div>
-
-            <!-- Fila secundaria -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-6">
 
                 <div class="bg-white rounded-3xl p-6 shadow-sm border border-gray-200 hover:shadow-lg transition-all">
                     <div class="flex items-center justify-between mb-3">
                         <p class="font-bold text-gray-700 text-lg">Historial de turnos</p>
                         <i class="fas fa-list-check text-cyan-600 text-3xl"></i>
                     </div>
-                    <p class="text-5xl font-extrabold text-cyan-700"><?php echo $turnosTotales; ?></p>
-                    <p class="text-gray-500 text-base mt-1">turnos registrados</p>
+                    <p class="text-5xl font-extrabold text-cyan-700"><?php echo $turnosHistorial; ?></p>
+                    <p class="text-gray-500 text-base mt-1">turnos del <?php echo date('d/m/Y', $tsFecha); ?></p>
                 </div>
 
                 <div class="bg-white rounded-3xl p-6 shadow-sm border border-gray-200 hover:shadow-lg transition-all">
                     <div class="flex items-center justify-between mb-3">
-                        <p class="font-bold text-gray-700 text-lg">Pagos de hoy</p>
+                        <p class="font-bold text-gray-700 text-lg">Pagos del día</p>
                         <i class="fas fa-money-bill-wave text-green-600 text-3xl"></i>
                     </div>
-                    <p class="text-5xl font-extrabold text-green-700"><?php echo $pagosHoy; ?></p>
-                    <p class="text-gray-500 text-base mt-1">por $ <?php echo number_format($montoPagosHoy, 2, '.', ','); ?></p>
+                    <p class="text-5xl font-extrabold text-green-700"><?php echo $pagosFecha; ?></p>
+                    <p class="text-gray-500 text-base mt-1">por $ <?php echo number_format($montoPagosFecha, 2, '.', ','); ?></p>
                 </div>
 
                 <div class="bg-white rounded-3xl p-6 shadow-sm border border-gray-200 hover:shadow-lg transition-all">
@@ -203,41 +232,24 @@ $nombreAdmin = explode(' ', $_SESSION['nombre'] ?? 'Administrador')[0];
                         <i class="fas fa-file-excel text-emerald-600 text-3xl"></i>
                     </div>
                     <?php if ($valoresSubido): ?>
-                        <p class="text-4xl font-extrabold text-emerald-700"><?php echo $valoresFilas; ?></p>
-                        <p class="text-gray-500 text-base mt-1">filas leídas · subido <?php echo $valoresFecha; ?></p>
+                        <p class="text-4xl font-extrabold text-emerald-700"><?php echo $valoresFilasFecha; ?></p>
+                        <p class="text-gray-500 text-base mt-1">filas del <?php echo date('d/m/Y', $tsFecha); ?> · subido <?php echo $valoresFecha; ?></p>
                     <?php else: ?>
                         <p class="text-4xl font-extrabold text-amber-600">No subido</p>
                         <p class="text-gray-500 text-base mt-1">Sube el Excel para habilitar los turnos.</p>
                     <?php endif; ?>
                 </div>
             </div>
-
-            <!-- Últimos registros -->
-            <div class="mt-6 bg-white rounded-3xl shadow-sm border border-gray-200 p-6">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="font-bold text-gray-800 text-xl">Resumen del sistema</h3>
-                    <span class="text-sm text-gray-400"><?php echo $pagosTotales; ?> pagos registrados en total</span>
-                </div>
-                <dl class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                    <div class="bg-slate-50 rounded-2xl py-4">
-                        <dt class="text-gray-500 text-sm font-semibold">Socios</dt>
-                        <dd class="text-3xl font-extrabold text-indigo-700"><?php echo $totalSocios; ?></dd>
-                    </div>
-                    <div class="bg-slate-50 rounded-2xl py-4">
-                        <dt class="text-gray-500 text-sm font-semibold">Conductores</dt>
-                        <dd class="text-3xl font-extrabold text-purple-700"><?php echo $totalConductores; ?></dd>
-                    </div>
-                    <div class="bg-slate-50 rounded-2xl py-4">
-                        <dt class="text-gray-500 text-sm font-semibold">Discos / Buses</dt>
-                        <dd class="text-3xl font-extrabold text-blue-700"><?php echo $totalBuses; ?></dd>
-                    </div>
-                    <div class="bg-slate-50 rounded-2xl py-4">
-                        <dt class="text-gray-500 text-sm font-semibold">Usuarios totales</dt>
-                        <dd class="text-3xl font-extrabold text-cyan-700"><?php echo $totalUsuarios; ?></dd>
-                    </div>
-                </dl>
-            </div>
         </div>
     </main>
+<script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('Service Worker registrado correctamente.', reg))
+                    .catch(err => console.log('Falló el registro del Service Worker.', err));
+            });
+        }
+    </script>
 </body>
 </html>

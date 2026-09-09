@@ -297,16 +297,39 @@ class PagoDao {
         }
     }
 
-    public function obtenerPagosParaAdmin() {
+    public function obtenerPagosParaAdmin($filtros = []) {
+        $conductor = trim((string)($filtros['conductor'] ?? ''));
+        $disco = trim((string)($filtros['disco'] ?? ''));
+        $fechaDesde = (string)($filtros['fecha_desde'] ?? '');
+        $fechaHasta = (string)($filtros['fecha_hasta'] ?? '');
+        $ruta = trim((string)($filtros['ruta'] ?? ''));
+        $estado = (string)($filtros['estado'] ?? '');
+        if (!in_array($estado, ['en_espera', 'aprobado', 'anulado'], true)) {
+            $estado = '';
+        }
+
         $sql = "SELECT p.id, p.usuario_id, u.nombres, u.apellidos, u.codigo_conductor,
                        p.monto_total, p.fecha_pago, p.comprobante, p.estado, p.motivo_rechazo,
                        p.nro_comprobante, p.detalle_pagos
                 FROM pago p
                 INNER JOIN usuario u ON u.id = p.usuario_id
-                WHERE p.activo = 1
-                ORDER BY p.fecha_pago DESC, p.id DESC";
+                WHERE p.activo = 1";
+        $parametros = [];
+
+        if ($conductor !== '') {
+            $sql .= " AND (CONCAT(u.nombres, ' ', u.apellidos) LIKE :conductor_nombre
+                           OR u.codigo_conductor LIKE :conductor_codigo)";
+            $parametros[':conductor_nombre'] = '%' . $conductor . '%';
+            $parametros[':conductor_codigo'] = '%' . $conductor . '%';
+        }
+        if ($estado !== '') {
+            $sql .= " AND p.estado = :estado";
+            $parametros[':estado'] = $estado;
+        }
+        $sql .= " ORDER BY p.fecha_pago DESC, p.id DESC";
+
         $stmt = $this->conexion->prepare($sql);
-        $stmt->execute();
+        $stmt->execute($parametros);
         $pagos = $stmt->fetchAll();
 
         $stmtDetalle = $this->conexion->prepare(
@@ -333,9 +356,71 @@ class PagoDao {
                 $pagos[$i]['discos'] = $detalle['discos'];
                 $pagos[$i]['rutas'] = $detalle['rutas'];
             }
+            $pagos[$i]['dias'] = count($pagos[$i]['fechas']);
         }
 
-        return $pagos;
+        if ($disco === '' && $fechaDesde === '' && $fechaHasta === '' && $ruta === '') {
+            return $pagos;
+        }
+
+        return array_values(array_filter(
+            $pagos,
+            fn($pago) => $this->pagoCoincideDetalle($pago, $disco, $fechaDesde, $fechaHasta, $ruta)
+        ));
+    }
+
+    private function normalizarDiscoDetalle($disco) {
+        $disco = ltrim((string)$disco, '0');
+        return $disco === '' ? '0' : $disco;
+    }
+
+    private function pagoCoincideDetalle($pago, $disco, $fechaDesde, $fechaHasta, $ruta) {
+        if ($disco !== '') {
+            $discoNormalizado = $this->normalizarDiscoDetalle($disco);
+            $coincide = false;
+            foreach ($pago['discos'] ?? [] as $discoPago) {
+                if ($this->normalizarDiscoDetalle($discoPago) === $discoNormalizado) {
+                    $coincide = true;
+                    break;
+                }
+            }
+            if (!$coincide) return false;
+        }
+
+        if ($fechaDesde !== '' || $fechaHasta !== '') {
+            $coincide = false;
+            foreach ($pago['fechas'] ?? [] as $fechaPago) {
+                $fecha = (string)$fechaPago;
+                $dentroRango = true;
+                if ($fechaDesde !== '' && $fecha < $fechaDesde) $dentroRango = false;
+                if ($fechaHasta !== '' && $fecha > $fechaHasta) $dentroRango = false;
+                if ($dentroRango) {
+                    $coincide = true;
+                    break;
+                }
+            }
+            if (!$coincide) return false;
+        }
+
+        if ($ruta !== '') {
+            $rutaMinuscula = mb_strtolower($ruta);
+            $coincide = false;
+            foreach ($pago['rutas'] ?? [] as $rutaPago) {
+                if (mb_strpos(mb_strtolower((string)$rutaPago), $rutaMinuscula) !== false) {
+                    $coincide = true;
+                    break;
+                }
+            }
+            if (!$coincide) return false;
+        }
+
+        return true;
+    }
+
+    public function obtenerEstadoPago($pagoId) {
+        $stmt = $this->conexion->prepare("SELECT estado, activo FROM pago WHERE id = ? LIMIT 1");
+        $stmt->execute([(int)$pagoId]);
+        return $stmt->fetch();
     }
 
     private function decodificarDetalle($detallePagos) {

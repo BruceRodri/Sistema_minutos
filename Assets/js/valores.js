@@ -83,6 +83,22 @@ document.addEventListener('DOMContentLoaded', () => {
         return `${dia}/${mes}/${anio}`;
     };
 
+    // ---------- Búsqueda automática en los filtros (debounce 400ms) ----------
+    const formularioFiltros = document.querySelector('form[action="valores.php"]');
+    if (formularioFiltros) {
+        let temporizadorFiltros = null;
+        const lanzarBusqueda = () => {
+            if (temporizadorFiltros) clearTimeout(temporizadorFiltros);
+            temporizadorFiltros = setTimeout(() => {
+                formularioFiltros.requestSubmit();
+            }, 400);
+        };
+        formularioFiltros.querySelectorAll('input, select').forEach((control) => {
+            control.addEventListener('input', lanzarBusqueda);
+            control.addEventListener('change', lanzarBusqueda);
+        });
+    }
+
     const urlPagina = (pagina) => {
         const url = new URL(window.location.href);
         url.searchParams.set('pagina', pagina);
