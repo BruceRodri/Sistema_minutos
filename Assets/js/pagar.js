@@ -31,12 +31,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function mostrarAlerta(elemento, tipo, mensaje) {
         if (!elemento) return;
+        clearTimeout(Number(elemento.dataset.timer) || 0);
         elemento.textContent = mensaje;
         elemento.className = 'p-5 rounded-2xl text-center text-xl lg:text-2xl font-bold ' +
             (tipo === 'success'
                 ? 'bg-green-100 text-green-800 border-2 border-green-200'
                 : 'bg-red-100 text-red-800 border-2 border-red-200');
         elemento.classList.remove('hidden');
+        elemento.dataset.timer = setTimeout(() => { elemento.classList.add('hidden'); }, 5000);
     }
 
     function validarArchivo(archivo) {
@@ -56,6 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const alerta = flujoActivo === 'card' ? alertaTarjetas : alertaVarios;
         if (alerta) {
+            clearTimeout(Number(alerta.dataset.timer) || 0);
             alerta.textContent = 'Subiendo comprobante…';
             alerta.className = 'p-5 rounded-2xl text-center text-xl lg:text-2xl font-bold bg-blue-50 text-blue-700 border-2 border-blue-200';
             alerta.classList.remove('hidden');
@@ -67,6 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
             mostrarAlerta(alerta, data.status === 'success' ? 'success' : 'error', data.message);
             if (data.status === 'success') {
                 quitarPagados(idsAPagar);
+                if (window.marcarCambioPendiente) window.marcarCambioPendiente(8000);
             }
         } catch (error) {
             console.error(error);
@@ -107,7 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const volverTarjetas = document.getElementById('volverTarjetas');
     const vistaCarousel = document.getElementById('vistaCarousel');
     const vistaMulti = document.getElementById('vistaMulti');
-    const filasDia = document.querySelectorAll('.checkDiaFila');
+    let filasDia = [...document.querySelectorAll('.checkDiaFila')];
     const totalVarios = document.getElementById('totalVarios');
     const detalleVarios = document.getElementById('detalleVarios');
     const inputComprobante = document.getElementById('inputComprobante');
@@ -389,7 +393,74 @@ document.addEventListener('DOMContentLoaded', () => {
         return `${titulo} del ${resaltar('DISCO ' + disco)} del ${resaltar(fecha)} por $ ${resaltar(valor)}?`;
     }
 
-    document.querySelectorAll('.checkDia').forEach((c) => c.addEventListener('change', calcularTotal));
+    const listaDias = document.getElementById('listaDiasPagables');
+
+    window.renderizarPendientes = function (pendientes) {
+        const lista = Array.isArray(pendientes) ? pendientes : [];
+        if (carrusel) {
+            carrusel.innerHTML = lista.map((p) => `
+                <article data-id="${p.id}"
+                         data-disco="${esc(p.disco)}"
+                         data-fecha="${esc(p.fechaLegible)}"
+                         data-valor="${esc(p.valorFmt)}"
+                         class="cardPagar snap-center shrink-0 w-[82%] max-w-[340px] md:w-auto md:max-w-none md:shrink min-h-0 bg-gradient-to-br from-blue-500 to-blue-700 rounded-3xl p-7 lg:p-9 shadow-xl text-white cursor-pointer active:scale-95 transition-transform">
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                            <p class="text-blue-100 text-sm lg:text-base font-bold uppercase tracking-widest">${p.hoy ? 'Pago de hoy' : 'Pago pendiente'}</p>
+                            <p class="text-2xl lg:text-3xl font-bold mt-1">${esc(p.fechaLegible)}</p>
+                        </div>
+                        <span class="bg-white text-blue-700 font-extrabold px-4 py-2 rounded-full text-lg lg:text-xl shadow max-w-full break-all">Disco ${esc(p.disco)}</span>
+                    </div>
+                    <div class="mt-9 lg:mt-11 text-center">
+                        <div class="text-7xl lg:text-8xl font-extrabold leading-none">
+                            <span class="align-top text-4xl lg:text-5xl">$</span>${esc(p.valorFmt)}
+                        </div>
+                    </div>
+                    <div class="mt-9 lg:mt-11 flex items-center gap-3 justify-center bg-white/20 rounded-2xl px-4 py-4">
+                        <i class="fas fa-route text-2xl"></i>
+                        <span class="text-xl lg:text-2xl font-bold truncate">${esc(p.ruta)}</span>
+                    </div>
+                    <span class="mt-5 flex items-center justify-center gap-2 rounded-xl bg-white py-3 text-lg font-extrabold text-blue-700"><i class="fas fa-money-bill-wave"></i>Pagar</span>
+                </article>
+            `).join('');
+        }
+        if (listaDias) {
+            if (!lista.length) {
+                listaDias.innerHTML = '<div class="p-8 text-center"><i class="fas fa-circle-check text-green-500 text-4xl mb-3"></i><p class="text-2xl text-gray-600">No hay pagos pendientes para este disco.</p></div>';
+            } else {
+                listaDias.innerHTML = lista.map((p) => `
+                    <label class="checkDiaFila flex items-center gap-4 p-5 lg:p-6 cursor-pointer hover:bg-blue-50 transition-colors">
+                        <input type="checkbox" class="checkDia w-7 h-7 lg:w-8 lg:h-8 accent-blue-600 shrink-0"
+                               value="${p.id}"
+                               data-valor="${esc(p.valor)}"
+                               data-disco="${esc(p.disco)}"
+                               data-fecha="${esc(p.fechaLegible)}"
+                               data-valorfmt="${esc(p.valorFmt)}">
+                        <div class="flex-1 min-w-0">
+                            <p class="font-bold text-gray-800 text-xl lg:text-2xl">${esc(p.fechaLegible)}</p>
+                            <p class="text-lg text-gray-500 truncate mt-1">
+                                <i class="fas fa-route mr-1"></i>${esc(p.ruta)}
+                                <span class="mx-1">·</span>Disco ${esc(p.disco)}
+                            </p>
+                        </div>
+                        <p class="font-extrabold text-blue-700 text-2xl lg:text-3xl whitespace-nowrap">$ ${esc(p.valorFmt)}</p>
+                    </label>
+                `).join('');
+            }
+        }
+        todasLasTarjetas = carrusel ? [...carrusel.querySelectorAll('.cardPagar')] : [];
+        filasDia = [...document.querySelectorAll('.checkDiaFila')];
+        desmarcarTodos();
+        aplicarFiltro();
+        renderCarrusel();
+        calcularTotal();
+    };
+
+    if (listaDias) {
+        listaDias.addEventListener('change', (evento) => {
+            if (evento.target.classList.contains('checkDia')) calcularTotal();
+        });
+    }
 
     if (btnPagarVarios) {
         btnPagarVarios.addEventListener('click', () => {
@@ -444,12 +515,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ---------- Tarjeta del carrusel: confirmar y luego subir comprobante ----------
-    todasLasTarjetas.forEach((card) => {
-        card.addEventListener('click', () => {
+    if (carrusel) {
+        carrusel.addEventListener('click', (evento) => {
+            const card = evento.target.closest('.cardPagar');
+            if (!card) return;
             const mensaje = mensajeConfirmar('¿Está seguro de registrar el pago pendiente', card.dataset.disco, card.dataset.fecha, card.dataset.valor);
             abrirModal(mensaje, 'card', [card.dataset.id]);
         });
-    });
+    }
 
     // ---------- Subida del comprobante ----------
     if (inputComprobante) {
@@ -470,4 +543,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ---------- Estado inicial: no se muestra nada hasta elegir un disco ----------
     cargarDiscos('');
+
+    // ---------- Tiempo real (SSE) ----------
+    let silencioHasta = 0;
+    window.marcarCambioPendiente = (milisegundos) => { silencioHasta = Date.now() + (milisegundos || 5000); };
+
+    const eventos = new EventSource('../../Controllers/ConductorStreamController.php');
+    let ultimoHash = null;
+
+    function aplicarSnapshot(evento) {
+        if (Date.now() < silencioHasta) return;
+        try {
+            const datos = JSON.parse(evento.data);
+            if (!datos || !Array.isArray(datos.pendientes)) return;
+            if (datos.hash && datos.hash === ultimoHash) return;
+            ultimoHash = datos.hash || null;
+            window.renderizarPendientes(datos.pendientes);
+        } catch (error) {
+            console.error(error);
+        }
+    }
+
+    eventos.addEventListener('snapshot', aplicarSnapshot);
+    eventos.addEventListener('message', aplicarSnapshot);
+    window.addEventListener('beforeunload', () => eventos?.close());
+
+    // Render inicial (evita pantalla vacía antes del primer snapshot del SSE).
+    window.renderizarPendientes(pagables);
 });

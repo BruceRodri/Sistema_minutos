@@ -101,10 +101,7 @@ $discoInicial = null;
             </button>
 
             <div id="bloqueCarrusel" class="hidden">
-                <div id="carrusel" data-hash="<?php echo hash('sha256', json_encode($pagables)); ?>" class="relative flex gap-4 overflow-x-auto snap-x snap-mandatory sin-scrollbar px-4 py-1 items-stretch md:grid md:grid-cols-2 xl:grid-cols-3 md:gap-6 md:overflow-visible md:px-0">
-
-<?php include __DIR__ . '/components/tarjetas_pagar.php'; ?>
-                </div>
+                <div id="carrusel" class="relative flex gap-4 overflow-x-auto snap-x snap-mandatory sin-scrollbar px-4 py-1 items-stretch md:grid md:grid-cols-2 xl:grid-cols-3 md:gap-6 md:overflow-visible md:px-0"></div>
 
                 <div id="puntosTarjetas" class="hidden md:hidden flex items-center justify-center gap-2 mt-5"></div>
 
@@ -127,9 +124,7 @@ $discoInicial = null;
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10 items-start">
 
                 <!-- Lista de días pendientes -->
-                <div id="listaDiasPagables" class="bg-white rounded-3xl shadow-sm border border-gray-200 divide-y divide-gray-100 overflow-hidden">
-<?php include __DIR__ . '/components/dias_pagar.php'; ?>
-                </div>
+                <div id="listaDiasPagables" class="bg-white rounded-3xl shadow-sm border border-gray-200 divide-y divide-gray-100 overflow-hidden"></div>
 
                 <!-- Resumen total -->
                 <div class="bg-gradient-to-br from-blue-600 to-blue-800 rounded-3xl p-6 lg:p-9 text-white shadow-xl lg:sticky lg:top-24">

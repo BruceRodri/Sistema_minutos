@@ -26,7 +26,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
             await html5QrCode.start(
                 { facingMode: 'environment' },
-                { fps: 10, qrbox: { width: 250, height: 250 } },
+                {
+                    fps: 10,
+                    qrbox: (vw, vh) => {
+                        const lado = Math.min(vw, vh, 240);
+                        return { width: lado, height: lado };
+                    },
+                    experimentalFeatures: {
+                        useBarCodeDetectorIfSupported: true
+                    }
+                },
                 async (texto) => {
                     if (procesandoLectura) return;
                     procesandoLectura = true;

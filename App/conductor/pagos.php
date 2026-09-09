@@ -8,15 +8,13 @@ if (!isset($_SESSION['usuario_id']) || $_SESSION['rol'] !== 'conductor') {
 
 require_once '../../Config/conexion.php';
 require_once '../../Dao/PagoDao.php';
+require_once '../../Config/vistas_pagos.php';
 
 $nombreCorto = explode(' ', $_SESSION['nombre'] ?? 'Conductor')[0];
-$dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
 $pagoDao = new PagoDao($conexion);
-$pagos = $pagoDao->obtenerPagosConductor($_SESSION['usuario_id']);
+$pagosParaVista = pagosParaVista($pagoDao, $_SESSION['usuario_id']);
 $discosTodos = $pagoDao->obtenerTodosDiscos();
-
-require_once '../../Config/vistas_pagos.php';
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -73,9 +71,7 @@ require_once '../../Config/vistas_pagos.php';
         <div class="mt-4 lg:mt-6">
             <h2 class="text-center text-2xl lg:text-3xl font-bold text-gray-600 mb-6 lg:mb-8">Pagos realizados</h2>
 
-            <div id="grillaPagos" data-hash="<?php echo hash('sha256', json_encode([$pagos, $discosTodos])); ?>" class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
-<?php include __DIR__ . '/components/tarjetas_pagos.php'; ?>
-            </div>
+            <div id="grillaPagos" class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6"></div>
 
             <p id="sinResultados" class="hidden mt-6 text-center text-xl lg:text-2xl text-blue-700 italic">Selecciona un disco para ver tu historial.</p>
         </div>
@@ -109,6 +105,9 @@ require_once '../../Config/vistas_pagos.php';
         </div>
     </nav>
 
+    <script id="datosPagos" type="application/json">
+    <?php echo json_encode($pagosParaVista, JSON_UNESCAPED_UNICODE); ?>
+    </script>
     <script id="datosDiscos" type="application/json">
     <?php echo json_encode($discosTodos, JSON_UNESCAPED_UNICODE); ?>
     </script>
