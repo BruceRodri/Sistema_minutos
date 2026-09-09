@@ -36,7 +36,7 @@ if (isset($_SESSION['usuario_id'])) {
     <title>Sistema de Conteo - Ingreso</title>
     <link rel="icon" href="Assets/icons/icon-192x192.png" type="image/png">
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#3b82f6">
+    <meta name="theme-color" content="#2563eb">
     <link rel="apple-touch-icon" href="Assets/icons/icon-192x192.png">
     <script src="https://cdn.tailwindcss.com"></script>
 </head>

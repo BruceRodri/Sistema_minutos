@@ -18,6 +18,10 @@ $fechaHoy = date('d/m/Y');
     <meta name="color-scheme" content="light">
     <meta name="theme-color" content="#f3f4f6">
     <title>Conductor - Sistema de Minutos</title>
+    <link rel="icon" href="../../Assets/icons/icon-192x192.png" type="image/png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="apple-touch-icon" href="/Assets/icons/icon-192x192.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -122,5 +126,14 @@ $fechaHoy = date('d/m/Y');
 
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <script src="../../Assets/js/conductor.js?v=3"></script>
+<script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('Service Worker registrado correctamente.', reg))
+                    .catch(err => console.log('Falló el registro del Service Worker.', err));
+            });
+        }
+    </script>
 </body>
 </html>
