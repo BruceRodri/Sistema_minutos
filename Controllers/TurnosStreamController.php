@@ -28,6 +28,10 @@ ignore_user_abort(false);
 $filtroDisco = trim($_GET['disco'] ?? '');
 $filtroConductor = trim($_GET['conductor'] ?? '');
 $filtroFecha = trim($_GET['fecha'] ?? '');
+$filtroEstado = $_GET['estado'] ?? '';
+if (!in_array($filtroEstado, ['abierto', 'fallido'], true)) {
+    $filtroEstado = '';
+}
 $paginaSolicitada = max(1, (int)($_GET['pagina'] ?? 1));
 $registrosPorPagina = 20;
 
@@ -46,7 +50,7 @@ echo "retry: 2000\n\n";
 flush();
 
 do {
-    $total = $turnoDao->contarTurnos($filtroDisco, $filtroConductor, $filtroFecha);
+    $total = $turnoDao->contarTurnos($filtroDisco, $filtroConductor, $filtroFecha, $filtroEstado);
     $totalPaginas = max(1, (int)ceil($total / $registrosPorPagina));
     $pagina = min($paginaSolicitada, $totalPaginas);
     $offset = ($pagina - 1) * $registrosPorPagina;
@@ -55,7 +59,8 @@ do {
         $filtroConductor,
         $filtroFecha,
         $registrosPorPagina,
-        $offset
+        $offset,
+        $filtroEstado
     );
 
     $filas = array_map(static function ($turno) {
@@ -72,6 +77,7 @@ do {
             'codigo_conductor' => $turno['codigo_conductor'] ?? 'Sin código',
             'estado' => $turno['estado'] ?? 'abierto',
             'motivo' => $turno['motivo'] ?? '',
+            'conductor_duplicado' => TurnoDao::esConductorDuplicado($turno),
             'fecha_apertura' => $fecha
                 ? $fecha->format('d/m/Y H:i:s')
                 : $turno['fecha'] . ' ' . $turno['hora_apertura']

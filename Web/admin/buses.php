@@ -33,16 +33,21 @@ $totalResultados = count($listaBuses);
     <?php include 'components/sidebar.php'; ?>
 
     <main class="flex-1 flex flex-col overflow-y-auto mt-16 md:mt-0 w-full">
-        <header class="h-16 bg-white shadow-sm flex items-center px-4 md:px-8 justify-between border-b border-gray-200">
+        <header class="min-h-16 py-3 gap-3 flex-wrap bg-white shadow-sm flex items-center px-4 md:px-8 justify-between border-b border-gray-200">
             <div>
                 <h2 class="text-xl md:text-2xl font-bold text-gray-800 text-transparent bg-clip-text bg-gradient-to-r from-blue-700 to-gray-800">
                     Buses
                 </h2>
                 <p class="text-xs text-gray-500">Gestión de discos: QR, edición, estado y eliminación</p>
             </div>
-            <a href="crear_bus.php" class="bg-gradient-to-r from-blue-600 to-blue-800 hover:from-blue-700 hover:to-blue-900 text-white px-5 py-2 rounded-lg shadow-lg transition-all text-sm font-bold flex items-center">
-                <i class="fas fa-circle-plus mr-2"></i> Nuevo Bus
+            <div class="flex flex-wrap items-center gap-2">
+            <a href="imprimir_qrs.php" target="_blank" rel="noopener" class="bg-white hover:bg-blue-50 text-blue-700 border border-blue-200 px-5 py-2 rounded-lg transition-all text-sm font-bold flex items-center">
+                <i class="fas fa-print mr-2"></i> Imprimir todos los QR
             </a>
+            <button id="btnNuevoBus" type="button" class="bg-gradient-to-r from-blue-600 to-blue-800 hover:from-blue-700 hover:to-blue-900 text-white px-5 py-2 rounded-lg shadow-lg transition-all text-sm font-bold flex items-center">
+                <i class="fas fa-circle-plus mr-2"></i> Nuevo Bus
+            </button>
+            </div>
         </header>
 
         <div class="p-4 md:p-8 w-full max-w-7xl mx-auto">
@@ -166,6 +171,38 @@ $totalResultados = count($listaBuses);
         </div>
     </main>
 
+    <div id="modalCrearBus" class="fixed inset-0 z-50 hidden items-center justify-center bg-gray-900/60 p-4" role="dialog" aria-modal="true" aria-labelledby="tituloCrearBus">
+        <div class="flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div class="flex items-start justify-between bg-gradient-to-r from-blue-700 to-blue-900 px-5 py-4 text-white md:px-6">
+                <h3 id="tituloCrearBus" class="text-lg font-bold"><i class="fas fa-bus mr-2"></i>Crear nuevo bus</h3>
+                <button id="btnCerrarCrearBus" type="button" class="ml-4 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-blue-100 hover:bg-white/15 hover:text-white" aria-label="Cerrar formulario">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+                <form id="formCrearBus" class="overflow-y-auto p-5 md:p-6">
+                    <div id="alerta" role="status" class="hidden mb-4 p-3 rounded text-sm text-center"></div>
+                    <div class="mb-4">
+                        <label for="disco" class="block text-gray-600 text-sm font-bold mb-2">Número de Disco</label>
+                        <input type="text" id="disco" name="disco" required placeholder="Ej: 1, 2, 3..."
+                            class="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
+                    </div>
+
+                    <div class="mb-6">
+                        <label for="placa" class="block text-gray-600 text-sm font-bold mb-2">Placa <span class="text-gray-400 font-normal">(opcional)</span></label>
+                        <input type="text" id="placa" name="placa" placeholder="Ej: ABC-1234"
+                            class="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
+                    </div>
+
+                    <button type="submit" id="btnSubmit"
+                        class="w-full bg-gradient-to-r from-blue-600 to-blue-800 hover:from-blue-700 hover:to-blue-900 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition-all flex items-center justify-center">
+                        <i class="fas fa-save mr-2"></i> Guardar Bus
+                    </button>
+                    <button id="btnCancelarCrearBus" type="button" class="mt-3 w-full rounded-lg bg-gray-100 px-4 py-2.5 font-bold text-gray-700 hover:bg-gray-200">Cancelar</button>
+                </form>
+
+        </div>
+    </div>
+
     <!-- Modal QR -->
     <div id="qrModal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-6">
         <div class="bg-white rounded-2xl p-8 w-full max-w-sm text-center shadow-2xl">
@@ -207,6 +244,6 @@ $totalResultados = count($listaBuses);
         </div>
     </div>
 
-    <script src="../../Assets/js/buses.js"></script>
+    <script src="../../Assets/js/buses.js?v=<?php echo hash_file('sha256', __DIR__ . '/../../Assets/js/buses.js'); ?>"></script>
 </body>
 </html>

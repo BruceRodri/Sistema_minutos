@@ -14,6 +14,10 @@ $turnoDao = new TurnoDao($conexion);
 $filtroDisco = trim($_GET['disco'] ?? '');
 $filtroConductor = trim($_GET['conductor'] ?? '');
 $filtroFecha = trim($_GET['fecha'] ?? '');
+$filtroEstado = $_GET['estado'] ?? '';
+if (!in_array($filtroEstado, ['abierto', 'fallido'], true)) {
+    $filtroEstado = '';
+}
 
 if ($filtroFecha !== '') {
     $fechaValida = DateTime::createFromFormat('Y-m-d', $filtroFecha);
@@ -24,7 +28,7 @@ if ($filtroFecha !== '') {
 
 $registrosPorPagina = 20;
 $paginaActual = max(1, (int)($_GET['pagina'] ?? 1));
-$totalTurnos = $turnoDao->contarTurnos($filtroDisco, $filtroConductor, $filtroFecha);
+$totalTurnos = $turnoDao->contarTurnos($filtroDisco, $filtroConductor, $filtroFecha, $filtroEstado);
 $totalPaginas = max(1, (int)ceil($totalTurnos / $registrosPorPagina));
 $paginaActual = min($paginaActual, $totalPaginas);
 $offset = ($paginaActual - 1) * $registrosPorPagina;
@@ -33,17 +37,19 @@ $turnos = $turnoDao->obtenerTurnos(
     $filtroConductor,
     $filtroFecha,
     $registrosPorPagina,
-    $offset
+    $offset,
+    $filtroEstado
 );
 
 $primerRegistro = $totalTurnos > 0 ? $offset + 1 : 0;
 $ultimoRegistro = min($offset + $registrosPorPagina, $totalTurnos);
 
-function construirUrlPagina($pagina, $disco, $conductor, $fecha) {
+function construirUrlPagina($pagina, $disco, $conductor, $fecha, $estado) {
     $parametros = ['pagina' => $pagina];
     if ($disco !== '') $parametros['disco'] = $disco;
     if ($conductor !== '') $parametros['conductor'] = $conductor;
     if ($fecha !== '') $parametros['fecha'] = $fecha;
+    if ($estado !== '') $parametros['estado'] = $estado;
     return '?' . http_build_query($parametros);
 }
 
@@ -163,7 +169,7 @@ function formatearDiscoHistorial($disco) {
 
         <div class="p-4 md:p-8 w-full max-w-7xl mx-auto">
             <form method="GET" action="turnos.php" class="mb-6">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                     <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
                         <label for="filtroDisco" class="flex items-center text-sm font-bold text-gray-700 mb-2">
                             <span class="w-9 h-9 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center mr-3">
@@ -195,6 +201,19 @@ function formatearDiscoHistorial($disco) {
                         </label>
                         <input type="text" id="filtroFecha" name="fecha" value="<?php echo htmlspecialchars($filtroFecha); ?>" placeholder="Seleccione una fecha" readonly
                                class="w-full cursor-pointer rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-center focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none">
+                    </div>
+                    <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+                        <label for="filtroEstado" class="flex items-center text-sm font-bold text-gray-700 mb-2">
+                            <span class="w-9 h-9 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center mr-3">
+                                <i class="fas fa-filter"></i>
+                            </span>
+                            Filtrar por estado
+                        </label>
+                        <select id="filtroEstado" name="estado" class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none">
+                            <option value="">Todos los estados</option>
+                            <option value="abierto" <?php echo $filtroEstado === 'abierto' ? 'selected' : ''; ?>>Abierto</option>
+                            <option value="fallido" <?php echo $filtroEstado === 'fallido' ? 'selected' : ''; ?>>Fallido</option>
+                        </select>
                     </div>
                 </div>
 
@@ -242,12 +261,13 @@ function formatearDiscoHistorial($disco) {
                         <?php else: ?>
                             <?php foreach ($turnos as $turno): ?>
                                 <?php
+                                    $conductorDuplicado = TurnoDao::esConductorDuplicado($turno);
                                     $fechaApertura = DateTime::createFromFormat(
                                         'Y-m-d H:i:s',
                                         $turno['fecha'] . ' ' . $turno['hora_apertura']
                                     );
                                 ?>
-                                <tr class="<?php echo ($turno['estado'] ?? 'abierto') === 'fallido' ? 'bg-amber-50/70 hover:bg-amber-100/70' : 'hover:bg-gray-50'; ?> transition-colors">
+                                <tr class="<?php echo $conductorDuplicado ? 'bg-red-50/70 hover:bg-red-100/70' : (($turno['estado'] ?? 'abierto') === 'fallido' ? 'bg-amber-50/70 hover:bg-amber-100/70' : 'hover:bg-gray-50'); ?> transition-colors">
                                     <td class="px-6 py-4 whitespace-nowrap text-center">
                                         <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-blue-100 text-blue-800 border border-blue-200">
                                             <?php echo htmlspecialchars(formatearDiscoHistorial($turno['disco'])); ?>
@@ -261,7 +281,7 @@ function formatearDiscoHistorial($disco) {
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-center">
                                         <?php if (($turno['estado'] ?? 'abierto') === 'fallido'): ?>
-                                            <span class="inline-flex items-center rounded-full border border-amber-300 bg-amber-100/80 px-3 py-1 text-xs font-bold text-amber-800">
+                                            <span class="inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold <?php echo $conductorDuplicado ? 'border-red-300 bg-red-100/80 text-red-800' : 'border-amber-300 bg-amber-100/80 text-amber-800'; ?>">
                                                 <i class="fas fa-triangle-exclamation mr-1.5"></i>Fallido
                                             </span>
                                         <?php else: ?>
@@ -270,7 +290,7 @@ function formatearDiscoHistorial($disco) {
                                             </span>
                                         <?php endif; ?>
                                     </td>
-                                    <td class="px-6 py-4 min-w-72 text-left text-sm <?php echo ($turno['estado'] ?? 'abierto') === 'fallido' ? 'font-medium text-amber-900' : 'text-gray-600'; ?>">
+                                    <td class="px-6 py-4 min-w-72 text-left text-sm <?php echo $conductorDuplicado ? 'font-medium text-red-900' : (($turno['estado'] ?? 'abierto') === 'fallido' ? 'font-medium text-amber-900' : 'text-gray-600'); ?>">
                                         <?php echo htmlspecialchars($turno['motivo'] ?: '—'); ?>
                                     </td>
                                 </tr>
@@ -288,14 +308,14 @@ function formatearDiscoHistorial($disco) {
                         $paginaFinal = min($totalPaginas, $paginaActual + 2);
                     ?>
                     <?php if ($paginaActual > 1): ?>
-                        <a href="<?php echo htmlspecialchars(construirUrlPagina($paginaActual - 1, $filtroDisco, $filtroConductor, $filtroFecha)); ?>"
+                        <a href="<?php echo htmlspecialchars(construirUrlPagina($paginaActual - 1, $filtroDisco, $filtroConductor, $filtroFecha, $filtroEstado)); ?>"
                            class="inline-flex items-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-bold text-gray-700 hover:bg-gray-50">
                             <i class="fas fa-chevron-left mr-2"></i> Anterior
                         </a>
                     <?php endif; ?>
 
                     <?php for ($pagina = $paginaInicial; $pagina <= $paginaFinal; $pagina++): ?>
-                        <a href="<?php echo htmlspecialchars(construirUrlPagina($pagina, $filtroDisco, $filtroConductor, $filtroFecha)); ?>"
+                        <a href="<?php echo htmlspecialchars(construirUrlPagina($pagina, $filtroDisco, $filtroConductor, $filtroFecha, $filtroEstado)); ?>"
                            class="inline-flex min-w-10 items-center justify-center rounded-lg px-3 py-2 text-sm font-bold <?php echo $pagina === $paginaActual ? 'bg-blue-600 text-white shadow' : 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50'; ?>"
                            <?php echo $pagina === $paginaActual ? 'aria-current="page"' : ''; ?>>
                             <?php echo $pagina; ?>
@@ -303,7 +323,7 @@ function formatearDiscoHistorial($disco) {
                     <?php endfor; ?>
 
                     <?php if ($paginaActual < $totalPaginas): ?>
-                        <a href="<?php echo htmlspecialchars(construirUrlPagina($paginaActual + 1, $filtroDisco, $filtroConductor, $filtroFecha)); ?>"
+                        <a href="<?php echo htmlspecialchars(construirUrlPagina($paginaActual + 1, $filtroDisco, $filtroConductor, $filtroFecha, $filtroEstado)); ?>"
                            class="inline-flex items-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-bold text-gray-700 hover:bg-gray-50">
                             Siguiente <i class="fas fa-chevron-right ml-2"></i>
                         </a>
@@ -340,7 +360,7 @@ function formatearDiscoHistorial($disco) {
             const parametros = new URLSearchParams(window.location.search);
             const streamUrl = new URL('../../Controllers/TurnosStreamController.php', window.location.href);
 
-            ['disco', 'conductor', 'fecha', 'pagina'].forEach((nombre) => {
+            ['disco', 'conductor', 'fecha', 'estado', 'pagina'].forEach((nombre) => {
                 const valor = parametros.get(nombre);
                 if (valor) streamUrl.searchParams.set(nombre, valor);
             });
@@ -407,7 +427,7 @@ function formatearDiscoHistorial($disco) {
                     rango.textContent = `Mostrando ${datos.primero}–${datos.ultimo} de ${datos.total}`;
                     rango.classList.remove('hidden');
                     tabla.innerHTML = datos.turnos.map((turno) => `
-                        <tr class="${turno.estado === 'fallido' ? 'bg-amber-50/70 hover:bg-amber-100/70' : 'hover:bg-gray-50'} transition-colors">
+                        <tr class="${turno.conductor_duplicado ? 'bg-red-50/70 hover:bg-red-100/70' : (turno.estado === 'fallido' ? 'bg-amber-50/70 hover:bg-amber-100/70' : 'hover:bg-gray-50')} transition-colors">
                             <td class="px-6 py-4 whitespace-nowrap text-center">
                                 <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-blue-100 text-blue-800 border border-blue-200">${escapar(turno.disco)}</span>
                             </td>
@@ -415,10 +435,10 @@ function formatearDiscoHistorial($disco) {
                             <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-700">${escapar(turno.fecha_apertura)}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-center">
                                 ${turno.estado === 'fallido'
-                                    ? '<span class="inline-flex items-center rounded-full border border-amber-300 bg-amber-100/80 px-3 py-1 text-xs font-bold text-amber-800"><i class="fas fa-triangle-exclamation mr-1.5"></i>Fallido</span>'
+                                    ? `<span class="inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold ${turno.conductor_duplicado ? 'border-red-300 bg-red-100/80 text-red-800' : 'border-amber-300 bg-amber-100/80 text-amber-800'}"><i class="fas fa-triangle-exclamation mr-1.5"></i>Fallido</span>`
                                     : '<span class="inline-flex items-center rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-bold text-green-700"><i class="fas fa-circle-check mr-1.5"></i>Abierto</span>'}
                             </td>
-                            <td class="px-6 py-4 min-w-72 text-left text-sm ${turno.estado === 'fallido' ? 'font-medium text-amber-900' : 'text-gray-600'}">${escapar(turno.motivo || '—')}</td>
+                            <td class="px-6 py-4 min-w-72 text-left text-sm ${turno.conductor_duplicado ? 'font-medium text-red-900' : (turno.estado === 'fallido' ? 'font-medium text-amber-900' : 'text-gray-600')}">${escapar(turno.motivo || '—')}</td>
                         </tr>`).join('');
                 }
 

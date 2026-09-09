@@ -13,12 +13,50 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ---------- Crear Bus ----------
     const formCrearBus = document.getElementById('formCrearBus');
+    const modalCrearBus = document.getElementById('modalCrearBus');
+    const btnNuevoBus = document.getElementById('btnNuevoBus');
+    if (modalCrearBus && btnNuevoBus) {
+        const cerrarModal = () => {
+            if (document.getElementById('btnSubmit').disabled) return;
+            modalCrearBus.classList.add('hidden');
+            modalCrearBus.classList.remove('flex');
+            btnNuevoBus.focus();
+        };
+        btnNuevoBus.addEventListener('click', () => {
+            formCrearBus.reset();
+            document.getElementById('alerta').classList.add('hidden');
+            modalCrearBus.classList.remove('hidden');
+            modalCrearBus.classList.add('flex');
+            document.getElementById('disco').focus();
+        });
+        document.getElementById('btnCerrarCrearBus').addEventListener('click', cerrarModal);
+        document.getElementById('btnCancelarCrearBus').addEventListener('click', cerrarModal);
+        modalCrearBus.addEventListener('click', (event) => {
+            if (event.target === modalCrearBus) cerrarModal();
+        });
+        modalCrearBus.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') cerrarModal();
+            if (event.key !== 'Tab') return;
+            const elementos = [...modalCrearBus.querySelectorAll('button, input')].filter((el) => !el.disabled);
+            const primero = elementos[0];
+            const ultimo = elementos[elementos.length - 1];
+            if (event.shiftKey && document.activeElement === primero) {
+                event.preventDefault();
+                ultimo.focus();
+            } else if (!event.shiftKey && document.activeElement === ultimo) {
+                event.preventDefault();
+                primero.focus();
+            }
+        });
+    }
     if (formCrearBus) {
         const alerta = document.getElementById('alerta');
         const btnSubmit = document.getElementById('btnSubmit');
 
         formCrearBus.addEventListener('submit', async (e) => {
             e.preventDefault();
+            if (btnSubmit.disabled) return;
+            let creado = false;
             alerta.classList.add('hidden');
             btnSubmit.disabled = true;
             btnSubmit.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Guardando...';
@@ -31,9 +69,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const data = await response.json();
 
                 if (data.status === 'success') {
+                    creado = true;
                     mostrarAlerta(alerta, 'success', data.message);
                     formCrearBus.reset();
-                    setTimeout(() => { window.location.href = 'buses.php'; }, 800);
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 800);
                 } else {
                     mostrarAlerta(alerta, 'error', data.message);
                 }
@@ -41,7 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error(error);
                 mostrarAlerta(alerta, 'error', 'Error de conexión con el servidor.');
             } finally {
-                btnSubmit.disabled = false;
+                btnSubmit.disabled = creado;
                 btnSubmit.innerHTML = '<i class="fas fa-save mr-2"></i> Guardar Bus';
             }
         });

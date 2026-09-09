@@ -137,7 +137,7 @@ foreach ($sociosConBuses as $fila) {
 
     <!-- Modal Cambiar Socio -->
     <div id="modalCambiarSocio" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-6">
-        <div class="bg-white rounded-2xl p-8 w-full max-w-sm shadow-2xl">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-md max-h-[92vh] overflow-y-auto shadow-2xl">
             <div class="mb-6 w-12 h-12 mx-auto rounded-full bg-blue-100 flex items-center justify-center">
                 <i class="fas fa-arrows-rotate text-blue-600 text-xl"></i>
             </div>
@@ -147,15 +147,16 @@ foreach ($sociosConBuses as $fila) {
             <form id="formCambiarSocio">
                 <input type="hidden" id="cambioBusId" name="bus_id">
                 <div class="mb-6">
-                    <label for="cambioUsuario" class="block text-gray-600 text-sm font-bold mb-2">Nuevo socio</label>
-                    <select id="cambioUsuario" name="usuario_id" class="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all" required>
-                        <option value="">Seleccione un socio...</option>
-                        <?php foreach ($socios as $socio): ?>
-                        <option value="<?php echo $socio['id']; ?>">
-                            <?php echo htmlspecialchars($socio['cedula']) . ' - ' . htmlspecialchars($socio['nombre']); ?>
-                        </option>
-                        <?php endforeach; ?>
-                    </select>
+                    <label for="buscarSocioCambio" class="block text-gray-600 text-sm font-bold mb-2">Buscar por cédula o nombre</label>
+                    <div class="relative mb-3">
+                        <i class="fas fa-search absolute left-3 top-3.5 text-gray-400"></i>
+                        <input id="buscarSocioCambio" type="search" placeholder="Cédula o nombre del socio..." autocomplete="off"
+                               class="w-full rounded-lg border border-gray-300 bg-white pl-10 pr-3 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none">
+                    </div>
+                    <p id="coincidenciasSocio" role="status" class="mb-3 text-xs text-gray-500"></p>
+                    <input type="hidden" id="cambioUsuario" name="usuario_id">
+                    <ul id="sugerenciasSocio" class="max-h-64 overflow-y-auto divide-y divide-gray-100" aria-label="Socios encontrados"></ul>
+                    <script id="datosSociosCambio" type="application/json"><?php echo json_encode($socios, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?></script>
                 </div>
                 <div class="flex gap-3">
                     <button type="button" id="btnCancelarCambio" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2.5 px-4 rounded-lg transition-all">Cancelar</button>

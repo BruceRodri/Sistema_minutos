@@ -8,6 +8,11 @@ class TurnoDao {
         $this->conexion = $conexion;
     }
 
+    public static function esConductorDuplicado($turno) {
+        return ($turno['estado'] ?? '') === 'fallido'
+            && str_starts_with($turno['motivo'] ?? '', 'Usted ya abrió un turno');
+    }
+
     public function obtenerBusPorDisco($disco) {
         $sql = "SELECT * FROM bus WHERE disco = :disco LIMIT 1";
         $stmt = $this->conexion->prepare($sql);
@@ -147,10 +152,10 @@ class TurnoDao {
         return $stmt->fetchAll();
     }
 
-    public function obtenerTurnos($disco = '', $codigoConductor = '', $fecha = '', $limite = 10, $offset = 0) {
+    public function obtenerTurnos($disco = '', $codigoConductor = '', $fecha = '', $limite = 10, $offset = 0, $estado = '') {
         $this->cerrarTurnosVencidos();
 
-        [$condiciones, $parametros] = $this->construirFiltrosTurnos($disco, $codigoConductor, $fecha);
+        [$condiciones, $parametros] = $this->construirFiltrosTurnos($disco, $codigoConductor, $fecha, $estado);
         $sql = "SELECT registros.*
                 FROM (
                     SELECT CONCAT('turno-', t.id) AS registro_id,
@@ -188,11 +193,11 @@ class TurnoDao {
         return $stmt->fetchAll();
     }
 
-    public function contarTurnos($disco = '', $codigoConductor = '', $fecha = '') {
-        [$condiciones, $parametros] = $this->construirFiltrosTurnos($disco, $codigoConductor, $fecha);
+    public function contarTurnos($disco = '', $codigoConductor = '', $fecha = '', $estado = '') {
+        [$condiciones, $parametros] = $this->construirFiltrosTurnos($disco, $codigoConductor, $fecha, $estado);
         $sql = "SELECT COUNT(*)
                 FROM (
-                    SELECT b.disco, u.codigo_conductor, t.fecha
+                    SELECT b.disco, u.codigo_conductor, t.fecha, 'abierto' AS estado
                     FROM turno t
                     INNER JOIN bus b ON t.bus_id = b.id
                     INNER JOIN usuario u ON t.usuario_id = u.id
@@ -200,7 +205,7 @@ class TurnoDao {
                     UNION ALL
 
                     SELECT COALESCE(b.disco, NULLIF(i.disco_escaneado, ''), '—') AS disco,
-                           u.codigo_conductor, i.fecha
+                           u.codigo_conductor, i.fecha, 'fallido' AS estado
                     FROM intento_turno i
                     LEFT JOIN bus b ON i.bus_id = b.id
                     INNER JOIN usuario u ON i.usuario_id = u.id
@@ -213,7 +218,7 @@ class TurnoDao {
         return (int)$stmt->fetchColumn();
     }
 
-    private function construirFiltrosTurnos($disco, $codigoConductor, $fecha) {
+    private function construirFiltrosTurnos($disco, $codigoConductor, $fecha, $estado) {
         $filtros = [];
         $parametros = [];
 
@@ -228,6 +233,11 @@ class TurnoDao {
         if ($fecha !== '') {
             $filtros[] = 'registros.fecha = :fecha';
             $parametros[':fecha'] = $fecha;
+        }
+
+        if (in_array($estado, ['abierto', 'fallido'], true)) {
+            $filtros[] = 'registros.estado = :estado';
+            $parametros[':estado'] = $estado;
         }
 
         $condiciones = $filtros ? 'WHERE ' . implode(' AND ', $filtros) : '';
