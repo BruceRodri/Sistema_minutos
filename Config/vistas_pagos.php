@@ -23,6 +23,9 @@ function mapearPagoParaVista($p) {
         'estado' => $p['estado'] ?? 'aprobado',
         'motivo_rechazo' => (string)($p['motivo_rechazo'] ?? ''),
         'comprobante' => (string)($p['comprobante'] ?? ''),
+        'comprobantes' => array_values(is_array($p['comprobantes'] ?? null)
+            ? $p['comprobantes']
+            : PagoDao::normalizarComprobantes($p['comprobante'] ?? null)),
         'monto' => (float)$p['monto'],
         'montoFmt' => number_format((float)$p['monto'], 2, '.', ','),
         'fecha_pago' => (string)$p['fecha_pago'],
@@ -52,7 +55,7 @@ function snapshotConductor($dao) {
 }
 
 function normalizarFiltrosPagos(array $filtros) {
-    if (!in_array($filtros['estado'] ?? '', ['en_espera', 'aprobado', 'anulado'], true)) {
+    if (!in_array($filtros['estado'] ?? '', ['en_espera', 'aprobado', 'anulado', 'incompleto'], true)) {
         $filtros['estado'] = '';
     }
     foreach (['fecha_desde', 'fecha_hasta'] as $clave) {

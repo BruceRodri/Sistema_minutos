@@ -5,14 +5,37 @@ $rol = $_SESSION['rol'] ?? '';
 if (!$uid) { http_response_code(403); exit; }
 session_write_close();
 require_once __DIR__ . '/../Config/conexion.php';
-$stmt = $conexion->prepare('SELECT usuario_id, comprobante FROM pago WHERE id=? AND activo=1');
+require_once __DIR__ . '/../Dao/PagoDao.php';
+$stmt = $conexion->prepare('SELECT usuario_id, comprobante, estado FROM pago WHERE id=? AND activo=1');
 $stmt->execute([(int)($_GET['pago_id'] ?? 0)]);
 $pago = $stmt->fetch();
 if (!$pago) {
     http_response_code(404); exit;
 }
+// Un conductor o socio solo puede ver sus propios comprobantes; el personal web gestiona todos.
+if ((int)$pago['usuario_id'] !== (int)$uid && in_array($rol, ['socio', 'conductor'], true)) {
+    http_response_code(403); exit;
+}
+// Los pagos anulados no exponen el comprobante (archivo inválido / basura).
+if ($pago['estado'] === 'anulado') {
+    http_response_code(404); exit('Comprobante no disponible.');
+}
+$comprobantes = PagoDao::normalizarComprobantes($pago['comprobante'] ?? null);
+if (!$comprobantes) {
+    http_response_code(404); exit('Comprobante no disponible.');
+}
+$rutaRelativa = $comprobantes[0];
+if (isset($_GET['archivo']) && $_GET['archivo'] !== '') {
+    $archivoBuscado = basename((string)$_GET['archivo']);
+    foreach ($comprobantes as $ruta) {
+        if (basename($ruta) === $archivoBuscado) {
+            $rutaRelativa = $ruta;
+            break;
+        }
+    }
+}
 $base = realpath(__DIR__ . '/../App/conductor/comprobantes');
-$ruta = realpath(__DIR__ . '/../App/conductor/' . ($pago['comprobante'] ?? ''));
+$ruta = realpath(__DIR__ . '/../App/conductor/' . $rutaRelativa);
 if (!$base || !$ruta || !str_starts_with($ruta, $base . DIRECTORY_SEPARATOR) || !is_file($ruta)) {
     http_response_code(404); exit('Comprobante no disponible.');
 }
