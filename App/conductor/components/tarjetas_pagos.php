@@ -19,7 +19,7 @@
                         $diaClase = $esAnulado ? 'bg-red-600' : ($esEspera ? 'bg-amber-500' : 'bg-green-600');
                     ?>
                     <div class="cardPago bg-white rounded-3xl p-6 lg:p-7 shadow-sm border-2 <?php echo $bordeTarjeta; ?>" data-discos="<?php echo htmlspecialchars(implode(' ', $p['discos'] ?? [])); ?>">
-                        <div class="flex items-center justify-between gap-3 mb-3">
+                        <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
                             <?php
                             $fechasPagos = !empty($p['fechas']) ? $p['fechas'] : [$p['fecha_pago']];
                             $cantidadDias = count($fechasPagos);
@@ -29,22 +29,22 @@
                                 $rango = date('d/m/Y', strtotime($desde));
                                 if ($hasta !== $desde) $rango .= ' al ' . date('d/m/Y', strtotime($hasta));
                             ?>
-                            <div class="flex flex-col gap-1">
-                                <p class="text-2xl lg:text-3xl font-extrabold text-gray-800">
-                                    Se pagaron <span class="inline-block align-middle <?php echo $diaClase; ?> text-white px-3 py-0.5 rounded-full text-xl lg:text-2xl"><?php echo $cantidadDias; ?> días</span>
+                            <div class="flex flex-col gap-1 min-w-0">
+                                <p class="text-xl sm:text-2xl lg:text-3xl font-extrabold text-gray-800 leading-tight break-words">
+                                    Se pagaron <span class="inline-block align-middle <?php echo $diaClase; ?> text-white px-3 lg:px-4 py-0.5 rounded-full text-lg lg:text-2xl"><?php echo $cantidadDias; ?> días</span>
                                 </p>
-                                <p class="text-base lg:text-lg text-gray-500 font-semibold">del <?php echo $rango; ?></p>
+                                <p class="text-base lg:text-lg text-gray-500 font-semibold break-words">del <?php echo $rango; ?></p>
                             </div>
                             <?php else: ?>
-                            <p class="text-2xl lg:text-3xl font-extrabold text-gray-800">
+                            <p class="text-xl sm:text-2xl lg:text-3xl font-extrabold text-gray-800 leading-tight break-words min-w-0">
                                 <?php echo formatearFechaPago($fechasPagos[0]); ?>
                             </p>
                             <?php endif; ?>
-                            <span class="<?php echo $etiquetaClase; ?> text-lg font-bold px-4 py-1.5 rounded-full flex items-center gap-2 shrink-0">
+                            <span class="<?php echo $etiquetaClase; ?> text-sm sm:text-lg font-bold px-3 sm:px-4 py-1.5 rounded-full flex items-center gap-2 shrink-0 whitespace-nowrap">
                                 <i class="fas <?php echo $etiquetaIcono; ?>"></i> <?php echo $etiquetaEstado; ?>
                             </span>
                         </div>
-                        <p class="text-lg lg:text-xl text-gray-500 mt-1">
+                        <p class="text-lg lg:text-xl text-gray-500 mt-1 break-words">
                             <?php if (!empty($p['discos'])): ?>
                             <span class="inline-flex items-center gap-1 mr-2 font-extrabold text-blue-700 text-xl lg:text-2xl"><i class="fas fa-compact-disc"></i>Disco <?php echo htmlspecialchars(implode(' · ', $p['discos'])); ?></span>
                             <?php endif; ?>
@@ -52,7 +52,7 @@
                         </p>
                         <hr class="border-gray-100 my-3">
                         <div class="flex items-center justify-between gap-3">
-                            <p class="text-lg lg:text-xl text-gray-500">
+                            <p class="text-lg lg:text-xl text-gray-500 break-words">
                                 <?php echo (int)$p['dias']; ?> día(s) · <span class="font-bold text-gray-700">$ <?php echo number_format((float)$p['monto'], 2, '.', ','); ?></span>
                             </p>
                             <i class="fas <?php echo $esAnulado ? 'fa-circle-xmark' : ($esEspera ? 'fa-clock' : 'fa-check-circle'); ?> <?php echo $iconoEstado; ?> text-4xl lg:text-5xl shrink-0"></i>

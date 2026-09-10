@@ -220,7 +220,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 raiz.dataset.codigos = data.codigos || '';
                 actualizacionPendiente = null;
                 if (estado) {
-                    estado.textContent = 'Guardado.';
+                    estado.textContent = 'Validado. Se guardará al aprobar.';
                     estado.className = 'text-xs font-bold text-green-600';
                 }
                 setTimeout(() => {

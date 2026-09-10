@@ -29,28 +29,6 @@ class PagoDao {
         return json_encode($lista, JSON_UNESCAPED_SLASHES);
     }
 
-    private function encontrarPagoAnuladoReutilizable($usuarioId, array $ids, $claveDetalle) {
-        sort($ids, SORT_NUMERIC);
-        $stmt = $this->conexion->prepare(
-            "SELECT id, detalle_pagos FROM pago
-             WHERE usuario_id = ? AND estado = 'anulado' AND activo = 1
-             ORDER BY id DESC FOR UPDATE"
-        );
-        $stmt->execute([(int)$usuarioId]);
-        foreach ($stmt->fetchAll() as $pago) {
-            $detalle = json_decode($pago['detalle_pagos'] ?? '', true);
-            if (!is_array($detalle)) continue;
-            $idsDetalle = [];
-            foreach ($detalle as $fila) {
-                if (!is_array($fila) || !isset($fila[$claveDetalle])) continue 2;
-                $idsDetalle[] = (int)$fila[$claveDetalle];
-            }
-            sort($idsDetalle, SORT_NUMERIC);
-            if ($idsDetalle === $ids) return (int)$pago['id'];
-        }
-        return null;
-    }
-
     public function obtenerTurnoHoyConductor($usuarioId) {
         $sql = "SELECT t.id, t.fecha, t.hora_apertura, t.valor, t.ruta, t.pagado, b.disco
                 FROM turno t
@@ -100,22 +78,28 @@ class PagoDao {
         $stmt->execute($parametros);
         $pagos = $stmt->fetchAll();
 
-        // Un mismo conjunto de deudas conserva una sola tarjeta en la app.
-        // Los registros antiguos duplicados quedan auditables en la BD y la vista usa el más reciente.
-        $vistos = [];
-        $pagos = array_values(array_filter($pagos, static function ($pago) use (&$vistos) {
+        // La app muestra una sola tarjeta por deuda individual (un día).
+        // Como la consulta ya ordena del pago más reciente al más antiguo,
+        // si un pago ya visto incluye una de las deudas de un pago anterior,
+        // ese pago anterior completo queda obsoleto (aunque la anulación antigua
+        // agrupara varios días y el repago cubra solo uno de ellos).
+        // El historial completo (anulado + repago) solo lo ve el admin con obtenerPagosParaAdmin().
+        $deudasVistas = [];
+        $pagos = array_values(array_filter($pagos, static function ($pago) use (&$deudasVistas) {
             $detalle = json_decode($pago['detalle_pagos'] ?? '', true);
             if (!is_array($detalle) || !$detalle) return true;
-            $claves = [];
+            $deudas = [];
             foreach ($detalle as $fila) {
-                if (isset($fila['obligacion_id'])) $claves[] = 'o:' . (int)$fila['obligacion_id'];
-                elseif (isset($fila['turno_id'])) $claves[] = 't:' . (int)$fila['turno_id'];
+                if (isset($fila['obligacion_id'])) $deudas[] = 'o:' . (int)$fila['obligacion_id'];
+                elseif (isset($fila['turno_id'])) $deudas[] = 't:' . (int)$fila['turno_id'];
                 else return true;
             }
-            sort($claves, SORT_STRING);
-            $clave = implode('|', $claves);
-            if (isset($vistos[$clave])) return false;
-            $vistos[$clave] = true;
+            foreach ($deudas as $deuda) {
+                if (isset($deudasVistas[$deuda])) return false;
+            }
+            foreach ($deudas as $deuda) {
+                $deudasVistas[$deuda] = true;
+            }
             return true;
         }));
 
@@ -230,22 +214,12 @@ class PagoDao {
 
             $comprobanteGuardado = self::serializarComprobantes($comprobante);
 
-            $pagoId = $this->encontrarPagoAnuladoReutilizable($usuarioId, $obligacionesIds, 'obligacion_id');
-            if ($pagoId) {
-                $stmt = $this->conexion->prepare(
-                    "UPDATE pago SET monto_total=:monto, fecha_pago=CURDATE(), comprobante=:comprobante,
-                     estado='en_espera', motivo_rechazo=NULL, nro_comprobante=NULL, detalle_pagos=:detalle
-                     WHERE id=:id"
-                );
-                $stmt->execute([':monto' => $montoTotal, ':comprobante' => $comprobanteGuardado, ':detalle' => $detallePagos, ':id' => $pagoId]);
-            } else {
-                $stmt = $this->conexion->prepare(
-                    "INSERT INTO pago (usuario_id, monto_total, fecha_pago, comprobante, estado, detalle_pagos, activo)
-                     VALUES (:usuario_id, :monto, CURDATE(), :comprobante, 'en_espera', :detalle, 1)"
-                );
-                $stmt->execute([':usuario_id' => $usuarioId, ':monto' => $montoTotal, ':comprobante' => $comprobanteGuardado, ':detalle' => $detallePagos]);
-                $pagoId = (int)$this->conexion->lastInsertId();
-            }
+            $stmt = $this->conexion->prepare(
+                "INSERT INTO pago (usuario_id, monto_total, fecha_pago, comprobante, estado, detalle_pagos, activo)
+                 VALUES (:usuario_id, :monto, CURDATE(), :comprobante, 'en_espera', :detalle, 1)"
+            );
+            $stmt->execute([':usuario_id' => $usuarioId, ':monto' => $montoTotal, ':comprobante' => $comprobanteGuardado, ':detalle' => $detallePagos]);
+            $pagoId = (int)$this->conexion->lastInsertId();
 
             $stmt = $this->conexion->prepare(
                 "UPDATE obligacion_pago
@@ -732,11 +706,12 @@ class PagoDao {
         return array_values(array_filter(preg_split('/\s*\|\s*/', $valor), static fn($c) => trim($c) !== ''));
     }
 
-    /** Devuelve el primer número de comprobante que ya existe en otro pago activo, o null. */
+    /** Devuelve el primer número de comprobante que ya existe en otro pago aprobado, o null. */
     private function codigoEnOtroPago(array $codigos, $pagoId) {
         $stmt = $this->conexion->prepare(
             "SELECT nro_comprobante FROM pago
-             WHERE activo = 1 AND nro_comprobante IS NOT NULL AND nro_comprobante <> '' AND id <> ?"
+             WHERE activo = 1 AND estado = 'aprobado'
+               AND nro_comprobante IS NOT NULL AND nro_comprobante <> '' AND id <> ?"
         );
         $stmt->execute([(int)$pagoId]);
         foreach ($stmt->fetchAll() as $fila) {
@@ -800,15 +775,7 @@ class PagoDao {
         $guardado = implode(' | ', array_slice($entrados, 0, 20));
         if (mb_strlen($guardado) > 255) return ['status' => 'muy_largo'];
 
-        try {
-            $stmt = $this->conexion->prepare(
-                "UPDATE pago SET nro_comprobante = :codigos WHERE id = :pago_id AND activo = 1"
-            );
-            $stmt->execute([':codigos' => $guardado, ':pago_id' => (int)$pagoId]);
-            return ['status' => 'success', 'codigos' => $guardado];
-        } catch (Throwable $e) {
-            return ['status' => 'error'];
-        }
+        return ['status' => 'success', 'codigos' => $guardado];
     }
 
     public function adjuntarComprobantePago($pagoId, $usuarioId, $comprobante) {
@@ -868,8 +835,6 @@ class PagoDao {
                     $vistos[$codigo] = true;
                 }
                 $numero = implode(' | ', $lista);
-            } else {
-                $numero = trim($codigos ?? $pago['nro_comprobante'] ?? '');
             }
             if ($estado === 'aprobado' && !preg_match('/[^\s|]/u', $numero)) throw new RuntimeException('comprobante_obligatorio');
             if ($estado === 'aprobado' && !preg_match('/^[0-9]+(?: \| [0-9]+)*$/D', $numero)) throw new RuntimeException('comprobante_invalido');
@@ -884,7 +849,7 @@ class PagoDao {
                     $vistos[$codigo] = true;
                 }
             }
-            if (mb_strlen($numero) > 255) throw new RuntimeException('muy_largo');
+            if ($numero !== null && mb_strlen($numero) > 255) throw new RuntimeException('muy_largo');
             if ($estado === 'aprobado') {
                 $cantidadArchivos = count(self::normalizarComprobantes($pago['comprobante'] ?? null));
                 if ($cantidadArchivos === 0) throw new RuntimeException('sin_comprobantes');

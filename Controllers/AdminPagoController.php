@@ -50,7 +50,7 @@ if ($accion === 'guardar_comprobantes') {
     if ($resultado['status'] === 'success') {
         echo json_encode([
             'status' => 'success',
-            'message' => 'Códigos de comprobante guardados.',
+            'message' => 'Códigos validados. Se guardarán al aprobar el pago.',
             'codigos' => $resultado['codigos']
         ]);
     } else {

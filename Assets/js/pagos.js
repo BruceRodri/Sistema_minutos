@@ -63,14 +63,14 @@ function tarjetaPago(pago) {
         const desde = fechas[0];
         const hasta = fechas[cantidadDias - 1];
         encabezado = `
-                <div class="flex flex-col gap-1">
-                    <p class="text-2xl lg:text-3xl font-extrabold text-gray-800">
-                        Se pagaron <span class="inline-block align-middle ${diaClase} text-white px-3 py-0.5 rounded-full text-xl lg:text-2xl">${cantidadDias} días</span>
+                <div class="flex flex-col gap-1 min-w-0">
+                    <p class="text-xl sm:text-2xl lg:text-3xl font-extrabold text-gray-800 leading-tight break-words">
+                        Se pagaron <span class="inline-block align-middle ${diaClase} text-white px-3 lg:px-4 py-0.5 rounded-full text-lg lg:text-2xl">${cantidadDias} días</span>
                     </p>
-                    <p class="text-base lg:text-lg text-gray-500 font-semibold">del ${formatearFechaCorta(desde)}${hasta !== desde ? ' al ' + formatearFechaCorta(hasta) : ''}</p>
+                    <p class="text-base lg:text-lg text-gray-500 font-semibold break-words">del ${formatearFechaCorta(desde)}${hasta !== desde ? ' al ' + formatearFechaCorta(hasta) : ''}</p>
                 </div>`;
     } else {
-        encabezado = `<p class="text-2xl lg:text-3xl font-extrabold text-gray-800">${esc(formatearFechaISO(fechas[0]))}</p>`;
+        encabezado = `<p class="text-xl sm:text-2xl lg:text-3xl font-extrabold text-gray-800 leading-tight break-words min-w-0">${esc(formatearFechaISO(fechas[0]))}</p>`;
     }
 
     const discosHtml = discos.length
@@ -110,19 +110,19 @@ function tarjetaPago(pago) {
 
     return `
             <div class="cardPago bg-white rounded-3xl p-6 lg:p-7 shadow-sm border-2 ${bordeTarjeta}" data-discos="${esc(discos.join(' '))}">
-                <div class="flex items-center justify-between gap-3 mb-3">
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
                     ${encabezado}
-                    <span class="${etiquetaClase} text-lg font-bold px-4 py-1.5 rounded-full flex items-center gap-2 shrink-0">
+                    <span class="${etiquetaClase} text-sm sm:text-lg font-bold px-3 sm:px-4 py-1.5 rounded-full flex items-center gap-2 shrink-0 whitespace-nowrap">
                         <i class="fas ${etiquetaIcono}"></i> ${etiquetaEstado}
                     </span>
                 </div>
-                <p class="text-lg lg:text-xl text-gray-500 mt-1">
+                <p class="text-lg lg:text-xl text-gray-500 mt-1 break-words">
                     ${discosHtml}
                     <span class="font-bold text-gray-600">${verboPago} ${esc(formatearFechaISO(pago.fecha_pago))}</span>
                 </p>
                 <hr class="border-gray-100 my-3">
                 <div class="flex items-center justify-between gap-3">
-                    <p class="text-lg lg:text-xl text-gray-500">${cantidadDias} día(s) · <span class="font-bold text-gray-700">$ ${esc(pago.montoFmt)}</span></p>
+                    <p class="text-lg lg:text-xl text-gray-500 break-words">${cantidadDias} día(s) · <span class="font-bold text-gray-700">$ ${esc(pago.montoFmt)}</span></p>
                     <i class="fas ${etiquetaIcono} ${iconoEstado} text-4xl lg:text-5xl shrink-0"></i>
                 </div>
                 ${comprobanteHtml}
