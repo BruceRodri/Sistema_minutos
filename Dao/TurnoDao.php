@@ -122,7 +122,8 @@ class TurnoDao {
         $sql = "SELECT MAX(usuario_id = :usuario_id) AS conductor_duplicado,
                        MAX(bus_id = :bus_id) AS bus_duplicado
                 FROM turno
-                WHERE fecha = CURDATE()";
+                WHERE fecha = CURDATE()
+                  AND activo = 1";
         $stmt = $this->conexion->prepare($sql);
         $stmt->execute([
             ':usuario_id' => $usuario_id,
@@ -138,6 +139,113 @@ class TurnoDao {
         }
 
         return null;
+    }
+
+    public function deshabilitarTurnoHoy($turnoId, $usuarioResponsableId, $comentario) {
+        $sql = "UPDATE turno
+                SET activo = 0,
+                    cancelado_en = NOW(),
+                    cancelado_por = :cancelado_por,
+                    comentario_cancelacion = :comentario
+                WHERE id = :turno_id
+                  AND fecha = CURDATE()
+                  AND activo = 1";
+        $stmt = $this->conexion->prepare($sql);
+        $stmt->execute([
+            ':cancelado_por' => (int)$usuarioResponsableId,
+            ':comentario' => $comentario,
+            ':turno_id' => (int)$turnoId
+        ]);
+        return $stmt->rowCount() === 1;
+    }
+
+    public function habilitarTurnoNuevamente($turnoId, $usuarioResponsableId) {
+        $transaccionPropia = !$this->conexion->inTransaction();
+        try {
+            if ($transaccionPropia) {
+                $this->conexion->beginTransaction();
+            }
+
+            $stmt = $this->conexion->prepare(
+                "SELECT id, usuario_id, bus_id, valor, ruta, hora_cierre
+                 FROM turno
+                 WHERE id = :turno_id
+                   AND fecha = CURDATE()
+                   AND activo = 0
+                   AND cancelado_en IS NOT NULL
+                   AND rehabilitado_en IS NULL
+                 FOR UPDATE"
+            );
+            $stmt->execute([':turno_id' => (int)$turnoId]);
+            $turno = $stmt->fetch();
+            if (!$turno) {
+                if ($transaccionPropia) $this->conexion->rollBack();
+                return 'no_disponible';
+            }
+
+            $stmtConflicto = $this->conexion->prepare(
+                "SELECT MAX(bus_id = :bus_id) AS bus_ocupado,
+                        MAX(usuario_id = :usuario_id) AS conductor_ocupado
+                 FROM turno
+                 WHERE fecha = CURDATE()
+                   AND activo = 1"
+            );
+            $stmtConflicto->execute([
+                ':bus_id' => (int)$turno['bus_id'],
+                ':usuario_id' => (int)$turno['usuario_id']
+            ]);
+            $conflicto = $stmtConflicto->fetch();
+            if ((int)($conflicto['bus_ocupado'] ?? 0) === 1) {
+                if ($transaccionPropia) $this->conexion->rollBack();
+                return 'bus_ocupado';
+            }
+            if ((int)($conflicto['conductor_ocupado'] ?? 0) === 1) {
+                if ($transaccionPropia) $this->conexion->rollBack();
+                return 'conductor_ocupado';
+            }
+
+            $stmtNuevo = $this->conexion->prepare(
+                "INSERT INTO turno
+                    (usuario_id, bus_id, fecha, hora_apertura, hora_cierre, valor, ruta, activo, pagado)
+                 VALUES
+                    (:usuario_id, :bus_id, CURDATE(), CURTIME(), :hora_cierre, :valor, :ruta, 1, 0)"
+            );
+            $stmtNuevo->execute([
+                ':usuario_id' => (int)$turno['usuario_id'],
+                ':bus_id' => (int)$turno['bus_id'],
+                ':hora_cierre' => $turno['hora_cierre'],
+                ':valor' => $turno['valor'],
+                ':ruta' => $turno['ruta']
+            ]);
+            $nuevoTurnoId = (int)$this->conexion->lastInsertId();
+
+            $stmtActualizar = $this->conexion->prepare(
+                "UPDATE turno
+                 SET rehabilitado_en = NOW(),
+                     rehabilitado_por = :rehabilitado_por,
+                     turno_rehabilitado_id = :nuevo_turno_id
+                 WHERE id = :turno_id
+                   AND rehabilitado_en IS NULL"
+            );
+            $stmtActualizar->execute([
+                ':rehabilitado_por' => (int)$usuarioResponsableId,
+                ':nuevo_turno_id' => $nuevoTurnoId,
+                ':turno_id' => (int)$turnoId
+            ]);
+            if ($transaccionPropia) $this->conexion->commit();
+            return $stmtActualizar->rowCount() === 1 ? true : 'no_disponible';
+        } catch (PDOException $e) {
+            if ($transaccionPropia && $this->conexion->inTransaction()) {
+                $this->conexion->rollBack();
+            }
+            if (($e->errorInfo[1] ?? null) == 1062) {
+                $detalle = $e->errorInfo[2] ?? '';
+                return str_contains($detalle, 'unq_conductor_fecha')
+                    ? 'conductor_ocupado'
+                    : 'bus_ocupado';
+            }
+            return false;
+        }
     }
 
     public function obtenerTurnosHoy() {
@@ -156,6 +264,24 @@ class TurnoDao {
         return $stmt->fetchAll();
     }
 
+    public function obtenerEstadoFlotaHoy() {
+        $this->cerrarTurnosVencidos();
+
+        $sql = "SELECT b.id AS bus_id, b.disco, b.placa, b.activo AS bus_activo,
+                       t.id AS turno_id, t.hora_apertura,
+                       u.codigo_conductor, u.nombres, u.apellidos
+                FROM bus b
+                LEFT JOIN turno t
+                       ON t.bus_id = b.id
+                      AND t.fecha = CURDATE()
+                      AND t.activo = 1
+                LEFT JOIN usuario u ON u.id = t.usuario_id
+                ORDER BY CAST(b.disco AS UNSIGNED), b.disco";
+        $stmt = $this->conexion->prepare($sql);
+        $stmt->execute();
+        return $stmt->fetchAll();
+    }
+
     public function obtenerTurnos($disco = '', $codigoConductor = '', $fecha = '', $limite = 10, $offset = 0, $estado = '') {
         $this->cerrarTurnosVencidos();
 
@@ -166,7 +292,10 @@ class TurnoDao {
                            t.id, t.fecha, t.hora_apertura, t.hora_cierre,
                            b.id AS bus_id, b.disco,
                            u.id AS conductor_id, u.codigo_conductor,
-                           'abierto' AS estado, NULL AS motivo
+                           CONCAT_WS(' ', u.nombres, u.apellidos) AS nombre_conductor,
+                           CASE WHEN t.activo = 0 AND t.cancelado_en IS NOT NULL THEN 'deshabilitado' ELSE 'abierto' END AS estado,
+                           CASE WHEN t.activo = 0 AND t.cancelado_en IS NOT NULL THEN t.comentario_cancelacion ELSE NULL END AS motivo,
+                           t.rehabilitado_en
                     FROM turno t
                     INNER JOIN bus b ON t.bus_id = b.id
                     INNER JOIN usuario u ON t.usuario_id = u.id
@@ -177,7 +306,8 @@ class TurnoDao {
                            i.id, i.fecha, i.hora_intento AS hora_apertura, NULL AS hora_cierre,
                            i.bus_id, COALESCE(b.disco, NULLIF(i.disco_escaneado, ''), '—') AS disco,
                            u.id AS conductor_id, u.codigo_conductor,
-                           'fallido' AS estado, i.motivo
+                           CONCAT_WS(' ', u.nombres, u.apellidos) AS nombre_conductor,
+                           'fallido' AS estado, i.motivo, NULL AS rehabilitado_en
                     FROM intento_turno i
                     LEFT JOIN bus b ON i.bus_id = b.id
                     INNER JOIN usuario u ON i.usuario_id = u.id
@@ -201,7 +331,8 @@ class TurnoDao {
         [$condiciones, $parametros] = $this->construirFiltrosTurnos($disco, $codigoConductor, $fecha, $estado);
         $sql = "SELECT COUNT(*)
                 FROM (
-                    SELECT b.disco, u.codigo_conductor, t.fecha, 'abierto' AS estado
+                    SELECT b.disco, u.codigo_conductor, t.fecha,
+                           CASE WHEN t.activo = 0 AND t.cancelado_en IS NOT NULL THEN 'deshabilitado' ELSE 'abierto' END AS estado
                     FROM turno t
                     INNER JOIN bus b ON t.bus_id = b.id
                     INNER JOIN usuario u ON t.usuario_id = u.id
@@ -239,7 +370,7 @@ class TurnoDao {
             $parametros[':fecha'] = $fecha;
         }
 
-        if (in_array($estado, ['abierto', 'fallido'], true)) {
+        if (in_array($estado, ['abierto', 'fallido', 'deshabilitado'], true)) {
             $filtros[] = 'registros.estado = :estado';
             $parametros[':estado'] = $estado;
         }

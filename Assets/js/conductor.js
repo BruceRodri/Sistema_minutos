@@ -13,36 +13,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let html5QrCode = null;
     let procesandoLectura = false;
+    let iniciandoScanner = false;
+
+    const configuracionScanner = {
+        fps: 20,
+        qrbox: { width: 250, height: 250 },
+        disableFlip: true
+    };
 
     async function iniciarScanner() {
+        if (iniciandoScanner) return;
+        iniciandoScanner = true;
+        btnAbrirTurno.disabled = true;
+
         try {
             procesandoLectura = false;
 
             if (!html5QrCode) {
-                html5QrCode = new Html5Qrcode('qr-reader');
+                html5QrCode = new Html5Qrcode('qr-reader', { verbose: false });
             } else if (html5QrCode.isScanning) {
                 await html5QrCode.stop();
             }
 
             await html5QrCode.start(
                 { facingMode: 'environment' },
-                {
-                    fps: 10,
-                    qrbox: (vw, vh) => {
-                        const lado = Math.min(vw, vh, 240);
-                        return { width: lado, height: lado };
-                    },
-                    experimentalFeatures: {
-                        useBarCodeDetectorIfSupported: true
-                    }
-                },
+                configuracionScanner,
                 async (texto) => {
                     if (procesandoLectura) return;
                     procesandoLectura = true;
 
-                    await detenerScanner();
                     overlay.classList.add('hidden');
+                    const detencionScanner = detenerScanner();
                     await enviarTurno(texto.trim());
+                    await detencionScanner;
                 },
                 () => {}
             );
@@ -50,6 +53,9 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Error al iniciar la cámara:', err);
             overlay.classList.add('hidden');
             mostrarModal('error', 'Error de cámara', 'No se pudo iniciar la cámara. Verifique que el sitio use HTTPS y que haya concedido permiso de cámara.', '');
+        } finally {
+            iniciandoScanner = false;
+            btnAbrirTurno.disabled = false;
         }
     }
 
@@ -57,8 +63,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (html5QrCode && html5QrCode.isScanning) {
             try {
                 await html5QrCode.stop();
-                await html5QrCode.clear();
-                html5QrCode = null;
             } catch (e) {
                 console.error(e);
             }
@@ -113,6 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     btnAbrirTurno.addEventListener('click', async () => {
+        if (iniciandoScanner) return;
         overlay.classList.remove('hidden');
         await iniciarScanner();
     });

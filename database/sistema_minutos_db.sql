@@ -215,10 +215,20 @@ CREATE TABLE `turno` (
   `valor` decimal(10,2) NOT NULL DEFAULT '0.00',
   `ruta` varchar(100) DEFAULT NULL,
   `activo` tinyint(1) DEFAULT '1',
+  `cancelado_en` datetime DEFAULT NULL,
+  `cancelado_por` int DEFAULT NULL,
+  `comentario_cancelacion` varchar(500) DEFAULT NULL,
+  `rehabilitado_en` datetime DEFAULT NULL,
+  `rehabilitado_por` int DEFAULT NULL,
+  `turno_rehabilitado_id` int DEFAULT NULL,
   `pagado` tinyint(1) NOT NULL DEFAULT '0',
+  `bus_id_turno_activo` int GENERATED ALWAYS AS ((case when (`activo` = 1) then `bus_id` else NULL end)) STORED,
+  `usuario_id_turno_activo` int GENERATED ALWAYS AS ((case when (`activo` = 1) then `usuario_id` else NULL end)) STORED,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `unq_bus_fecha` (`bus_id`,`fecha`),
-  UNIQUE KEY `unq_conductor_fecha` (`usuario_id`,`fecha`),
+  UNIQUE KEY `unq_bus_fecha_activo` (`bus_id_turno_activo`,`fecha`),
+  UNIQUE KEY `unq_conductor_fecha_activo` (`usuario_id_turno_activo`,`fecha`),
+  KEY `idx_turno_bus` (`bus_id`),
+  KEY `idx_turno_usuario` (`usuario_id`),
   KEY `fk_turno_pago` (`pago_id`),
   CONSTRAINT `fk_turno_pago` FOREIGN KEY (`pago_id`) REFERENCES `pago` (`id`),
   CONSTRAINT `turno_ibfk_1` FOREIGN KEY (`usuario_id`) REFERENCES `usuario` (`id`),
@@ -232,7 +242,7 @@ CREATE TABLE `turno` (
 
 LOCK TABLES `turno` WRITE;
 /*!40000 ALTER TABLE `turno` DISABLE KEYS */;
-INSERT INTO `turno` VALUES (1,6,2,NULL,'2026-09-09','19:15:44','23:59:00',0.00,NULL,0,0);
+INSERT INTO `turno` (`id`,`usuario_id`,`bus_id`,`pago_id`,`fecha`,`hora_apertura`,`hora_cierre`,`valor`,`ruta`,`activo`,`cancelado_en`,`cancelado_por`,`comentario_cancelacion`,`rehabilitado_en`,`rehabilitado_por`,`turno_rehabilitado_id`,`pagado`) VALUES (1,6,2,NULL,'2026-09-09','19:15:44','23:59:00',0.00,NULL,0,NULL,NULL,NULL,NULL,NULL,NULL,0);
 /*!40000 ALTER TABLE `turno` ENABLE KEYS */;
 UNLOCK TABLES;
 

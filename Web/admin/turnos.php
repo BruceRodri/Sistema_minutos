@@ -17,7 +17,7 @@ $filtroDisco = trim($_GET['disco'] ?? '');
 $filtroConductor = trim($_GET['conductor'] ?? '');
 $filtroFecha = trim($_GET['fecha'] ?? '');
 $filtroEstado = $_GET['estado'] ?? '';
-if (!in_array($filtroEstado, ['abierto', 'fallido'], true)) {
+if (!in_array($filtroEstado, ['abierto', 'fallido', 'deshabilitado'], true)) {
     $filtroEstado = '';
 }
 
@@ -42,6 +42,8 @@ $turnos = $turnoDao->obtenerTurnos(
     $offset,
     $filtroEstado
 );
+$flota = $turnoDao->obtenerEstadoFlotaHoy();
+$busesConTurno = count(array_filter($flota, static fn($bus) => !empty($bus['turno_id'])));
 
 $primerRegistro = $totalTurnos > 0 ? $offset + 1 : 0;
 $ultimoRegistro = min($offset + $registrosPorPagina, $totalTurnos);
@@ -163,13 +165,20 @@ function formatearDiscoHistorial($disco) {
     <?php include 'components/sidebar.php'; ?>
 
     <main class="flex-1 flex flex-col overflow-y-auto mt-16 md:mt-0 w-full">
-        <header class="h-16 bg-white shadow-sm flex items-center px-4 md:px-8 justify-between border-b border-gray-200">
+        <header class="min-h-16 bg-white shadow-sm flex items-center px-4 py-3 md:px-8 justify-between gap-3 border-b border-gray-200">
             <div>
                 <h2 class="text-xl md:text-2xl font-bold text-gray-800 text-transparent bg-clip-text bg-gradient-to-r from-blue-700 to-gray-800">
                     Historial de turnos
                 </h2>
                 <p class="text-xs text-gray-500">Turnos abiertos e intentos fallidos, del más reciente al más antiguo</p>
             </div>
+            <button id="abrirModalFlota" type="button"
+                    class="inline-flex shrink-0 items-center rounded-xl bg-blue-600 px-3 py-2.5 text-sm font-bold text-white shadow hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300 md:px-5"
+                    aria-haspopup="dialog" aria-controls="modalFlota">
+                <i class="fas fa-bus mr-2"></i>
+                <span class="hidden sm:inline">Estado de la flota</span>
+                <span id="contadorFlota" class="ml-2 rounded-full bg-white/20 px-2 py-0.5 text-xs"><?php echo $busesConTurno; ?>/<?php echo count($flota); ?></span>
+            </button>
         </header>
 
         <div class="p-4 md:p-8 w-full max-w-7xl mx-auto">
@@ -217,6 +226,7 @@ function formatearDiscoHistorial($disco) {
                         <select id="filtroEstado" name="estado" class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none">
                             <option value="">Todos los estados</option>
                             <option value="abierto" <?php echo $filtroEstado === 'abierto' ? 'selected' : ''; ?>>Abierto</option>
+                            <option value="deshabilitado" <?php echo $filtroEstado === 'deshabilitado' ? 'selected' : ''; ?>>Deshabilitado</option>
                             <option value="fallido" <?php echo $filtroEstado === 'fallido' ? 'selected' : ''; ?>>Fallido</option>
                         </select>
                     </div>
@@ -252,13 +262,14 @@ function formatearDiscoHistorial($disco) {
                             <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Conductor</th>
                             <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Fecha</th>
                             <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Estado</th>
-                            <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Motivo</th>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Comentario / motivo</th>
+                            <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Acción</th>
                         </tr>
                     </thead>
                     <tbody id="tablaTurnos" class="bg-white divide-y divide-gray-200">
                         <?php if ($totalTurnos === 0): ?>
                             <tr>
-                                <td colspan="5" class="px-6 py-12 text-center text-gray-500">
+                                <td colspan="6" class="px-6 py-12 text-center text-gray-500">
                                     <i class="fas fa-clock text-3xl mb-3 text-gray-300"></i>
                                     <p>No se encontraron turnos con los filtros seleccionados.</p>
                                 </td>
@@ -267,12 +278,17 @@ function formatearDiscoHistorial($disco) {
                             <?php foreach ($turnos as $turno): ?>
                                 <?php
                                     $conductorDuplicado = TurnoDao::esConductorDuplicado($turno);
+                                    $estadoTurno = $turno['estado'] ?? 'abierto';
+                                    $fueHabilitado = $estadoTurno === 'deshabilitado' && !empty($turno['rehabilitado_en']);
+                                    $puedeHabilitar = $estadoTurno === 'deshabilitado'
+                                        && $turno['fecha'] === date('Y-m-d')
+                                        && !$fueHabilitado;
                                     $fechaApertura = DateTime::createFromFormat(
                                         'Y-m-d H:i:s',
                                         $turno['fecha'] . ' ' . $turno['hora_apertura']
                                     );
                                 ?>
-                                <tr class="<?php echo $conductorDuplicado ? 'bg-red-50/70 hover:bg-red-100/70' : (($turno['estado'] ?? 'abierto') === 'fallido' ? 'bg-amber-50/70 hover:bg-amber-100/70' : 'hover:bg-gray-50'); ?> transition-colors">
+                                <tr class="<?php echo $estadoTurno === 'deshabilitado' ? 'bg-slate-100/80 hover:bg-slate-200/80' : ($conductorDuplicado ? 'bg-red-50/70 hover:bg-red-100/70' : ($estadoTurno === 'fallido' ? 'bg-amber-50/70 hover:bg-amber-100/70' : 'hover:bg-gray-50')); ?> transition-colors">
                                     <td class="px-6 py-4 whitespace-nowrap text-center">
                                         <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-blue-100 text-blue-800 border border-blue-200">
                                             <?php echo htmlspecialchars(formatearDiscoHistorial($turno['disco'])); ?>
@@ -285,7 +301,11 @@ function formatearDiscoHistorial($disco) {
                                         <?php echo htmlspecialchars($fechaApertura ? $fechaApertura->format('d/m/Y H:i:s') : $turno['fecha'] . ' ' . $turno['hora_apertura']); ?>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-center">
-                                        <?php if (($turno['estado'] ?? 'abierto') === 'fallido'): ?>
+                                        <?php if ($estadoTurno === 'deshabilitado'): ?>
+                                            <span class="inline-flex items-center rounded-full border border-slate-300 bg-slate-200 px-3 py-1 text-xs font-bold text-slate-700">
+                                                <i class="fas fa-ban mr-1.5"></i>Deshabilitado
+                                            </span>
+                                        <?php elseif ($estadoTurno === 'fallido'): ?>
                                             <span class="inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold <?php echo $conductorDuplicado ? 'border-red-300 bg-red-100/80 text-red-800' : 'border-amber-300 bg-amber-100/80 text-amber-800'; ?>">
                                                 <i class="fas fa-triangle-exclamation mr-1.5"></i>Fallido
                                             </span>
@@ -295,8 +315,28 @@ function formatearDiscoHistorial($disco) {
                                             </span>
                                         <?php endif; ?>
                                     </td>
-                                    <td class="px-6 py-4 min-w-72 text-left text-sm <?php echo $conductorDuplicado ? 'font-medium text-red-900' : (($turno['estado'] ?? 'abierto') === 'fallido' ? 'font-medium text-amber-900' : 'text-gray-600'); ?>">
+                                    <td class="px-6 py-4 min-w-72 text-left text-sm <?php echo $estadoTurno === 'deshabilitado' ? 'font-medium text-slate-700' : ($conductorDuplicado ? 'font-medium text-red-900' : ($estadoTurno === 'fallido' ? 'font-medium text-amber-900' : 'text-gray-600')); ?>">
                                         <?php echo htmlspecialchars($turno['motivo'] ?: '—'); ?>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-center">
+                                        <?php if ($estadoTurno === 'deshabilitado'): ?>
+                                            <button type="button" class="<?php echo $puedeHabilitar ? 'btnHabilitarTurno border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'cursor-not-allowed border-gray-300 bg-gray-100 text-gray-400'; ?> inline-flex items-center rounded-lg border px-3 py-2 text-xs font-bold shadow-sm transition-colors"
+                                                    data-turno-id="<?php echo (int)$turno['id']; ?>"
+                                                    data-disco="<?php echo htmlspecialchars(formatearDiscoHistorial($turno['disco']), ENT_QUOTES); ?>"
+                                                    data-codigo="<?php echo htmlspecialchars($turno['codigo_conductor'] ?? '', ENT_QUOTES); ?>"
+                                                    data-nombre="<?php echo htmlspecialchars($turno['nombre_conductor'] ?? '', ENT_QUOTES); ?>"
+                                                    <?php echo $puedeHabilitar ? '' : 'disabled'; ?>>
+                                                <?php if ($fueHabilitado): ?>
+                                                    <i class="fas fa-circle-check mr-1.5"></i>Ya habilitado
+                                                <?php elseif ($puedeHabilitar): ?>
+                                                    <i class="fas fa-rotate-left mr-1.5"></i>Habilitar nuevamente
+                                                <?php else: ?>
+                                                    <i class="fas fa-clock mr-1.5"></i>Fuera de fecha
+                                                <?php endif; ?>
+                                            </button>
+                                        <?php else: ?>
+                                            <span class="text-gray-300">—</span>
+                                        <?php endif; ?>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -339,6 +379,108 @@ function formatearDiscoHistorial($disco) {
         </div>
     </main>
 
+    <div id="modalFlota" class="fixed inset-0 z-50 hidden items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="tituloModalFlota">
+        <div class="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" data-cerrar-modal-flota></div>
+        <section class="relative flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
+            <header class="flex items-start justify-between gap-4 border-b border-gray-200 bg-gradient-to-r from-blue-700 to-blue-900 px-5 py-4 text-white md:px-7">
+                <div>
+                    <h3 id="tituloModalFlota" class="text-xl font-extrabold"><i class="fas fa-bus-simple mr-2"></i>Estado de la flota</h3>
+                    <p class="mt-1 text-sm text-blue-100">Unidades con turno abierto hoy, <?php echo date('d/m/Y'); ?></p>
+                </div>
+                <button type="button" data-cerrar-modal-flota class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 hover:bg-white/20" aria-label="Cerrar estado de la flota">
+                    <i class="fas fa-xmark text-xl"></i>
+                </button>
+            </header>
+
+            <div class="overflow-y-auto p-5 md:p-7">
+                <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
+                    <div class="flex flex-wrap gap-4 text-sm font-semibold text-gray-600">
+                        <span class="inline-flex items-center"><span class="mr-2 h-3 w-3 rounded-full bg-gray-400"></span>Sin turno</span>
+                        <span class="inline-flex items-center"><span class="mr-2 h-3 w-3 rounded-full bg-emerald-500"></span>Turno abierto</span>
+                    </div>
+                    <p id="resumenFlota" class="rounded-full bg-blue-50 px-3 py-1 text-sm font-bold text-blue-700"><?php echo $busesConTurno; ?> de <?php echo count($flota); ?> unidades en turno</p>
+                </div>
+
+                <div id="gridFlota" class="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
+                    <?php foreach ($flota as $bus): ?>
+                        <?php $ocupado = !empty($bus['turno_id']); ?>
+                        <button type="button"
+                                class="unidadFlota group relative flex min-h-24 flex-col items-center justify-center rounded-2xl border-2 p-3 transition-all <?php echo $ocupado ? 'cursor-pointer border-emerald-400 bg-emerald-500 text-white shadow-md hover:-translate-y-0.5 hover:bg-emerald-600' : 'cursor-default border-gray-300 bg-gray-200 text-gray-600'; ?>"
+                                data-ocupado="<?php echo $ocupado ? '1' : '0'; ?>"
+                                data-turno-id="<?php echo $ocupado ? (int)$bus['turno_id'] : ''; ?>"
+                                data-disco="<?php echo htmlspecialchars($bus['disco'], ENT_QUOTES); ?>"
+                                data-placa="<?php echo htmlspecialchars($bus['placa'], ENT_QUOTES); ?>"
+                                data-codigo="<?php echo htmlspecialchars($bus['codigo_conductor'] ?? '', ENT_QUOTES); ?>"
+                                data-nombre="<?php echo htmlspecialchars(trim(($bus['nombres'] ?? '') . ' ' . ($bus['apellidos'] ?? '')), ENT_QUOTES); ?>"
+                                data-hora="<?php echo htmlspecialchars($bus['hora_apertura'] ?? '', ENT_QUOTES); ?>"
+                                <?php echo $ocupado ? '' : 'aria-disabled="true"'; ?>>
+                            <i class="fas fa-bus text-xl <?php echo $ocupado ? 'text-white/80' : 'text-gray-400'; ?>"></i>
+                            <span class="mt-1 text-xl font-black"><?php echo htmlspecialchars(formatearDiscoHistorial($bus['disco'])); ?></span>
+                            <span class="text-[10px] font-bold uppercase tracking-wide <?php echo $ocupado ? 'text-emerald-50' : 'text-gray-500'; ?>"><?php echo $ocupado ? 'En turno' : 'Sin turno'; ?></span>
+                        </button>
+                    <?php endforeach; ?>
+                </div>
+
+                <div id="detalleUnidad" class="mt-6 hidden rounded-2xl border border-emerald-200 bg-emerald-50 p-5" aria-live="polite">
+                    <div class="flex items-start gap-4">
+                        <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white"><i class="fas fa-id-card text-xl"></i></span>
+                        <div>
+                            <p id="detalleDisco" class="text-sm font-bold uppercase tracking-wide text-emerald-700"></p>
+                            <p id="detalleNombre" class="mt-1 text-lg font-extrabold text-gray-800"></p>
+                            <p id="detalleCodigo" class="mt-1 text-sm font-semibold text-gray-600"></p>
+                            <p id="detalleHora" class="mt-1 text-xs text-gray-500"></p>
+                            <div class="mt-4">
+                                <label for="comentarioDeshabilitarTurno" class="mb-2 block text-sm font-bold text-gray-700">
+                                    Comentario <span class="text-red-600">*</span>
+                                </label>
+                                <textarea id="comentarioDeshabilitarTurno" rows="3" maxlength="500" required
+                                          placeholder="Indique el motivo por el que se deshabilita este turno"
+                                          class="w-full resize-y rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-800 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-200"></textarea>
+                                <div class="mt-1 flex justify-between gap-3 text-xs text-gray-500">
+                                    <span>Obligatorio para continuar</span>
+                                    <span id="contadorComentarioTurno">0/500</span>
+                                </div>
+                            </div>
+                            <button id="deshabilitarTurnoFlota" type="button" disabled class="mt-4 inline-flex items-center rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white shadow hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-300 disabled:cursor-not-allowed disabled:opacity-50">
+                                <i class="fas fa-ban mr-2"></i>Deshabilitar turno
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <div id="modalHabilitarTurno" class="fixed inset-0 z-[60] hidden items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="tituloHabilitarTurno">
+        <div class="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" data-cerrar-habilitar-turno></div>
+        <section class="relative w-full max-w-lg overflow-hidden rounded-3xl bg-white shadow-2xl">
+            <div class="border-b border-amber-200 bg-amber-50 px-6 py-5">
+                <div class="flex items-start gap-4">
+                    <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600"><i class="fas fa-triangle-exclamation text-xl"></i></span>
+                    <div>
+                        <h3 id="tituloHabilitarTurno" class="text-xl font-extrabold text-gray-900">¿Habilitar nuevamente?</h3>
+                        <p class="mt-1 text-sm text-gray-600">Esta acción creará un nuevo turno abierto.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="px-6 py-5">
+                <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                    <p id="advertenciaUnidad" class="font-extrabold text-gray-800"></p>
+                    <p id="advertenciaConductor" class="mt-1 text-sm font-semibold text-gray-600"></p>
+                </div>
+                <p class="mt-4 text-sm leading-6 text-gray-600">
+                    El registro deshabilitado y su comentario permanecerán en el historial. Se creará una nueva fila abierta con el mismo bus y conductor. La operación no continuará si alguno ya tiene otro turno activo hoy.
+                </p>
+                <div class="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                    <button type="button" data-cerrar-habilitar-turno class="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 hover:bg-gray-50">Cancelar</button>
+                    <button id="confirmarHabilitarTurno" type="button" class="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow hover:bg-emerald-700 disabled:cursor-wait disabled:opacity-60">
+                        <i class="fas fa-rotate-left mr-2"></i>Sí, habilitar turno
+                    </button>
+                </div>
+            </div>
+        </section>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/es.js"></script>
     <script src="../../Assets/js/turnos.js?v=<?php echo hash_file('sha256', __DIR__ . '/../../Assets/js/turnos.js'); ?>"></script>
@@ -363,6 +505,9 @@ function formatearDiscoHistorial($disco) {
             const rango = document.getElementById('rangoTurnos');
             const contenedorPaginacion = document.getElementById('contenedorPaginacion');
             const paginacion = document.getElementById('paginacionTurnos');
+            const gridFlota = document.getElementById('gridFlota');
+            const contadorFlota = document.getElementById('contadorFlota');
+            const resumenFlota = document.getElementById('resumenFlota');
             const parametros = new URLSearchParams(window.location.search);
             const streamUrl = new URL('../../Controllers/TurnosStreamController.php', window.location.href);
 
@@ -416,6 +561,32 @@ function formatearDiscoHistorial($disco) {
                 contenedorPaginacion.classList.remove('hidden');
             };
 
+            const formatearDisco = (disco) => {
+                const valor = String(disco ?? '');
+                return valor.length > 1 && valor.startsWith('0') ? valor.slice(1) : valor;
+            };
+
+            const renderizarFlota = (flota) => {
+                if (!Array.isArray(flota) || !gridFlota) return;
+                const ocupados = flota.filter((bus) => bus.ocupado).length;
+                contadorFlota.textContent = `${ocupados}/${flota.length}`;
+                resumenFlota.textContent = `${ocupados} de ${flota.length} unidades en turno`;
+                document.getElementById('detalleUnidad')?.classList.add('hidden');
+                gridFlota.innerHTML = flota.map((bus) => {
+                    const clases = bus.ocupado
+                        ? 'cursor-pointer border-emerald-400 bg-emerald-500 text-white shadow-md hover:-translate-y-0.5 hover:bg-emerald-600'
+                        : 'cursor-default border-gray-300 bg-gray-200 text-gray-600';
+                    return `<button type="button" class="unidadFlota group relative flex min-h-24 flex-col items-center justify-center rounded-2xl border-2 p-3 transition-all ${clases}"
+                        data-ocupado="${bus.ocupado ? '1' : '0'}" data-turno-id="${bus.turno_id || ''}" data-disco="${escapar(bus.disco)}" data-placa="${escapar(bus.placa)}"
+                        data-codigo="${escapar(bus.codigo_conductor)}" data-nombre="${escapar(bus.nombre_conductor)}" data-hora="${escapar(bus.hora_apertura)}"
+                        ${bus.ocupado ? '' : 'aria-disabled="true"'}>
+                        <i class="fas fa-bus text-xl ${bus.ocupado ? 'text-white/80' : 'text-gray-400'}"></i>
+                        <span class="mt-1 text-xl font-black">${escapar(formatearDisco(bus.disco))}</span>
+                        <span class="text-[10px] font-bold uppercase tracking-wide ${bus.ocupado ? 'text-emerald-50' : 'text-gray-500'}">${bus.ocupado ? 'En turno' : 'Sin turno'}</span>
+                    </button>`;
+                }).join('');
+            };
+
             const renderizar = (datos) => {
                 if (!datos || typeof datos !== 'object' || !Array.isArray(datos.turnos)) {
                     console.warn('Se ignoró una actualización SSE de turnos con formato incompleto.');
@@ -429,7 +600,7 @@ function formatearDiscoHistorial($disco) {
                     rango.classList.add('hidden');
                     tabla.innerHTML = `
                         <tr>
-                            <td colspan="5" class="px-6 py-12 text-center text-gray-500">
+                            <td colspan="6" class="px-6 py-12 text-center text-gray-500">
                                 <i class="fas fa-clock text-3xl mb-3 text-gray-300"></i>
                                 <p>No se encontraron turnos con los filtros seleccionados.</p>
                             </td>
@@ -438,22 +609,34 @@ function formatearDiscoHistorial($disco) {
                     rango.textContent = `Mostrando ${datos.primero}–${datos.ultimo} de ${totalRegistros}`;
                     rango.classList.remove('hidden');
                     tabla.innerHTML = datos.turnos.map((turno) => `
-                        <tr class="${turno.conductor_duplicado ? 'bg-red-50/70 hover:bg-red-100/70' : (turno.estado === 'fallido' ? 'bg-amber-50/70 hover:bg-amber-100/70' : 'hover:bg-gray-50')} transition-colors">
+                        <tr class="${turno.estado === 'deshabilitado' ? 'bg-slate-100/80 hover:bg-slate-200/80' : (turno.conductor_duplicado ? 'bg-red-50/70 hover:bg-red-100/70' : (turno.estado === 'fallido' ? 'bg-amber-50/70 hover:bg-amber-100/70' : 'hover:bg-gray-50'))} transition-colors">
                             <td class="px-6 py-4 whitespace-nowrap text-center">
                                 <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-blue-100 text-blue-800 border border-blue-200">${escapar(turno.disco)}</span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-mono font-semibold text-gray-700">${escapar(turno.codigo_conductor || 'Sin código')}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-700">${escapar(turno.fecha_apertura)}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-center">
-                                ${turno.estado === 'fallido'
+                                ${turno.estado === 'deshabilitado'
+                                    ? '<span class="inline-flex items-center rounded-full border border-slate-300 bg-slate-200 px-3 py-1 text-xs font-bold text-slate-700"><i class="fas fa-ban mr-1.5"></i>Deshabilitado</span>'
+                                    : turno.estado === 'fallido'
                                     ? `<span class="inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold ${turno.conductor_duplicado ? 'border-red-300 bg-red-100/80 text-red-800' : 'border-amber-300 bg-amber-100/80 text-amber-800'}"><i class="fas fa-triangle-exclamation mr-1.5"></i>Fallido</span>`
                                     : '<span class="inline-flex items-center rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-bold text-green-700"><i class="fas fa-circle-check mr-1.5"></i>Abierto</span>'}
                             </td>
-                            <td class="px-6 py-4 min-w-72 text-left text-sm ${turno.conductor_duplicado ? 'font-medium text-red-900' : (turno.estado === 'fallido' ? 'font-medium text-amber-900' : 'text-gray-600')}">${escapar(turno.motivo || '—')}</td>
+                            <td class="px-6 py-4 min-w-72 text-left text-sm ${turno.estado === 'deshabilitado' ? 'font-medium text-slate-700' : (turno.conductor_duplicado ? 'font-medium text-red-900' : (turno.estado === 'fallido' ? 'font-medium text-amber-900' : 'text-gray-600'))}">${escapar(turno.motivo || '—')}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-center">
+                                ${turno.estado === 'deshabilitado' && turno.puede_habilitar
+                                    ? `<button type="button" class="btnHabilitarTurno inline-flex items-center rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 shadow-sm transition-colors hover:bg-emerald-100" data-turno-id="${turno.id}" data-disco="${escapar(turno.disco)}" data-codigo="${escapar(turno.codigo_conductor)}" data-nombre="${escapar(turno.nombre_conductor)}"><i class="fas fa-rotate-left mr-1.5"></i>Habilitar nuevamente</button>`
+                                    : turno.estado === 'deshabilitado' && turno.fue_habilitado
+                                    ? '<button type="button" disabled class="inline-flex cursor-not-allowed items-center rounded-lg border border-gray-300 bg-gray-100 px-3 py-2 text-xs font-bold text-gray-400 shadow-sm"><i class="fas fa-circle-check mr-1.5"></i>Ya habilitado</button>'
+                                    : turno.estado === 'deshabilitado'
+                                    ? '<button type="button" disabled class="inline-flex cursor-not-allowed items-center rounded-lg border border-gray-300 bg-gray-100 px-3 py-2 text-xs font-bold text-gray-400 shadow-sm"><i class="fas fa-clock mr-1.5"></i>Fuera de fecha</button>'
+                                    : '<span class="text-gray-300">—</span>'}
+                            </td>
                         </tr>`).join('');
                 }
 
                 renderizarPaginacion(datos.pagina, datos.total_paginas);
+                renderizarFlota(datos.flota);
             };
 
             const eventos = new EventSource(streamUrl.toString());

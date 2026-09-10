@@ -132,7 +132,7 @@ $fechaHoy = date('d/m/Y');
     </div>
 
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-    <script src="../../Assets/js/conductor.js?v=3"></script>
+    <script src="../../Assets/js/conductor.js?v=<?php echo hash_file('sha256', __DIR__ . '/../../Assets/js/conductor.js'); ?>"></script>
 <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {

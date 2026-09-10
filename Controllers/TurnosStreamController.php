@@ -30,7 +30,7 @@ $filtroDisco = trim($_GET['disco'] ?? '');
 $filtroConductor = trim($_GET['conductor'] ?? '');
 $filtroFecha = trim($_GET['fecha'] ?? '');
 $filtroEstado = $_GET['estado'] ?? '';
-if (!in_array($filtroEstado, ['abierto', 'fallido'], true)) {
+if (!in_array($filtroEstado, ['abierto', 'fallido', 'deshabilitado'], true)) {
     $filtroEstado = '';
 }
 $paginaSolicitada = max(1, (int)($_GET['pagina'] ?? 1));
@@ -63,6 +63,19 @@ do {
         $offset,
         $filtroEstado
     );
+    $flota = array_map(static function ($bus) {
+        return [
+            'bus_id' => (int)$bus['bus_id'],
+            'turno_id' => !empty($bus['turno_id']) ? (int)$bus['turno_id'] : null,
+            'disco' => (string)$bus['disco'],
+            'placa' => (string)$bus['placa'],
+            'bus_activo' => (int)$bus['bus_activo'] === 1,
+            'ocupado' => !empty($bus['turno_id']),
+            'codigo_conductor' => $bus['codigo_conductor'] ?? '',
+            'nombre_conductor' => trim(($bus['nombres'] ?? '') . ' ' . ($bus['apellidos'] ?? '')),
+            'hora_apertura' => $bus['hora_apertura'] ?? ''
+        ];
+    }, $turnoDao->obtenerEstadoFlotaHoy());
 
     $filas = array_map(static function ($turno) {
         $fecha = DateTime::createFromFormat(
@@ -76,8 +89,14 @@ do {
                 ? substr((string)$turno['disco'], 1)
                 : (string)$turno['disco'],
             'codigo_conductor' => $turno['codigo_conductor'] ?? 'Sin código',
+            'nombre_conductor' => $turno['nombre_conductor'] ?? '',
             'estado' => $turno['estado'] ?? 'abierto',
             'motivo' => $turno['motivo'] ?? '',
+            'puede_habilitar' => ($turno['estado'] ?? '') === 'deshabilitado'
+                && ($turno['fecha'] ?? '') === date('Y-m-d')
+                && empty($turno['rehabilitado_en']),
+            'fue_habilitado' => ($turno['estado'] ?? '') === 'deshabilitado'
+                && !empty($turno['rehabilitado_en']),
             'conductor_duplicado' => TurnoDao::esConductorDuplicado($turno),
             'fecha_apertura' => $fecha
                 ? $fecha->format('d/m/Y H:i:s')
@@ -87,6 +106,7 @@ do {
 
     $respuesta = [
         'turnos' => $filas,
+        'flota' => $flota,
         'total' => $total,
         'pagina' => $pagina,
         'total_paginas' => $totalPaginas,

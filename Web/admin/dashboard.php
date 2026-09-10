@@ -88,6 +88,25 @@ $esHoy = $fechaSeleccionada === date('Y-m-d');
     <link rel="apple-touch-icon" href="/Assets/icons/icon-192x192.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
+    <style>
+        .flatpickr-calendar { border: 0; border-radius: 1rem; overflow: hidden; box-shadow: 0 20px 45px rgba(15, 23, 42, .2); font-family: inherit; }
+        .flatpickr-calendar.arrowTop::before, .flatpickr-calendar.arrowTop::after { border-bottom-color: #2563eb; }
+        .flatpickr-months { align-items: center; padding: .65rem .5rem; background: linear-gradient(135deg, #2563eb, #1e3a8a); }
+        .flatpickr-months .flatpickr-month, .flatpickr-current-month, .flatpickr-current-month .flatpickr-monthDropdown-months, .flatpickr-current-month input.cur-year { color: #fff; fill: #fff; }
+        .flatpickr-current-month .flatpickr-monthDropdown-months, .flatpickr-current-month .flatpickr-monthDropdown-months:hover, .flatpickr-current-month input.cur-year:hover { background: transparent; }
+        .flatpickr-monthDropdown-month { color: #1f2937; }
+        .flatpickr-months .flatpickr-prev-month, .flatpickr-months .flatpickr-next-month { top: .55rem; padding: .5rem; color: #fff; fill: #fff; border-radius: .5rem; }
+        .flatpickr-months .flatpickr-prev-month:hover, .flatpickr-months .flatpickr-next-month:hover { background: rgba(255, 255, 255, .15); }
+        .flatpickr-weekdays { padding-top: .45rem; background: #eff6ff; }
+        span.flatpickr-weekday { color: #1e40af; font-weight: 700; background: #eff6ff; }
+        .flatpickr-days { padding: .45rem; }
+        .flatpickr-day { border-radius: .65rem; color: #374151; font-weight: 600; }
+        .flatpickr-day:hover, .flatpickr-day:focus { border-color: #dbeafe; background: #dbeafe; color: #1d4ed8; }
+        .flatpickr-day.today { border-color: #60a5fa; color: #1d4ed8; }
+        .flatpickr-day.selected, .flatpickr-day.selected:hover, .flatpickr-day.selected:focus { border-color: #2563eb; background: #2563eb; color: #fff; box-shadow: 0 5px 12px rgba(37, 99, 235, .3); }
+        .flatpickr-day.prevMonthDay, .flatpickr-day.nextMonthDay, .flatpickr-day.flatpickr-disabled { color: #cbd5e1; }
+    </style>
 </head>
 <body class="bg-gray-100 flex h-screen overflow-hidden">
 
@@ -106,11 +125,8 @@ $esHoy = $fechaSeleccionada === date('Y-m-d');
             <div class="flex items-center gap-3">
                 <form method="GET" action="dashboard.php" class="flex items-center gap-2" id="formFechaDashboard">
                     <label for="fechaDashboard" class="hidden sm:inline text-xs font-bold text-gray-500">Fecha:</label>
-                    <input type="date" id="fechaDashboard" name="fecha" value="<?php echo htmlspecialchars($fechaSeleccionada); ?>" max="today"
-                           class="rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
-                    <button type="submit" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow hover:bg-blue-700 transition-colors">
-                        <i class="fas fa-magnifying-glass mr-1.5"></i>Ir
-                    </button>
+                    <input type="text" id="fechaDashboard" name="fecha" value="<?php echo htmlspecialchars($fechaSeleccionada); ?>" readonly aria-label="Filtrar dashboard por fecha"
+                           class="w-32 cursor-pointer rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-center text-sm font-semibold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
                     <?php if (!$esHoy): ?>
                         <a href="dashboard.php" class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-bold text-gray-700 hover:bg-gray-50" title="Volver a hoy">
                             <i class="fas fa-calendar-day"></i>
@@ -244,7 +260,25 @@ $esHoy = $fechaSeleccionada === date('Y-m-d');
             </div>
         </div>
     </main>
-<script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/es.js"></script>
+    <script>
+        const formularioFecha = document.getElementById('formFechaDashboard');
+        if (typeof flatpickr === 'function' && formularioFecha) {
+            flatpickr('#fechaDashboard', {
+                locale: 'es',
+                dateFormat: 'Y-m-d',
+                altInput: true,
+                altFormat: 'd/m/Y',
+                disableMobile: true,
+                maxDate: 'today',
+                monthSelectorType: 'static',
+                onChange: (fechasSeleccionadas) => {
+                    if (fechasSeleccionadas.length) formularioFecha.requestSubmit();
+                }
+            });
+        }
+
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/sw.js')
