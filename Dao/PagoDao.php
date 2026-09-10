@@ -245,6 +245,165 @@ class PagoDao {
         }
     }
 
+    public function registrarPagoManual($usuarioId, array $datos, $comprobante) {
+        $this->conexion->beginTransaction();
+        try {
+            $stmt = $this->conexion->prepare(
+                "SELECT id FROM pago WHERE codigo_ingreso = :codigo AND activo = 1 LIMIT 1 FOR UPDATE"
+            );
+            $stmt->execute([':codigo' => $datos['codigo_ingreso']]);
+            if ($stmt->fetch()) {
+                throw new RuntimeException('codigo_duplicado');
+            }
+
+            $obligacionesIds = array_values(array_unique(array_filter(array_map('intval', $datos['obligaciones_ids'] ?? []))));
+            if (empty($obligacionesIds)) {
+                throw new RuntimeException('sin_obligaciones');
+            }
+            $placeholders = implode(',', array_fill(0, count($obligacionesIds), '?'));
+            $stmt = $this->conexion->prepare(
+                "SELECT id, valor, fecha, disco, ruta
+                 FROM obligacion_pago
+                 WHERE id IN ({$placeholders}) AND pagado = 0 AND pago_id IS NULL AND activo = 1 AND valor > 0
+                 FOR UPDATE"
+            );
+            $stmt->execute($obligacionesIds);
+            $obligaciones = $stmt->fetchAll();
+            if (count($obligaciones) !== count($obligacionesIds)) {
+                throw new RuntimeException('obligaciones_invalidas');
+            }
+
+            $montoTotal = round(array_reduce(
+                $obligaciones,
+                static fn($total, $obligacion) => $total + (float)$obligacion['valor'],
+                0.0
+            ), 2);
+
+            $detallePagos = json_encode(
+                array_map(
+                    static fn($o) => [
+                        'obligacion_id' => (int)$o['id'],
+                        'fecha' => $o['fecha'],
+                        'disco' => $o['disco'],
+                        'ruta' => $o['ruta'] ?? null
+                    ],
+                    $obligaciones
+                ),
+                JSON_UNESCAPED_UNICODE
+            );
+
+            $stmt = $this->conexion->prepare(
+                "INSERT INTO pago (usuario_id, monto_total, fecha_pago, comprobante, estado, detalle_pagos, activo, tipo, codigo_ingreso)
+                 VALUES (:usuario_id, :monto, CURDATE(), :comprobante, 'aprobado', :detalle, 1, 'manual', :codigo)"
+            );
+            $stmt->execute([
+                ':usuario_id' => (int)$usuarioId,
+                ':monto' => $montoTotal,
+                ':comprobante' => $comprobante,
+                ':detalle' => $detallePagos,
+                ':codigo' => $datos['codigo_ingreso']
+            ]);
+            $pagoId = (int)$this->conexion->lastInsertId();
+
+            $stmt = $this->conexion->prepare(
+                "UPDATE obligacion_pago
+                 SET pagado = 1, pago_id = :pago_id
+                 WHERE id = :id AND pagado = 0 AND pago_id IS NULL"
+            );
+            foreach ($obligaciones as $obligacion) {
+                $stmt->execute([':pago_id' => $pagoId, ':id' => $obligacion['id']]);
+            }
+
+            $this->conexion->commit();
+            $fechas = array_values(array_unique(array_map(static fn($o) => $o['fecha'], $obligaciones)));
+            $discos = array_values(array_unique(array_map(static fn($o) => trim((string)$o['disco']), $obligaciones)));
+            $rutas = array_values(array_filter(array_unique(array_map(
+                static fn($o) => trim((string)$o['ruta']),
+                $obligaciones
+            )), static fn($r) => $r !== ''));
+            return [
+                'status' => 'success',
+                'pago_id' => $pagoId,
+                'monto' => $montoTotal,
+                'disco' => $discos[0] ?? '',
+                'discos' => $discos,
+                'fechas' => $fechas,
+                'rutas' => $rutas
+            ];
+        } catch (PDOException $e) {
+            if ($this->conexion->inTransaction()) $this->conexion->rollBack();
+            return ['status' => (int)$e->getCode() === 23000 ? 'codigo_duplicado' : 'error'];
+        } catch (Throwable $e) {
+            if ($this->conexion->inTransaction()) $this->conexion->rollBack();
+            return ['status' => $e instanceof RuntimeException ? $e->getMessage() : 'error'];
+        }
+    }
+
+    public function obtenerPagosManuales($filtros = []) {
+        $conductor = trim((string)($filtros['conductor'] ?? ''));
+        $disco = trim((string)($filtros['disco'] ?? ''));
+        $fechaDesde = (string)($filtros['fecha_desde'] ?? '');
+        $fechaHasta = (string)($filtros['fecha_hasta'] ?? '');
+        $ruta = trim((string)($filtros['ruta'] ?? ''));
+
+        $sql = "SELECT p.id, p.usuario_id, u.nombres, u.apellidos, u.codigo_conductor,
+                       p.monto_total, p.fecha_pago, p.comprobante, p.estado, p.motivo_rechazo,
+                       p.codigo_ingreso, p.detalle_pagos
+                FROM pago p
+                INNER JOIN usuario u ON u.id = p.usuario_id
+                WHERE p.activo = 1 AND p.tipo = 'manual'";
+        $parametros = [];
+
+        if ($conductor !== '') {
+            $sql .= " AND (CONCAT(u.nombres, ' ', u.apellidos) LIKE :conductor_nombre
+                           OR u.codigo_conductor LIKE :conductor_codigo)";
+            $parametros[':conductor_nombre'] = '%' . $conductor . '%';
+            $parametros[':conductor_codigo'] = '%' . $conductor . '%';
+        }
+        $sql .= " ORDER BY p.fecha_pago DESC, p.id DESC";
+
+        $stmt = $this->conexion->prepare($sql);
+        $stmt->execute($parametros);
+        $pagos = $stmt->fetchAll();
+
+        $stmtDetalle = $this->conexion->prepare(
+            "SELECT fecha, disco, ruta FROM turno t
+             INNER JOIN bus b ON t.bus_id = b.id
+             WHERE t.pago_id = ?
+             UNION
+             SELECT fecha, disco, ruta FROM obligacion_pago WHERE pago_id = ?
+             ORDER BY fecha"
+        );
+        foreach ($pagos as $i => $pago) {
+            $detalle = $this->decodificarDetalle($pago['detalle_pagos'] ?? null);
+            if ($detalle === null) {
+                $stmtDetalle->execute([$pago['id'], $pago['id']]);
+                $filas = $stmtDetalle->fetchAll();
+                $pagos[$i]['fechas'] = array_map(static fn($fila) => $fila['fecha'], $filas);
+                $pagos[$i]['discos'] = array_values(array_unique(array_map(static fn($fila) => $fila['disco'], $filas)));
+                $pagos[$i]['rutas'] = array_values(array_filter(array_unique(array_map(
+                    static fn($fila) => trim((string)($fila['ruta'] ?? '')),
+                    $filas
+                )), static fn($ruta) => $ruta !== ''));
+            } else {
+                $pagos[$i]['fechas'] = $detalle['fechas'];
+                $pagos[$i]['discos'] = $detalle['discos'];
+                $pagos[$i]['rutas'] = $detalle['rutas'];
+            }
+            $pagos[$i]['conductor'] = trim(($pago['nombres'] ?? '') . ' ' . ($pago['apellidos'] ?? ''));
+            $pagos[$i]['dias'] = count($pagos[$i]['fechas']);
+        }
+
+        if ($disco === '' && $fechaDesde === '' && $fechaHasta === '' && $ruta === '') {
+            return $pagos;
+        }
+
+        return array_values(array_filter(
+            $pagos,
+            fn($pago) => $this->pagoCoincideDetalle($pago, $disco, $fechaDesde, $fechaHasta, $ruta)
+        ));
+    }
+
     public function obtenerDiscosConductor($usuarioId, $q = '', $limite = 10) {
         $sql = "SELECT DISTINCT b.disco
                 FROM turno t
@@ -377,7 +536,7 @@ class PagoDao {
                        p.nro_comprobante, p.detalle_pagos
                 FROM pago p
                 INNER JOIN usuario u ON u.id = p.usuario_id
-                WHERE p.activo = 1";
+                WHERE p.activo = 1 AND (p.tipo IS NULL OR p.tipo <> 'manual')";
         $parametros = [];
 
         if ($conductor !== '') {

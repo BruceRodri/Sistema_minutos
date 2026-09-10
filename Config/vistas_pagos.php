@@ -51,6 +51,21 @@ function snapshotConductor($dao) {
     ];
 }
 
+function normalizarFiltrosPagos(array $filtros) {
+    if (!in_array($filtros['estado'] ?? '', ['en_espera', 'aprobado', 'anulado'], true)) {
+        $filtros['estado'] = '';
+    }
+    foreach (['fecha_desde', 'fecha_hasta'] as $clave) {
+        if (($filtros[$clave] ?? '') !== '') {
+            $fechaValida = DateTime::createFromFormat('!Y-m-d', $filtros[$clave]);
+            if (!$fechaValida || $fechaValida->format('Y-m-d') !== $filtros[$clave]) {
+                $filtros[$clave] = '';
+            }
+        }
+    }
+    return $filtros;
+}
+
 function obtenerFiltrosPagosAdmin() {
     $filtros = [
         'conductor' => isset($_GET['conductor']) && is_scalar($_GET['conductor']) ? trim((string)$_GET['conductor']) : '',
@@ -60,16 +75,16 @@ function obtenerFiltrosPagosAdmin() {
         'ruta' => isset($_GET['ruta']) && is_scalar($_GET['ruta']) ? trim((string)$_GET['ruta']) : '',
         'estado' => isset($_GET['estado']) && is_scalar($_GET['estado']) ? trim((string)$_GET['estado']) : '',
     ];
-    if (!in_array($filtros['estado'], ['en_espera', 'aprobado', 'anulado'], true)) {
-        $filtros['estado'] = '';
-    }
-    foreach (['fecha_desde', 'fecha_hasta'] as $clave) {
-        if ($filtros[$clave] !== '') {
-            $fechaValida = DateTime::createFromFormat('!Y-m-d', $filtros[$clave]);
-            if (!$fechaValida || $fechaValida->format('Y-m-d') !== $filtros[$clave]) {
-                $filtros[$clave] = '';
-            }
-        }
-    }
-    return $filtros;
+    return normalizarFiltrosPagos($filtros);
+}
+
+function obtenerFiltrosPagosManuales() {
+    $filtros = [
+        'conductor' => isset($_GET['m_conductor']) && is_scalar($_GET['m_conductor']) ? trim((string)$_GET['m_conductor']) : '',
+        'disco' => isset($_GET['m_disco']) && is_scalar($_GET['m_disco']) ? trim((string)$_GET['m_disco']) : '',
+        'fecha_desde' => isset($_GET['m_fecha_desde']) && is_scalar($_GET['m_fecha_desde']) ? trim((string)$_GET['m_fecha_desde']) : '',
+        'fecha_hasta' => isset($_GET['m_fecha_hasta']) && is_scalar($_GET['m_fecha_hasta']) ? trim((string)$_GET['m_fecha_hasta']) : '',
+        'ruta' => isset($_GET['m_ruta']) && is_scalar($_GET['m_ruta']) ? trim((string)$_GET['m_ruta']) : '',
+    ];
+    return normalizarFiltrosPagos($filtros);
 }

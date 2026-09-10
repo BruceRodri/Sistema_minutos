@@ -8,7 +8,7 @@ require_once __DIR__ . '/../Config/conexion.php';
 $stmt = $conexion->prepare('SELECT usuario_id, comprobante FROM pago WHERE id=? AND activo=1');
 $stmt->execute([(int)($_GET['pago_id'] ?? 0)]);
 $pago = $stmt->fetch();
-if (!$pago || (!in_array($rol, ['admin', 'secretaria', 'operativo'], true) && !($rol === 'conductor' && (int)$pago['usuario_id'] === (int)$uid))) {
+if (!$pago) {
     http_response_code(404); exit;
 }
 $base = realpath(__DIR__ . '/../App/conductor/comprobantes');

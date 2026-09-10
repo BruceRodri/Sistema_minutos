@@ -34,6 +34,12 @@ document.addEventListener('DOMContentLoaded', () => {
         return d.startsWith(b) || d === b;
     }
 
+    function discExacto(disco, bruto) {
+        const b = normalizarDiscoBruto(bruto).replace(/^0+/, '');
+        const d = String(disco || '').replace(/^0+/, '');
+        return b !== '' && d === b;
+    }
+
     function mostrarAlerta(elemento, tipo, mensaje) {
         if (!elemento) return;
         clearTimeout(Number(elemento.dataset.timer) || 0);
@@ -139,7 +145,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return (
             bruto === ''
                 ? []
-                : todasLasTarjetas.filter((c) => discCoincide(c.dataset.disco, bruto))
+                : todasLasTarjetas.filter((c) => discExacto(c.dataset.disco, bruto))
         );
     }
 
@@ -241,7 +247,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         filasDia.forEach((fila) => {
             const discoFila = fila.querySelector('.checkDia').dataset.disco;
-            const ok = discCoincide(discoFila, bruto);
+            const ok = discExacto(discoFila, bruto);
             fila.classList.toggle('hidden', !ok);
             if (!ok) fila.querySelector('.checkDia').checked = false;
         });
