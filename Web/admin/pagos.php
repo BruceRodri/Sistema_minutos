@@ -157,7 +157,10 @@ sort($discosPendientes, SORT_NATURAL);
 
         <!-- ===================== Pagos manuales (interfaz) ===================== -->
         <section id="seccionPagosManuales" class="hidden p-4 md:p-8 w-full max-w-full">
-            <div class="rounded-xl border border-gray-100 bg-white p-4 shadow-sm md:p-6">
+            <div class="flex justify-end mb-4"><button id="abrirPagoManual" type="button" class="rounded-xl bg-blue-600 px-5 py-3 font-bold text-white">Registrar pago manual</button></div>
+            <div id="modalPagoManual" role="dialog" aria-modal="true" aria-label="Registrar pago manual" class="hidden fixed inset-0 z-50 items-center justify-center bg-slate-950/60 p-4">
+            <div class="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-xl border border-gray-100 bg-white p-4 shadow-sm md:p-6">
+                <button id="cerrarPagoManual" type="button" aria-label="Cerrar" class="float-right rounded-lg px-3 py-2 text-gray-600">✕</button>
                 <div class="mb-5 flex items-start gap-3">
                     <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
                         <i class="fas fa-hand-holding-dollar text-xl"></i>
@@ -222,6 +225,7 @@ sort($discosPendientes, SORT_NATURAL);
                 </div>
             </div>
 
+            </div>
             <form method="GET" action="pagos.php" id="formFiltrosPagosManuales" class="mt-5 mb-5 rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
                 <input type="hidden" name="seccion" value="manuales">
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
@@ -666,6 +670,7 @@ sort($discosPendientes, SORT_NATURAL);
             };
 
             inputCodigoIngreso?.addEventListener('input', () => {
+                inputCodigoIngreso.value = inputCodigoIngreso.value.toLocaleUpperCase('es');
                 clearTimeout(temporizadorCodigo);
                 temporizadorCodigo = setTimeout(verificarCodigoIngreso, 400);
             });
@@ -675,6 +680,20 @@ sort($discosPendientes, SORT_NATURAL);
                 temporizadorCodigo = setTimeout(verificarCodigoIngreso, 300);
             });
             verificarCodigoIngreso();
+            const modalPagoManual = document.getElementById('modalPagoManual');
+            const cerrarPagoManual = () => {
+                modalPagoManual.classList.add('hidden');
+                modalPagoManual.classList.remove('flex');
+                document.getElementById('abrirPagoManual').focus();
+            };
+            document.getElementById('abrirPagoManual').addEventListener('click', () => {
+                modalPagoManual.classList.remove('hidden');
+                modalPagoManual.classList.add('flex');
+                document.getElementById('mDisco').focus();
+            });
+            document.getElementById('cerrarPagoManual').addEventListener('click', cerrarPagoManual);
+            modalPagoManual.addEventListener('click', (e) => { if (e.target === modalPagoManual) cerrarPagoManual(); });
+            document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !modalPagoManual.classList.contains('hidden')) cerrarPagoManual(); });
 
             const mostrarEstado = (tipo, mensaje) => {
                 if (!estadoManual) return;

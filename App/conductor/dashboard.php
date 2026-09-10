@@ -32,7 +32,7 @@ $fechaHoy = date('d/m/Y');
     <style>
         #qr-reader {
             width: min(82vw, 340px);
-            height: min(62vh, 340px);
+            min-height: 240px;
             border-radius: 1.25rem;
             overflow: hidden;
             background: #000;
@@ -40,8 +40,8 @@ $fechaHoy = date('d/m/Y');
         }
         #qr-reader video {
             width: 100% !important;
-            height: 100% !important;
-            object-fit: cover;
+            height: auto !important;
+            object-fit: contain;
         }
         #qr-shaded-region {
             border-width: 3px !important;

@@ -112,7 +112,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    const cerrarPermisos = () => { modalPermisos?.classList.add('hidden'); modalPermisos?.classList.remove('flex'); };
+    const cerrarPermisos = () => {
+        modalPermisos?.classList.add('hidden');
+        modalPermisos?.classList.remove('flex');
+        clearTimeout(temporizadorBusquedaPermisos);
+        busquedaPermisosActual?.abort();
+        usuariosPermisos.clear();
+        selectorPermisos.value = '';
+        buscadorPermisos.value = '';
+        rolPermisosActual = '';
+        resultadosPermisos.replaceChildren();
+        resultadosPermisos.classList.add('hidden');
+        checksPermisos.forEach((c) => { c.checked = false; c.disabled = true; });
+        guardarPermisos.disabled = true;
+        alertaPermisos.classList.add('hidden');
+        renderizarUsuariosPermisos();
+    };
     document.getElementById('btnGestionarPermisos')?.addEventListener('click', () => {
         modalPermisos?.classList.remove('hidden'); modalPermisos?.classList.add('flex');
         window.setTimeout(() => { buscadorPermisos?.focus(); buscarUsuariosPermisos(); }, 50);
@@ -184,6 +199,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         try {
             const datos = await solicitarPermisos('obtener_permisos');
+            if (modalPermisos.classList.contains('hidden') || !usuariosPermisos.size) return;
             if (datos.status !== 'success') throw new Error(datos.message);
             checksPermisos.forEach((c) => { c.checked = datos.permisos.includes(c.value); c.disabled = false; });
             guardarPermisos.disabled = false;
@@ -283,6 +299,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (evento.target === modal) cerrarModal();
     });
     document.addEventListener('keydown', (evento) => {
+        if (evento.key === 'Escape' && !modalPermisos?.classList.contains('hidden')) cerrarPermisos();
         if (evento.key === 'Escape' && !modal?.classList.contains('hidden')) cerrarModal();
     });
 

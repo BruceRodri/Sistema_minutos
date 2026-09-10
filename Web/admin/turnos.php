@@ -401,7 +401,10 @@ function formatearDiscoHistorial($disco) {
                     <p id="resumenFlota" class="rounded-full bg-blue-50 px-3 py-1 text-sm font-bold text-blue-700"><?php echo $busesConTurno; ?> de <?php echo count($flota); ?> unidades en turno</p>
                 </div>
 
-                <div id="gridFlota" class="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
+                <label for="buscarFlota" class="block text-sm font-bold mb-2">Buscar por disco o placa</label>
+                <input id="buscarFlota" type="search" placeholder="Disco o placa" class="w-full rounded-xl border border-gray-300 p-3 mb-2">
+                <p id="resultadosFlota" class="text-sm text-gray-500 mb-3" aria-live="polite"></p>
+                <div id="gridFlota" class="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5">
                     <?php foreach ($flota as $bus): ?>
                         <?php $ocupado = !empty($bus['turno_id']); ?>
                         <button type="button"
@@ -498,7 +501,6 @@ function formatearDiscoHistorial($disco) {
         }
 
         (() => {
-            if (typeof EventSource === 'undefined') return;
 
             const tabla = document.getElementById('tablaTurnos');
             const total = document.getElementById('totalTurnos');
@@ -506,6 +508,19 @@ function formatearDiscoHistorial($disco) {
             const contenedorPaginacion = document.getElementById('contenedorPaginacion');
             const paginacion = document.getElementById('paginacionTurnos');
             const gridFlota = document.getElementById('gridFlota');
+            const buscarFlota = document.getElementById('buscarFlota');
+            const filtrarFlota = () => {
+                const consulta = buscarFlota.value.trim().toUpperCase();
+                let coincidencias = 0;
+                gridFlota.querySelectorAll('.unidadFlota').forEach((bus) => {
+                    const coincide = `${bus.dataset.disco} ${bus.dataset.placa}`.toUpperCase().includes(consulta);
+                    bus.classList.toggle('hidden', !coincide || coincidencias >= 20);
+                    if (coincide) coincidencias++;
+                });
+                document.getElementById('resultadosFlota').textContent = `Mostrando ${Math.min(20, coincidencias)} de ${coincidencias} unidades`;
+            };
+            buscarFlota.addEventListener('input', filtrarFlota);
+            filtrarFlota();
             const contadorFlota = document.getElementById('contadorFlota');
             const resumenFlota = document.getElementById('resumenFlota');
             const parametros = new URLSearchParams(window.location.search);
@@ -585,6 +600,7 @@ function formatearDiscoHistorial($disco) {
                         <span class="text-[10px] font-bold uppercase tracking-wide ${bus.ocupado ? 'text-emerald-50' : 'text-gray-500'}">${bus.ocupado ? 'En turno' : 'Sin turno'}</span>
                     </button>`;
                 }).join('');
+                filtrarFlota();
             };
 
             const renderizar = (datos) => {
@@ -639,6 +655,7 @@ function formatearDiscoHistorial($disco) {
                 renderizarFlota(datos.flota);
             };
 
+            if (typeof EventSource === 'undefined') return;
             const eventos = new EventSource(streamUrl.toString());
             eventos.addEventListener('turnos', (evento) => {
                 try {

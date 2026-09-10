@@ -12,12 +12,14 @@ class ValoresDao {
     }
 
     public function archivoExiste() {
-        $stmt = $this->conexion->query("SELECT EXISTS(SELECT 1 FROM obligacion_pago WHERE activo = 1)");
-        return (bool)$stmt->fetchColumn();
+        clearstatcache(true, self::RUTA_XLSX . '.subido');
+        $marca = self::RUTA_XLSX . '.subido';
+        return is_file($marca) && date('Y-m-d', filemtime($marca)) === date('Y-m-d')
+            && date('H:i') < '23:59';
     }
 
     public function fechaSubida() {
-        return is_file(self::RUTA_XLSX) ? date('d/m/Y H:i', filemtime(self::RUTA_XLSX)) : null;
+        return $this->archivoExiste() ? date('d/m/Y H:i', filemtime(self::RUTA_XLSX . '.subido')) : null;
     }
 
     private function colIndex($letra) {
@@ -132,6 +134,7 @@ class ValoresDao {
     }
 
     public function obtenerFilasFiltradas($disco = '', $fecha = '', $valor = '', $ruta = '') {
+        if (!$this->archivoExiste()) return [];
         $disco = trim((string)$disco);
         $fecha = trim((string)$fecha);
         $valor = trim((string)$valor);
@@ -171,7 +174,7 @@ class ValoresDao {
              FROM obligacion_pago WHERE activo = 1"
         );
         $firma = $stmt->fetch();
-        return $firma['total'] . ':' . $firma['ultimo'] . ':' . $firma['pagados'];
+        return $firma['total'] . ':' . $firma['ultimo'] . ':' . $firma['pagados'] . ':' . (int)$this->archivoExiste() . ':' . $this->fechaSubida();
     }
 
     public function actualizarTurnosDesdeFilas(array $filas) {

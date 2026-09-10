@@ -19,7 +19,7 @@ if ($accion === 'verificar_codigo_ingreso') {
         echo json_encode(['status' => 'error', 'message' => 'Solicitud no válida.']);
         exit;
     }
-    $codigo = trim((string)($_GET['codigo_ingreso'] ?? ''));
+    $codigo = mb_strtoupper(trim((string)($_GET['codigo_ingreso'] ?? '')), 'UTF-8');
     if ($codigo === '') {
         echo json_encode(['status' => 'success', 'disponible' => true]);
         exit;
@@ -52,7 +52,7 @@ function responderPagoManual($estado, $mensaje) {
     exit;
 }
 
-$codigoIngreso = trim((string)($_POST['codigo_ingreso'] ?? ''));
+$codigoIngreso = mb_strtoupper(trim((string)($_POST['codigo_ingreso'] ?? '')), 'UTF-8');
 if ($codigoIngreso === '') {
     responderPagoManual('error', 'El código de ingreso es obligatorio.');
 }

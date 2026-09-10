@@ -145,8 +145,8 @@ $esHoy = $fechaSeleccionada === date('Y-m-d');
             <div class="mb-6 bg-amber-50 border-2 border-amber-300 text-amber-800 rounded-2xl p-5 flex items-start gap-4">
                 <i class="fas fa-triangle-exclamation text-3xl mt-1"></i>
                 <div>
-                    <p class="text-lg font-bold">No hay archivo de valores diarios</p>
-                    <p class="text-base">Los conductores no podrán abrir turnos hasta que subas el Excel (DISCO, FECHA, VALOR, RUTA).</p>
+                    <p class="text-lg font-bold">Hoy no se ha subido el archivo Excel</p>
+                    <p class="text-base">Sube el archivo del día (DISCO, FECHA, VALOR, RUTA). Los valores de cargas anteriores se conservan en la base de datos.</p>
                     <a href="valores.php" class="mt-2 inline-block font-bold text-blue-700 underline hover:text-blue-900">Ir a Valores Diarios</a>
                 </div>
             </div>
@@ -287,5 +287,16 @@ $esHoy = $fechaSeleccionada === date('Y-m-d');
             });
         }
     </script>
+<script>
+    // Actualizar el aviso también si el dashboard permanece abierto al cierre del día.
+    setInterval(async () => {
+        if (document.hidden) return;
+        try {
+            const respuesta = await fetch('../../Controllers/ValoresStreamController.php?consulta=1', {cache: 'no-store'});
+            const datos = await respuesta.json();
+            if (typeof datos.archivo_existe === 'boolean' && datos.archivo_existe !== <?php echo json_encode($valoresSubido); ?>) location.reload();
+        } catch (_) {}
+    }, 15000);
+</script>
 </body>
 </html>

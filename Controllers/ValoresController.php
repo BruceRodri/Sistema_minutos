@@ -51,6 +51,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['accion'] ?? '') === 'subir
         $conexion->beginTransaction();
         $resultadoImportacion = $valoresDao->sincronizarObligacionesDesdeFilas($filas);
         $conexion->commit();
+        if (!touch(ValoresDao::RUTA_XLSX . '.subido')) {
+            throw new RuntimeException('No se pudo registrar la fecha de carga.');
+        }
     } catch (Throwable $e) {
         if ($conexion->inTransaction()) {
             $conexion->rollBack();

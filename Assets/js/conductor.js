@@ -17,8 +17,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const configuracionScanner = {
         fps: 20,
-        qrbox: { width: 250, height: 250 },
-        disableFlip: true
+        // Analizar el cuadro completo permite leer también códigos fuera del centro.
+        disableFlip: false
     };
 
     async function iniciarScanner() {
@@ -28,6 +28,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             procesandoLectura = false;
+            // Esperar a que el panel sea visible antes de medir el video.
+            await new Promise((resolve) => requestAnimationFrame(resolve));
+            if (overlay.classList.contains('hidden')) return;
 
             if (!html5QrCode) {
                 html5QrCode = new Html5Qrcode('qr-reader', { verbose: false });
@@ -49,6 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
                 () => {}
             );
+            if (overlay.classList.contains('hidden')) await detenerScanner();
         } catch (err) {
             console.error('Error al iniciar la cámara:', err);
             overlay.classList.add('hidden');
@@ -123,8 +127,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     btnCerrarScanner.addEventListener('click', async () => {
-        await detenerScanner();
         overlay.classList.add('hidden');
+        await detenerScanner();
+    });
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            overlay.classList.add('hidden');
+            detenerScanner();
+        }
     });
 
     btnCerrarModal.addEventListener('click', () => {
