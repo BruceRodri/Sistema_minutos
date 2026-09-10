@@ -140,3 +140,4 @@ $base_url = '/sistema_resoluciones/';
         });
     }
 </script>
+<?php require_once __DIR__ . '/../../Config/aviso_cumpleanos.php'; ?>

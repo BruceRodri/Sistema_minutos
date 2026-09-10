@@ -1,27 +1,29 @@
--- MySQL dump 10.13  Distrib 8.4.10, for Linux (aarch64)
---
--- Host: localhost    Database: sistema_minutos_db
--- ------------------------------------------------------
--- Server version	8.4.10
+-- Creación de la base de datos desde cero.
 
-/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
-/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
-/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!50503 SET NAMES utf8mb4 */;
-/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
-/*!40103 SET TIME_ZONE='+00:00' */;
-/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
-/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
-/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
-/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+DROP DATABASE IF EXISTS sistema_minutos_db;
+CREATE DATABASE sistema_minutos_db
+CHARACTER SET utf8mb4
+COLLATE utf8mb4_0900_ai_ci;
 
---
--- Table structure for table `bus`
---
+USE sistema_minutos_db;
 
-DROP TABLE IF EXISTS `bus`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+SET NAMES utf8mb4;
+SET time_zone = '-05:00';
+
+CREATE TABLE `estado_usuario` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `nombre` varchar(50) NOT NULL,
+  `activo` tinyint(1) DEFAULT '1',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `rol` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `nombre` varchar(50) NOT NULL,
+  `activo` tinyint(1) DEFAULT '1',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 CREATE TABLE `bus` (
   `id` int NOT NULL AUTO_INCREMENT,
   `placa` varchar(20) NOT NULL,
@@ -30,117 +32,32 @@ CREATE TABLE `bus` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `placa` (`placa`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
 
---
--- Dumping data for table `bus`
---
-
-LOCK TABLES `bus` WRITE;
-/*!40000 ALTER TABLE `bus` DISABLE KEYS */;
-/*!40000 ALTER TABLE `bus` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `estado_usuario`
---
-
-DROP TABLE IF EXISTS `estado_usuario`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `estado_usuario` (
+CREATE TABLE `usuario` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `nombre` varchar(50) NOT NULL,
+  `nombres` varchar(100) NOT NULL,
+  `apellidos` varchar(100) NOT NULL,
+  `fecha_nacimiento` date NOT NULL,
+  `cedula` varchar(20) NOT NULL,
+  `password_hash` varchar(255) DEFAULT NULL,
+  `ultimo_aviso_cumpleanos` date DEFAULT NULL,
+  `codigo_conductor` varchar(10) DEFAULT NULL,
+  `codigo_socio` varchar(10) DEFAULT NULL,
+  `rol_id` int NOT NULL,
+  `estado_usuario_id` int NOT NULL,
   `activo` tinyint(1) DEFAULT '1',
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `estado_usuario`
---
-
-LOCK TABLES `estado_usuario` WRITE;
-/*!40000 ALTER TABLE `estado_usuario` DISABLE KEYS */;
-INSERT INTO `estado_usuario` VALUES (1,'habilitado',1),(2,'deshabilitado',1);
-/*!40000 ALTER TABLE `estado_usuario` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `intento_turno`
---
-
-DROP TABLE IF EXISTS `intento_turno`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `intento_turno` (
-  `id` int NOT NULL AUTO_INCREMENT,
-  `usuario_id` int NOT NULL,
-  `bus_id` int DEFAULT NULL,
-  `disco_escaneado` varchar(30) NOT NULL DEFAULT '',
-  `fecha` date NOT NULL,
-  `hora_intento` time NOT NULL,
-  `motivo` varchar(255) NOT NULL,
-  `activo` tinyint(1) NOT NULL DEFAULT '1',
+  `codigo_usuario` varchar(10) GENERATED ALWAYS AS (coalesce(`codigo_conductor`,`codigo_socio`)) STORED,
   PRIMARY KEY (`id`),
-  KEY `idx_intento_turno_fecha` (`fecha`,`hora_intento`),
-  KEY `idx_intento_turno_usuario` (`usuario_id`,`fecha`),
-  KEY `idx_intento_turno_bus` (`bus_id`,`fecha`),
-  CONSTRAINT `fk_intento_turno_bus` FOREIGN KEY (`bus_id`) REFERENCES `bus` (`id`),
-  CONSTRAINT `fk_intento_turno_usuario` FOREIGN KEY (`usuario_id`) REFERENCES `usuario` (`id`)
+  UNIQUE KEY `cedula` (`cedula`),
+  UNIQUE KEY `codigo_conductor` (`codigo_conductor`),
+  UNIQUE KEY `codigo_socio` (`codigo_socio`),
+  UNIQUE KEY `unq_codigo_usuario` (`codigo_usuario`),
+  KEY `rol_id` (`rol_id`),
+  KEY `estado_usuario_id` (`estado_usuario_id`),
+  CONSTRAINT `usuario_ibfk_1` FOREIGN KEY (`rol_id`) REFERENCES `rol` (`id`),
+  CONSTRAINT `usuario_ibfk_2` FOREIGN KEY (`estado_usuario_id`) REFERENCES `estado_usuario` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
 
---
--- Dumping data for table `intento_turno`
---
-
-LOCK TABLES `intento_turno` WRITE;
-/*!40000 ALTER TABLE `intento_turno` DISABLE KEYS */;
-/*!40000 ALTER TABLE `intento_turno` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `obligacion_pago`
---
-
-DROP TABLE IF EXISTS `obligacion_pago`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `obligacion_pago` (
-  `id` int NOT NULL AUTO_INCREMENT,
-  `disco` varchar(20) NOT NULL,
-  `fecha` date NOT NULL,
-  `valor` decimal(10,2) NOT NULL,
-  `ruta` varchar(100) DEFAULT NULL,
-  `pago_id` int DEFAULT NULL,
-  `pagado` tinyint(1) NOT NULL DEFAULT '0',
-  `activo` tinyint(1) NOT NULL DEFAULT '1',
-  `creado_en` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `unq_obligacion_disco_fecha` (`disco`,`fecha`),
-  KEY `idx_obligacion_pendiente` (`disco`,`pagado`,`activo`),
-  KEY `fk_obligacion_pago` (`pago_id`),
-  CONSTRAINT `fk_obligacion_pago` FOREIGN KEY (`pago_id`) REFERENCES `pago` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `obligacion_pago`
---
-
-LOCK TABLES `obligacion_pago` WRITE;
-/*!40000 ALTER TABLE `obligacion_pago` DISABLE KEYS */;
-/*!40000 ALTER TABLE `obligacion_pago` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `pago`
---
-
-DROP TABLE IF EXISTS `pago`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `pago` (
   `id` int NOT NULL AUTO_INCREMENT,
   `usuario_id` int NOT NULL,
@@ -159,49 +76,7 @@ CREATE TABLE `pago` (
   KEY `fk_pago_usuario` (`usuario_id`),
   CONSTRAINT `fk_pago_usuario` FOREIGN KEY (`usuario_id`) REFERENCES `usuario` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
 
---
--- Dumping data for table `pago`
---
-
-LOCK TABLES `pago` WRITE;
-/*!40000 ALTER TABLE `pago` DISABLE KEYS */;
-/*!40000 ALTER TABLE `pago` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `rol`
---
-
-DROP TABLE IF EXISTS `rol`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `rol` (
-  `id` int NOT NULL AUTO_INCREMENT,
-  `nombre` varchar(50) NOT NULL,
-  `activo` tinyint(1) DEFAULT '1',
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `rol`
---
-
-LOCK TABLES `rol` WRITE;
-/*!40000 ALTER TABLE `rol` DISABLE KEYS */;
-INSERT INTO `rol` VALUES (1,'admin',1),(2,'operativo',1),(3,'secretaria',1),(4,'socio',1),(5,'conductor',1);
-/*!40000 ALTER TABLE `rol` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `turno`
---
-
-DROP TABLE IF EXISTS `turno`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `turno` (
   `id` int NOT NULL AUTO_INCREMENT,
   `usuario_id` int NOT NULL,
@@ -232,111 +107,41 @@ CREATE TABLE `turno` (
   CONSTRAINT `turno_ibfk_1` FOREIGN KEY (`usuario_id`) REFERENCES `usuario` (`id`),
   CONSTRAINT `turno_ibfk_2` FOREIGN KEY (`bus_id`) REFERENCES `bus` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
 
---
--- Dumping data for table `turno`
---
-
-LOCK TABLES `turno` WRITE;
-/*!40000 ALTER TABLE `turno` DISABLE KEYS */;
-/*!40000 ALTER TABLE `turno` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `usuario`
---
-
-DROP TABLE IF EXISTS `usuario`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `usuario` (
+CREATE TABLE `intento_turno` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `nombres` varchar(100) NOT NULL,
-  `apellidos` varchar(100) NOT NULL,
-  `fecha_nacimiento` date NOT NULL,
-  `cedula` varchar(20) NOT NULL,
-  `codigo_conductor` varchar(10) DEFAULT NULL COMMENT 'Codigo correlativo 001, 002... solo para conductores',
-  `codigo_socio` varchar(10) DEFAULT NULL COMMENT 'Codigo correlativo 001, 002... solo para socios',
-  `rol_id` int NOT NULL,
-  `estado_usuario_id` int NOT NULL,
-  `activo` tinyint(1) DEFAULT '1',
-  `codigo_usuario` varchar(10) GENERATED ALWAYS AS (coalesce(`codigo_conductor`,`codigo_socio`)) STORED,
+  `usuario_id` int NOT NULL,
+  `bus_id` int DEFAULT NULL,
+  `disco_escaneado` varchar(30) NOT NULL DEFAULT '',
+  `fecha` date NOT NULL,
+  `hora_intento` time NOT NULL,
+  `motivo` varchar(255) NOT NULL,
+  `activo` tinyint(1) NOT NULL DEFAULT '1',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `cedula` (`cedula`),
-  UNIQUE KEY `codigo_conductor` (`codigo_conductor`),
-  UNIQUE KEY `codigo_socio` (`codigo_socio`),
-  UNIQUE KEY `unq_codigo_usuario` (`codigo_usuario`),
-  KEY `rol_id` (`rol_id`),
-  KEY `estado_usuario_id` (`estado_usuario_id`),
-  CONSTRAINT `usuario_ibfk_1` FOREIGN KEY (`rol_id`) REFERENCES `rol` (`id`),
-  CONSTRAINT `usuario_ibfk_2` FOREIGN KEY (`estado_usuario_id`) REFERENCES `estado_usuario` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
+  KEY `idx_intento_turno_fecha` (`fecha`,`hora_intento`),
+  KEY `idx_intento_turno_usuario` (`usuario_id`,`fecha`),
+  KEY `idx_intento_turno_bus` (`bus_id`,`fecha`),
+  CONSTRAINT `fk_intento_turno_bus` FOREIGN KEY (`bus_id`) REFERENCES `bus` (`id`),
+  CONSTRAINT `fk_intento_turno_usuario` FOREIGN KEY (`usuario_id`) REFERENCES `usuario` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
---
--- Dumping data for table `usuario`
---
+CREATE TABLE `obligacion_pago` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `disco` varchar(20) NOT NULL,
+  `fecha` date NOT NULL,
+  `valor` decimal(10,2) NOT NULL,
+  `ruta` varchar(100) DEFAULT NULL,
+  `pago_id` int DEFAULT NULL,
+  `pagado` tinyint(1) NOT NULL DEFAULT '0',
+  `activo` tinyint(1) NOT NULL DEFAULT '1',
+  `creado_en` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unq_obligacion_disco_fecha` (`disco`,`fecha`),
+  KEY `idx_obligacion_pendiente` (`disco`,`pagado`,`activo`),
+  KEY `fk_obligacion_pago` (`pago_id`),
+  CONSTRAINT `fk_obligacion_pago` FOREIGN KEY (`pago_id`) REFERENCES `pago` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-LOCK TABLES `usuario` WRITE;
-/*!40000 ALTER TABLE `usuario` DISABLE KEYS */;
-INSERT INTO `usuario` (`id`, `nombres`, `apellidos`, `fecha_nacimiento`, `cedula`, `codigo_conductor`, `codigo_socio`, `rol_id`, `estado_usuario_id`, `activo`) VALUES (1,'Administrador','Sistema','1990-01-01','1710000017',NULL,NULL,1,1,1),(2,'Operativo','Sistema','1990-01-02','1710000025',NULL,NULL,2,1,1),(3,'Secretaria','Sistema','1990-01-03','1710000033',NULL,NULL,3,1,1),(4,'Socio','Sistema','1990-01-04','1710000041',NULL,'002',4,1,1),(5,'Conductor','Sistema','1990-01-05','1710000058','001',NULL,5,1,1);
-/*!40000 ALTER TABLE `usuario` ENABLE KEYS */;
-UNLOCK TABLES;
-/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
-/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
-/*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = latin1 */ ;
-/*!50003 SET character_set_results = latin1 */ ;
-/*!50003 SET collation_connection  = latin1_swedish_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
-DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `validar_codigo_usuario_insert` BEFORE INSERT ON `usuario` FOR EACH ROW BEGIN
-    IF (NEW.codigo_conductor IS NOT NULL AND EXISTS (
-        SELECT 1 FROM usuario WHERE codigo_socio = NEW.codigo_conductor
-    )) OR (NEW.codigo_socio IS NOT NULL AND EXISTS (
-        SELECT 1 FROM usuario WHERE codigo_conductor = NEW.codigo_socio
-    )) THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El codigo de usuario ya existe en otro rol';
-    END IF;
-END */;;
-DELIMITER ;
-/*!50003 SET sql_mode              = @saved_sql_mode */ ;
-/*!50003 SET character_set_client  = @saved_cs_client */ ;
-/*!50003 SET character_set_results = @saved_cs_results */ ;
-/*!50003 SET collation_connection  = @saved_col_connection */ ;
-/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
-/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
-/*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = latin1 */ ;
-/*!50003 SET character_set_results = latin1 */ ;
-/*!50003 SET collation_connection  = latin1_swedish_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
-DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `validar_codigo_usuario_update` BEFORE UPDATE ON `usuario` FOR EACH ROW BEGIN
-    IF (NEW.codigo_conductor IS NOT NULL AND EXISTS (
-        SELECT 1 FROM usuario WHERE id <> NEW.id AND codigo_socio = NEW.codigo_conductor
-    )) OR (NEW.codigo_socio IS NOT NULL AND EXISTS (
-        SELECT 1 FROM usuario WHERE id <> NEW.id AND codigo_conductor = NEW.codigo_socio
-    )) THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El codigo de usuario ya existe en otro rol';
-    END IF;
-END */;;
-DELIMITER ;
-/*!50003 SET sql_mode              = @saved_sql_mode */ ;
-/*!50003 SET character_set_client  = @saved_cs_client */ ;
-/*!50003 SET character_set_results = @saved_cs_results */ ;
-/*!50003 SET collation_connection  = @saved_col_connection */ ;
-
---
--- Table structure for table `usuario_bus`
---
-
-DROP TABLE IF EXISTS `usuario_bus`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `usuario_bus` (
   `id` int NOT NULL AUTO_INCREMENT,
   `usuario_id` int NOT NULL,
@@ -348,24 +153,7 @@ CREATE TABLE `usuario_bus` (
   CONSTRAINT `usuario_bus_ibfk_1` FOREIGN KEY (`usuario_id`) REFERENCES `usuario` (`id`),
   CONSTRAINT `usuario_bus_ibfk_2` FOREIGN KEY (`bus_id`) REFERENCES `bus` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
 
---
--- Dumping data for table `usuario_bus`
---
-
-LOCK TABLES `usuario_bus` WRITE;
-/*!40000 ALTER TABLE `usuario_bus` DISABLE KEYS */;
-/*!40000 ALTER TABLE `usuario_bus` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `usuario_permiso_modulo`
---
-
-DROP TABLE IF EXISTS `usuario_permiso_modulo`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `usuario_permiso_modulo` (
   `usuario_id` int NOT NULL,
   `modulo` varchar(40) NOT NULL,
@@ -374,56 +162,152 @@ CREATE TABLE `usuario_permiso_modulo` (
   PRIMARY KEY (`usuario_id`,`modulo`),
   CONSTRAINT `fk_permiso_modulo_usuario` FOREIGN KEY (`usuario_id`) REFERENCES `usuario` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
 
---
--- Dumping data for table `usuario_permiso_modulo`
---
+INSERT INTO `estado_usuario` (`id`, `nombre`, `activo`) VALUES ('1', 'habilitado', '1');
+INSERT INTO `estado_usuario` (`id`, `nombre`, `activo`) VALUES ('2', 'deshabilitado', '1');
+INSERT INTO `rol` (`id`, `nombre`, `activo`) VALUES ('1', 'admin', '1');
+INSERT INTO `rol` (`id`, `nombre`, `activo`) VALUES ('2', 'operativo', '1');
+INSERT INTO `rol` (`id`, `nombre`, `activo`) VALUES ('3', 'secretaria', '1');
+INSERT INTO `rol` (`id`, `nombre`, `activo`) VALUES ('4', 'socio', '1');
+INSERT INTO `rol` (`id`, `nombre`, `activo`) VALUES ('5', 'conductor', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('1', 'JAA2412', '37', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('2', 'JAA3706', '65', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('3', 'JAA1825', '94', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('4', 'JAA2843', '93', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('5', 'JAA1687', '92', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('6', 'JAA2671', '91', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('7', 'PUE0145', '90', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('8', 'JAA3506', '89', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('9', 'JAA2838', '88', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('10', 'JAA2844', '87', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('11', 'JAA3514', '85', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('12', 'JAA3523', '84', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('13', 'JAA2659', '82', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('14', 'JAA2712', '81', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('15', 'JAA3243', '80', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('16', 'JAA3498', '79', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('17', 'PUE0146', '78', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('18', 'JAA3540', '77', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('19', 'JAA1915', '76', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('20', 'JAA3588', '75', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('21', 'JAA3114', '74', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('22', 'JAA1649', '73', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('23', 'JAA2827', '72', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('24', 'JAA1686', '70', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('25', 'JAA1614', '69', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('26', 'JAA2765', '68', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('27', 'JAA3192', '67', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('28', 'JAA1564', '66', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('29', 'JAA3564', '63', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('30', 'JAA3489', '62', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('31', 'JAA1965', '61', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('32', 'JAA0199', '59', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('33', 'JAA3593', '58', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('34', 'JAA3408', '57', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('35', 'JAA2790', '56', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('36', 'JAA2758', '55', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('37', 'JAA2825', '53', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('38', 'JAA2571', '52', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('39', 'JAA2830', '35', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('40', 'JAA2683', '47', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('41', 'JAA1674', '46', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('42', 'JAA2649', '45', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('43', 'JAA3244', '44', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('44', 'JAA3592', '43', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('45', 'JAA3479', '42', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('46', 'JAA2612', '41', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('47', 'JAA2837', '40', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('48', 'JAA3319', '39', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('49', 'JAA3161', '36', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('50', 'JAA3331', '34', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('51', 'JAA3525', '33', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('52', 'JAA3516', '32', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('53', 'JAA3640', '30', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('54', 'JAA1658', '29', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('55', 'JAA1509', '28', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('56', 'JAA3363', '27', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('57', 'JAA2220', '26', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('58', 'JAA1866', '25', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('59', 'JAA3280', '23', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('60', 'JAA1688', '22', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('61', 'JAA2718', '21', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('62', 'JAA3104', '20', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('63', 'JAA3060', '19', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('64', 'JAA3527', '18', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('65', 'JAA3594', '16', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('66', 'JAA0322', '15', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('67', 'JAA2636', '14', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('68', 'JAA1855', '13', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('69', 'JAA3237', '12', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('70', 'JAA3122', '11', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('71', 'JAA2851', '10', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('72', 'JAA3577', '08', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('73', 'JAA2586', '07', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('74', 'JAA3543', '06', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('75', 'JAA2686', '05', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('76', 'JAA2673', '04', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('77', 'JAA2619', '02', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('78', 'JAA3162', '01', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('79', 'JAA2735', '83', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('80', 'JAA3542', '50', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('81', 'JAA2581', '54', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('82', 'JAA3632', '49', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('83', 'JAA2769', '31', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('84', 'JAA2597', '71', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('85', 'LBA1213', '51', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('86', 'STD1232', '64', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('87', 'STD1234', '17', '1');
+INSERT INTO `bus` (`id`, `placa`, `disco`, `activo`) VALUES ('88', 'LBA1212', '09', '1');
+INSERT INTO `usuario` (`id`, `nombres`, `apellidos`, `fecha_nacimiento`, `cedula`, `password_hash`, `codigo_conductor`, `codigo_socio`, `rol_id`, `estado_usuario_id`, `activo`, `ultimo_aviso_cumpleanos`) VALUES ('1', 'Administrador', 'Sistema', '1990-01-01', '1710000017', NULL, NULL, NULL, '1', '1', '1', NULL);
+INSERT INTO `usuario` (`id`, `nombres`, `apellidos`, `fecha_nacimiento`, `cedula`, `password_hash`, `codigo_conductor`, `codigo_socio`, `rol_id`, `estado_usuario_id`, `activo`, `ultimo_aviso_cumpleanos`) VALUES ('2', 'Operativo', 'Sistema', '1990-01-02', '1710000025', NULL, NULL, NULL, '2', '1', '1', NULL);
+INSERT INTO `usuario` (`id`, `nombres`, `apellidos`, `fecha_nacimiento`, `cedula`, `password_hash`, `codigo_conductor`, `codigo_socio`, `rol_id`, `estado_usuario_id`, `activo`, `ultimo_aviso_cumpleanos`) VALUES ('3', 'María Viviana', 'Zambrano Granda', '1989-06-13', '1718739384', NULL, NULL, NULL, '3', '1', '1', NULL);
+INSERT INTO `usuario` (`id`, `nombres`, `apellidos`, `fecha_nacimiento`, `cedula`, `password_hash`, `codigo_conductor`, `codigo_socio`, `rol_id`, `estado_usuario_id`, `activo`, `ultimo_aviso_cumpleanos`) VALUES ('4', 'Socio', 'Sistema', '1990-01-04', '1710000041', NULL, NULL, '002', '4', '1', '1', NULL);
+INSERT INTO `usuario` (`id`, `nombres`, `apellidos`, `fecha_nacimiento`, `cedula`, `password_hash`, `codigo_conductor`, `codigo_socio`, `rol_id`, `estado_usuario_id`, `activo`, `ultimo_aviso_cumpleanos`) VALUES ('5', 'Isidro Fernando', 'Toapaxi Burgos', '2001-08-10', '2351048703', NULL, '001', NULL, '5', '1', '1', '2026-09-10');
+INSERT INTO `usuario` (`id`, `nombres`, `apellidos`, `fecha_nacimiento`, `cedula`, `password_hash`, `codigo_conductor`, `codigo_socio`, `rol_id`, `estado_usuario_id`, `activo`, `ultimo_aviso_cumpleanos`) VALUES ('6', 'Marcial Enrique', 'Pazmiño Quijije', '2000-04-23', '1719422402', NULL, '003', NULL, '5', '1', '1', NULL);
+INSERT INTO `usuario` (`id`, `nombres`, `apellidos`, `fecha_nacimiento`, `cedula`, `password_hash`, `codigo_conductor`, `codigo_socio`, `rol_id`, `estado_usuario_id`, `activo`, `ultimo_aviso_cumpleanos`) VALUES ('7', 'Jordan Enrique', 'Espinosa Vinueza', '2001-08-12', '2350637217', NULL, NULL, NULL, '1', '1', '1', '2026-09-10');
 
-LOCK TABLES `usuario_permiso_modulo` WRITE;
-/*!40000 ALTER TABLE `usuario_permiso_modulo` DISABLE KEYS */;
-/*!40000 ALTER TABLE `usuario_permiso_modulo` ENABLE KEYS */;
-UNLOCK TABLES;
+INSERT INTO `usuario_permiso_modulo` (`usuario_id`, `modulo`, `habilitado`, `actualizado_en`) VALUES ('3', 'app_pagos', '1', '2026-09-10 11:42:45');
+INSERT INTO `usuario_permiso_modulo` (`usuario_id`, `modulo`, `habilitado`, `actualizado_en`) VALUES ('3', 'app_qr', '1', '2026-09-10 11:42:45');
+INSERT INTO `usuario_permiso_modulo` (`usuario_id`, `modulo`, `habilitado`, `actualizado_en`) VALUES ('3', 'web_buses', '0', '2026-09-10 11:42:45');
+INSERT INTO `usuario_permiso_modulo` (`usuario_id`, `modulo`, `habilitado`, `actualizado_en`) VALUES ('3', 'web_dashboard', '0', '2026-09-10 11:42:45');
+INSERT INTO `usuario_permiso_modulo` (`usuario_id`, `modulo`, `habilitado`, `actualizado_en`) VALUES ('3', 'web_pagos', '1', '2026-09-10 11:42:45');
+INSERT INTO `usuario_permiso_modulo` (`usuario_id`, `modulo`, `habilitado`, `actualizado_en`) VALUES ('3', 'web_socios', '0', '2026-09-10 11:42:45');
+INSERT INTO `usuario_permiso_modulo` (`usuario_id`, `modulo`, `habilitado`, `actualizado_en`) VALUES ('3', 'web_turnos', '0', '2026-09-10 11:42:45');
+INSERT INTO `usuario_permiso_modulo` (`usuario_id`, `modulo`, `habilitado`, `actualizado_en`) VALUES ('3', 'web_valores', '0', '2026-09-10 11:42:45');
+INSERT INTO `usuario_permiso_modulo` (`usuario_id`, `modulo`, `habilitado`, `actualizado_en`) VALUES ('5', 'app_pagos', '1', '2026-09-10 12:27:13');
+INSERT INTO `usuario_permiso_modulo` (`usuario_id`, `modulo`, `habilitado`, `actualizado_en`) VALUES ('5', 'app_qr', '1', '2026-09-10 12:27:13');
+INSERT INTO `usuario_permiso_modulo` (`usuario_id`, `modulo`, `habilitado`, `actualizado_en`) VALUES ('5', 'web_buses', '0', '2026-09-10 12:27:13');
+INSERT INTO `usuario_permiso_modulo` (`usuario_id`, `modulo`, `habilitado`, `actualizado_en`) VALUES ('5', 'web_dashboard', '0', '2026-09-10 12:27:13');
+INSERT INTO `usuario_permiso_modulo` (`usuario_id`, `modulo`, `habilitado`, `actualizado_en`) VALUES ('5', 'web_pagos', '0', '2026-09-10 12:27:13');
+INSERT INTO `usuario_permiso_modulo` (`usuario_id`, `modulo`, `habilitado`, `actualizado_en`) VALUES ('5', 'web_socios', '0', '2026-09-10 12:27:13');
+INSERT INTO `usuario_permiso_modulo` (`usuario_id`, `modulo`, `habilitado`, `actualizado_en`) VALUES ('5', 'web_turnos', '0', '2026-09-10 12:27:13');
+INSERT INTO `usuario_permiso_modulo` (`usuario_id`, `modulo`, `habilitado`, `actualizado_en`) VALUES ('5', 'web_valores', '0', '2026-09-10 12:27:13');
 
---
--- Dumping events for database 'sistema_minutos_db'
---
-/*!50106 SET @save_time_zone= @@TIME_ZONE */ ;
-/*!50106 DROP EVENT IF EXISTS `cerrar_turnos_diarios` */;
 DELIMITER ;;
-/*!50003 SET @saved_cs_client      = @@character_set_client */ ;;
-/*!50003 SET @saved_cs_results     = @@character_set_results */ ;;
-/*!50003 SET @saved_col_connection = @@collation_connection */ ;;
-/*!50003 SET character_set_client  = latin1 */ ;;
-/*!50003 SET character_set_results = latin1 */ ;;
-/*!50003 SET collation_connection  = latin1_swedish_ci */ ;;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;;
-/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;;
-/*!50003 SET @saved_time_zone      = @@time_zone */ ;;
-/*!50003 SET time_zone             = '-05:00' */ ;;
-/*!50106 CREATE*/ /*!50117 DEFINER=`root`@`localhost`*/ /*!50106 EVENT `cerrar_turnos_diarios` ON SCHEDULE EVERY 1 MINUTE STARTS '2026-09-08 09:45:11' ON COMPLETION PRESERVE ENABLE DO UPDATE turno
+
+CREATE TRIGGER `validar_codigo_usuario_insert` BEFORE INSERT ON `usuario` FOR EACH ROW BEGIN
+    IF (NEW.codigo_conductor IS NOT NULL AND EXISTS (
+        SELECT 1 FROM usuario WHERE codigo_socio = NEW.codigo_conductor
+    )) OR (NEW.codigo_socio IS NOT NULL AND EXISTS (
+        SELECT 1 FROM usuario WHERE codigo_conductor = NEW.codigo_socio
+    )) THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El codigo de usuario ya existe en otro rol';
+    END IF;
+END ;;
+
+CREATE TRIGGER `validar_codigo_usuario_update` BEFORE UPDATE ON `usuario` FOR EACH ROW BEGIN
+    IF (NEW.codigo_conductor IS NOT NULL AND EXISTS (
+        SELECT 1 FROM usuario WHERE id <> NEW.id AND codigo_socio = NEW.codigo_conductor
+    )) OR (NEW.codigo_socio IS NOT NULL AND EXISTS (
+        SELECT 1 FROM usuario WHERE id <> NEW.id AND codigo_conductor = NEW.codigo_socio
+    )) THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El codigo de usuario ya existe en otro rol';
+    END IF;
+END ;;
+
+CREATE EVENT `cerrar_turnos_diarios` ON SCHEDULE EVERY 1 MINUTE STARTS CURRENT_TIMESTAMP ON COMPLETION PRESERVE ENABLE DO UPDATE turno
        SET activo = 0
      WHERE activo = 1
-       AND TIMESTAMP(fecha, hora_cierre) <= NOW() */ ;;
-/*!50003 SET time_zone             = @saved_time_zone */ ;;
-/*!50003 SET sql_mode              = @saved_sql_mode */ ;;
-/*!50003 SET character_set_client  = @saved_cs_client */ ;;
-/*!50003 SET character_set_results = @saved_cs_results */ ;;
-/*!50003 SET collation_connection  = @saved_col_connection */ ;;
+       AND TIMESTAMP(fecha, hora_cierre) <= NOW()  ;;
+
 DELIMITER ;
-/*!50106 SET TIME_ZONE= @save_time_zone */ ;
-
---
--- Dumping routines for database 'sistema_minutos_db'
---
-/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
-
-/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
-/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
-/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
-/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
-/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
-/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
-/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
-
--- Dump completed on 2026-09-10 16:04:38

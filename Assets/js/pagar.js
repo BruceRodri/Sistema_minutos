@@ -13,6 +13,60 @@ document.addEventListener('DOMContentLoaded', () => {
         }[c]));
     }
 
+    let incompletos = datos.incompletos || [];
+    let pagoRestante = null;
+    let subiendoRestante = false;
+    const inputRestante = document.getElementById('comprobanteRestante');
+    const avisoRestante = document.getElementById('avisoRestante');
+    function renderIncompletos() {
+        document.getElementById('pagosIncompletos').classList.toggle('hidden', !incompletos.length);
+        document.getElementById('tarjetasIncompletas').innerHTML = incompletos.map(p => `
+            <article class="rounded-3xl border-2 border-orange-300 bg-orange-50 p-6 shadow">
+                <p class="font-bold text-orange-700">Pago incompleto · #${p.id}</p>
+                <h3 class="text-xl font-bold mt-2">Disco ${esc(p.discos.join(', '))}</h3>
+                <p class="mt-2">Días: ${esc(p.fechas.join(', '))}</p>
+                <p class="mt-2 font-bold">Total del pago: $${esc(p.montoFmt)}</p>
+                <p class="mt-3 whitespace-pre-wrap">${esc(p.motivo_rechazo)}</p>
+                <p class="mt-3">Adjunta el comprobante del valor restante. Se conservarán los comprobantes anteriores.</p>
+                <button type="button" data-completar-pago="${p.id}" ${subiendoRestante ? 'disabled' : ''}
+                    class="mt-4 w-full rounded-xl bg-orange-600 text-white font-bold p-4 disabled:opacity-50">Subir comprobante restante</button>
+            </article>`).join('');
+    }
+    document.getElementById('tarjetasIncompletas').addEventListener('click', e => {
+        const boton = e.target.closest('[data-completar-pago]');
+        if (!boton || subiendoRestante) return;
+        pagoRestante = boton.dataset.completarPago;
+        inputRestante.value = '';
+        inputRestante.click();
+    });
+    inputRestante.addEventListener('change', async () => {
+        const archivo = inputRestante.files[0];
+        if (!archivo || subiendoRestante) return;
+        const error = validarArchivo(archivo);
+        if (error) { avisoRestante.textContent = error; return; }
+        const id = pagoRestante;
+        const form = new FormData();
+        form.append('accion', 'adjuntar_comprobante');
+        form.append('pago_id', id);
+        form.append('archivo', archivo);
+        subiendoRestante = true;
+        renderIncompletos();
+        avisoRestante.textContent = 'Subiendo comprobante…';
+        try {
+            const respuesta = await fetch(urlControlador, { method: 'POST', body: form });
+            const resultado = await respuesta.json();
+            avisoRestante.textContent = resultado.message || 'No se pudo adjuntar el comprobante.';
+            if (resultado.status === 'success') incompletos = incompletos.filter(p => String(p.id) !== id);
+        } catch (_) {
+            avisoRestante.textContent = 'Error de conexión. Intenta nuevamente.';
+        } finally {
+            subiendoRestante = false;
+            inputRestante.value = '';
+            renderIncompletos();
+        }
+    });
+    renderIncompletos();
+
     let discos = Array.isArray(datos.discos) ? datos.discos : [];
     let indiceTarjetas = 0;
     let flujoActivo = null;   // 'card' | 'multi'
@@ -554,6 +608,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (datos.hash && datos.hash === ultimoHash) return;
             ultimoHash = datos.hash || null;
             if (Array.isArray(datos.discos)) discos = datos.discos;
+            incompletos = datos.incompletos || [];
+            renderIncompletos();
             window.renderizarPendientes(datos.pendientes);
         } catch (error) {
             console.error(error);

@@ -8,6 +8,7 @@ $permisosSidebar = isset($conexion) ? permisosEfectivosUsuario($conexion, (int)(
 $puedeSidebar = static fn($modulo) => in_array($modulo, $permisosSidebar, true);
 $rutaWebSidebar = rutaPrimeraInterfaz($permisosSidebar, 'WEB');
 $rutaAppSidebar = rutaPrimeraInterfaz($permisosSidebar, 'APP');
+if ($rutaAppSidebar && $paginaSidebarActual === 'perfil.php') $rutaAppSidebar = '/App/conductor/perfil.php';
 
 $rolesAdmin = ['admin', 'secretaria', 'operativo'];
 ?>
@@ -74,6 +75,7 @@ $rolesAdmin = ['admin', 'secretaria', 'operativo'];
                 <i class="fas fa-file-excel w-6"></i><span>Valores Diarios</span>
             </a><?php endif; ?>
         <?php endif; ?>
+        <a href="/Web/admin/perfil.php" <?php echo $paginaSidebarActual === 'perfil.php' ? 'aria-current="page"' : ''; ?> class="flex items-center px-4 py-3 rounded-lg <?php echo $paginaSidebarActual === 'perfil.php' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-800 hover:text-white'; ?>"><i class="fas fa-user mr-3"></i>Mi perfil</a>
     </nav>
     
     <div class="p-4 border-t border-gray-800">
@@ -82,7 +84,7 @@ $rolesAdmin = ['admin', 'secretaria', 'operativo'];
             <div>
                 <p class="text-sm text-gray-400">Usuario actual:</p>
                 <p class="font-semibold text-xs text-blue-400 truncate"><?php echo $nombre; ?></p>
-                <p class="text-[10px] text-gray-500 uppercase"><?php echo $rol; ?></p>
+                <?php if ($paginaSidebarActual !== 'perfil.php'): ?><p class="text-[10px] text-gray-500 uppercase"><?php echo $rol; ?></p><?php endif; ?>
             </div>
         </div>
         <?php if ($rutaAppSidebar): ?>
@@ -293,3 +295,5 @@ $rolesAdmin = ['admin', 'secretaria', 'operativo'];
         });
     });
 </script>
+
+<?php require_once __DIR__ . '/../../../Config/aviso_cumpleanos.php'; ?>

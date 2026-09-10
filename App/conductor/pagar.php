@@ -48,9 +48,9 @@ $discoInicial = null;
         <div class="w-full max-w-7xl mx-auto flex items-center justify-between px-10 py-4">
             <span class="font-bold text-gray-800 text-lg"><i class="fas fa-clock text-blue-600 mr-2"></i>Minutos</span>
             <div class="flex gap-2">
-                <?php if ($puedeQr): ?><a href="dashboard.php" class="px-5 py-2.5 rounded-xl font-semibold text-gray-500 hover:bg-gray-100 hover:text-blue-600 transition-colors">
+                <a href="perfil.php" class="px-5 py-2.5 rounded-xl font-semibold text-gray-500 hover:bg-gray-100 hover:text-blue-600 transition-colors">
                     <i class="fas fa-user mr-2"></i>Perfil
-                </a><?php endif; ?>
+                </a>
                 <a href="pagar.php" class="px-5 py-2.5 rounded-xl font-bold text-white bg-blue-600 shadow-lg transition-colors">
                     <i class="fas fa-money-bill-wave mr-2"></i>Pagar
                 </a>
@@ -89,6 +89,12 @@ $discoInicial = null;
             </div>
         </header>
 
+        <section id="pagosIncompletos" class="hidden mb-8" aria-label="Pagos incompletos">
+            <h2 class="text-2xl font-bold text-orange-700 mb-4">Completar mis pagos</h2>
+            <div id="tarjetasIncompletas" class="grid gap-4 md:grid-cols-2 xl:grid-cols-3"></div>
+        </section>
+        <input id="comprobanteRestante" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" class="hidden">
+        <p id="avisoRestante" role="status" class="mb-4 text-lg"></p>
         <!-- ================= VISTA CARRUSEL ================= -->
         <section id="vistaCarousel">
 
@@ -173,10 +179,10 @@ $discoInicial = null;
     <!-- Barra de navegación inferior (móvil) -->
     <nav class="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
         <div class="grid grid-cols-3 w-full max-w-xl mx-auto">
-            <?php if ($puedeQr): ?><a href="dashboard.php" class="flex flex-col items-center py-3 text-gray-500 hover:text-blue-600 transition-colors">
+            <a href="perfil.php" class="flex flex-col items-center py-3 text-gray-500 hover:text-blue-600 transition-colors">
                 <i class="fas fa-user text-2xl"></i>
                 <span class="text-base font-semibold mt-1">Perfil</span>
-            </a><?php endif; ?>
+            </a>
             <a href="pagar.php" class="flex flex-col items-center py-3 text-white bg-blue-600 rounded-t-xl -mt-1 shadow-lg transition-colors">
                 <i class="fas fa-money-bill-wave text-2xl"></i>
                 <span class="text-base font-bold mt-1">Pagar</span>
@@ -191,6 +197,7 @@ $discoInicial = null;
     <script id="datosPagar" type="application/json">
     <?php echo json_encode([
         'pagables' => $pagables,
+        'incompletos' => pagosIncompletosVista($pagoDao, (int)$_SESSION['usuario_id']),
         'discos' => $discos,
         'discoInicial' => $discoInicial
     ], JSON_UNESCAPED_UNICODE); ?>

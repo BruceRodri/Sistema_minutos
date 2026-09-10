@@ -1,6 +1,7 @@
 <?php
 $permisosCambioInterfaz = permisosEfectivosUsuario($conexion, (int)($_SESSION['usuario_id'] ?? 0), (string)($_SESSION['rol'] ?? ''));
 $rutaWebCambioInterfaz = rutaPrimeraInterfaz($permisosCambioInterfaz, 'WEB');
+if ($rutaWebCambioInterfaz && basename($_SERVER['PHP_SELF']) === 'perfil.php') $rutaWebCambioInterfaz = '/Web/admin/perfil.php';
 ?>
 <?php if ($rutaWebCambioInterfaz): ?>
 <a href="<?php echo htmlspecialchars($rutaWebCambioInterfaz, ENT_QUOTES, 'UTF-8'); ?>"
@@ -8,3 +9,5 @@ $rutaWebCambioInterfaz = rutaPrimeraInterfaz($permisosCambioInterfaz, 'WEB');
     <i class="fas fa-desktop mr-2"></i>Ir a Web
 </a>
 <?php endif; ?>
+
+<?php require_once __DIR__ . '/../../../Config/aviso_cumpleanos.php'; ?>

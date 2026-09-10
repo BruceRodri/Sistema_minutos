@@ -35,6 +35,22 @@ if (!is_string($token) || !isset($_SESSION['csrf_admin_usuarios']) || !hash_equa
 $accion = $_POST['accion'] ?? '';
 $usuarioDao = new UsuarioDao($conexion);
 
+if ($accion === 'restablecer_clave') {
+    $id = filter_var($_POST['usuario_id'] ?? null, FILTER_VALIDATE_INT);
+    $admin = $usuarioDao->obtenerUsuarioAdministrablePorId((int)$_SESSION['usuario_id']);
+    if (!$admin || !$admin['activo'] || $admin['rol'] !== 'admin') responderUsuario('error', 'Acceso denegado.', []);
+    $usuario = $id ? $usuarioDao->obtenerUsuarioAdministrablePorId($id) : null;
+    if (!$usuario) responderUsuario('error', 'El usuario seleccionado no existe.');
+    try {
+        // NULL representa la contraseña inicial: la cédula actual del registro.
+        $stmt = $conexion->prepare('UPDATE usuario SET password_hash = NULL WHERE id = ?');
+        $stmt->execute([$id]);
+        responderUsuario('success', 'Contraseña restablecida. El usuario puede ingresar con su cédula como usuario y contraseña. Cambiarla desde Perfil es opcional.');
+    } catch (Throwable $e) {
+        responderUsuario('error', 'No se pudo restablecer la contraseña.');
+    }
+}
+
 if ($accion === 'verificar_cedula') {
     $cedula = preg_replace('/\D+/', '', (string)($_POST['cedula'] ?? ''));
     $usuarioId = filter_var($_POST['usuario_id'] ?? null, FILTER_VALIDATE_INT) ?: null;

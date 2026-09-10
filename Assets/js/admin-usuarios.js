@@ -15,6 +15,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const abrirCreacion = document.getElementById('btnNuevoUsuario');
     const cerrarModalBoton = document.getElementById('btnCerrarModalUsuario');
     const token = form?.querySelector('[name="csrf_token"]')?.value || '';
+    document.querySelectorAll('.btn-restablecer-clave').forEach(boton => {
+        boton.addEventListener('click', async () => {
+            if (!confirm(`¿Restablecer la contraseña de ${boton.dataset.nombre}? Podrá ingresar con su cédula como usuario y contraseña.`)) return;
+            boton.disabled = true;
+            const cuerpo = new FormData();
+            cuerpo.append('accion', 'restablecer_clave');
+            cuerpo.append('usuario_id', boton.dataset.id);
+            cuerpo.append('csrf_token', token);
+            try {
+                const respuesta = await fetch('../../Controllers/AdminUsuarioController.php', { method: 'POST', body: cuerpo });
+                const datos = await respuesta.json();
+                alert(datos.message);
+            } catch (_) { alert('Error de conexión. Intenta nuevamente.'); }
+            finally { boton.disabled = false; }
+        });
+    });
     const modalPermisos = document.getElementById('modalPermisos');
     const selectorPermisos = document.getElementById('usuarioPermisos');
     const buscadorPermisos = document.getElementById('buscarUsuarioPermisos');

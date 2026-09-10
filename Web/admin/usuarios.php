@@ -118,6 +118,12 @@ function etiquetaRolUsuario($rol) {
                                         </td>
                                         <td class="px-5 py-4 whitespace-nowrap text-center">
                                             <div class="inline-flex items-center gap-2">
+                                                <button type="button" class="btn-restablecer-clave inline-flex h-9 w-9 items-center justify-center rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100"
+                                                    title="Restablecer contraseña a la cédula" aria-label="Restablecer contraseña a la cédula"
+                                                    data-id="<?php echo (int)$usuario['id']; ?>"
+                                                    data-nombre="<?php echo htmlspecialchars($usuario['nombres'] . ' ' . $usuario['apellidos'], ENT_QUOTES); ?>">
+                                                    <i class="fas fa-key"></i>
+                                                </button>
                                                 <button type="button" class="btn-editar-usuario inline-flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
                                                         title="Editar usuario"
                                                         data-id="<?php echo (int)$usuario['id']; ?>"
@@ -261,7 +267,7 @@ function etiquetaRolUsuario($rol) {
     </div>
 
     <script src="../../Assets/js/cedula-ecuatoriana.js?v=1"></script>
-    <script src="../../Assets/js/admin-usuarios.js?v=3"></script>
+    <script src="../../Assets/js/admin-usuarios.js?v=<?php echo hash_file('sha256', __DIR__ . '/../../Assets/js/admin-usuarios.js'); ?>"></script>
 <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
