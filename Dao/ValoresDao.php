@@ -243,7 +243,7 @@ class ValoresDao {
     public function normalizarDisco($valor) {
         $valor = trim($valor);
         if (is_numeric($valor)) {
-            return (string)(int)$valor;
+            return str_pad((string)(int)$valor, 2, '0', STR_PAD_LEFT);
         }
         $valorSinCero = ltrim($valor, '0');
         return $valorSinCero === '' ? '0' : $valorSinCero;

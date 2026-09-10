@@ -13,7 +13,7 @@ require_once '../../Config/vistas_pagos.php';
 $nombreCorto = explode(' ', $_SESSION['nombre'] ?? 'Conductor')[0];
 
 $pagoDao = new PagoDao($conexion);
-$pagosParaVista = pagosParaVista($pagoDao, $_SESSION['usuario_id']);
+$pagosParaVista = pagosTodosVista($pagoDao);
 $discosTodos = $pagoDao->obtenerTodosDiscos();
 ?>
 <!DOCTYPE html>
@@ -87,7 +87,6 @@ $discosTodos = $pagoDao->obtenerTodosDiscos();
         </div>
         <div id="contenidoRecibo" class="overflow-auto max-h-[70vh]"></div>
         <a id="descargarRecibo" class="block mt-4 rounded-xl bg-blue-600 py-3 text-center text-white font-bold">Descargar comprobante</a>
-        <a id="abrirRecibo" target="_blank" rel="noopener" class="block mt-4 text-center text-blue-700 font-bold underline">Abrir comprobante en otra pestaña</a>
     </dialog>
 
     <!-- Barra de navegación inferior (móvil) -->

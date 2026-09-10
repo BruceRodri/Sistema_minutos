@@ -48,7 +48,16 @@ class BusDao {
         return $stmt->fetch();
     }
 
+    private static function normalizarDisco($disco) {
+        $disco = trim((string)$disco);
+        if (ctype_digit($disco)) {
+            return str_pad((string)(int)$disco, 2, '0', STR_PAD_LEFT);
+        }
+        return $disco;
+    }
+
     public function obtenerPorDisco($disco) {
+        $disco = self::normalizarDisco($disco);
         $sql = "SELECT * FROM bus WHERE disco = :disco LIMIT 1";
         $stmt = $this->conexion->prepare($sql);
         $stmt->bindParam(':disco', $disco, PDO::PARAM_STR);
@@ -57,6 +66,7 @@ class BusDao {
     }
 
     public function existeDisco($disco, $excluirId = null) {
+        $disco = self::normalizarDisco($disco);
         $sql = "SELECT id FROM bus WHERE disco = :disco";
         if ($excluirId !== null) {
             $sql .= " AND id != :id";
@@ -72,6 +82,7 @@ class BusDao {
 
     public function crearBus($disco, $placa) {
         try {
+            $disco = self::normalizarDisco($disco);
             if ($placa === '') {
                 $placa = $disco;
             }
@@ -86,6 +97,7 @@ class BusDao {
 
     public function editarBus($id, $disco, $placa) {
         try {
+            $disco = self::normalizarDisco($disco);
             if ($placa === '') {
                 $placa = $disco;
             }

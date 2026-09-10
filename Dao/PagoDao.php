@@ -34,13 +34,26 @@ class PagoDao {
     }
 
     public function obtenerPagosConductor($usuarioId) {
+        return $this->obtenerPagos($usuarioId);
+    }
+
+    public function obtenerTodosPagos() {
+        return $this->obtenerPagos(null);
+    }
+
+    private function obtenerPagos($usuarioId = null) {
         $sql = "SELECT p.id, p.monto_total AS monto, p.fecha_pago, p.comprobante, p.estado,
                        p.motivo_rechazo, p.detalle_pagos
                 FROM pago p
-                WHERE p.usuario_id = :usuario_id AND p.activo = 1
-                ORDER BY p.fecha_pago DESC, p.id DESC";
+                WHERE p.activo = 1";
+        $parametros = [];
+        if ($usuarioId !== null) {
+            $sql .= " AND p.usuario_id = :usuario_id";
+            $parametros[':usuario_id'] = $usuarioId;
+        }
+        $sql .= " ORDER BY p.fecha_pago DESC, p.id DESC";
         $stmt = $this->conexion->prepare($sql);
-        $stmt->execute([':usuario_id' => $usuarioId]);
+        $stmt->execute($parametros);
         $pagos = $stmt->fetchAll();
 
         $stmtFechas = $this->conexion->prepare(
@@ -71,9 +84,9 @@ class PagoDao {
     public function obtenerTodosDiscos($q = '') {
         $sql = "SELECT DISTINCT discos.disco
                 FROM (
-                    SELECT disco FROM bus WHERE activo = 1
+                    SELECT IF(disco REGEXP '^[0-9]+$', LPAD(CAST(disco AS UNSIGNED), 2, '0'), disco) AS disco FROM bus WHERE activo = 1
                     UNION
-                    SELECT disco FROM obligacion_pago WHERE activo = 1
+                    SELECT IF(disco REGEXP '^[0-9]+$', LPAD(CAST(disco AS UNSIGNED), 2, '0'), disco) AS disco FROM obligacion_pago WHERE activo = 1
                 ) discos
                 WHERE 1 = 1";
         $parametros = [];

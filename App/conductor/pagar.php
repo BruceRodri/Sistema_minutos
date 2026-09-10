@@ -20,6 +20,7 @@ $valoresDao->sincronizarObligacionesConArchivo();
 
 $pagoDao = new PagoDao($conexion);
 $pagables = obtenerPagablesVista($pagoDao);
+$discos = $pagoDao->obtenerTodosDiscos();
 
 $discoInicial = null;
 ?>
@@ -190,6 +191,7 @@ $discoInicial = null;
     <script id="datosPagar" type="application/json">
     <?php echo json_encode([
         'pagables' => $pagables,
+        'discos' => $discos,
         'discoInicial' => $discoInicial
     ], JSON_UNESCAPED_UNICODE); ?>
     </script>

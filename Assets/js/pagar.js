@@ -7,8 +7,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const pagables = datos.pagables || [];
     const esMovil = () => !window.matchMedia('(min-width: 768px)').matches;
 
-    let discosDisponibles = [];
-    let filtroDisco = null;
+    function esc(texto) {
+        return String(texto ?? '').replace(/[&<>"']/g, (c) => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+    }
+
+    let discos = Array.isArray(datos.discos) ? datos.discos : [];
     let indiceTarjetas = 0;
     let flujoActivo = null;   // 'card' | 'multi'
     let idsAPagar = [];
@@ -125,51 +130,43 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let todasLasTarjetas = carrusel ? [...carrusel.querySelectorAll('.cardPagar')] : [];
 
+    function brutoActual() {
+        return inputDisco ? normalizarDiscoBruto(inputDisco.value) : '';
+    }
+
     function tarjetasFiltradas() {
-        return todasLasTarjetas.filter((c) => !filtroDisco || discCoincide(c.dataset.disco, filtroDisco));
+        const bruto = brutoActual();
+        return (
+            bruto === ''
+                ? []
+                : todasLasTarjetas.filter((c) => discCoincide(c.dataset.disco, bruto))
+        );
     }
 
-    // ---------- Lista de discos (solo se abre cuando el usuario interactúa) ----------
-    let debounceTimer = null;
-    let solicitudDiscos = 0;
+    // ---------- Lista de discos (filtro en vivo, sin peticiones al servidor) ----------
     let listaSolicitada = false;
-
-    async function cargarDiscos(q, abrir = false) {
-        const solicitud = ++solicitudDiscos;
-        const body = new URLSearchParams();
-        body.append('accion', 'listar_discos');
-        body.append('q', q);
-        try {
-            const response = await fetch(urlControlador, { method: 'POST', body });
-            const data = await response.json();
-            if (solicitud !== solicitudDiscos) return;
-            if (data.status === 'success') discosDisponibles = data.discos || [];
-            if (abrir && listaSolicitada) renderListaDiscos();
-        } catch (error) {
-            console.error(error);
-        }
-    }
 
     function renderListaDiscos() {
         if (!listaDiscos) return;
         listaDiscos.innerHTML = '';
-        if (!discosDisponibles.length) {
+        const candidatos = discos.filter((disco) => discCoincide(disco, inputDisco.value));
+        if (!candidatos.length) {
             listaDiscos.innerHTML = '<p class="px-4 py-4 text-xl text-gray-400 font-semibold">Sin discos disponibles.</p>';
             listaDiscos.classList.remove('hidden');
             return;
         }
-        discosDisponibles.slice(0, 5).forEach((disco) => {
+        candidatos.slice(0, 5).forEach((disco) => {
             const boton = document.createElement('button');
             boton.type = 'button';
             boton.className = 'w-full text-left px-5 py-4 flex items-center gap-3 hover:bg-blue-50 transition-colors';
-            boton.innerHTML = `<i class="fas fa-compact-disc text-blue-500 text-2xl"></i><span class="font-extrabold text-blue-700 text-2xl">${disco}</span>`;
+            boton.innerHTML = `<i class="fas fa-compact-disc text-blue-500 text-2xl"></i><span class="font-extrabold text-blue-700 text-2xl">${esc(disco)}</span>`;
             boton.addEventListener('click', () => seleccionarDisco(disco));
             listaDiscos.appendChild(boton);
         });
-        if (discosDisponibles.length > 5) {
+        if (candidatos.length > 5) {
             const aviso = document.createElement('p');
             aviso.className = 'px-5 py-3 text-sm font-semibold text-gray-400 border-t border-gray-100';
-            aviso.textContent = `Hay ${discosDisponibles.length} discos. Escribe el número para filtrar.`;
+            aviso.textContent = `Hay ${candidatos.length} discos. Escribe el número para filtrar.`;
             listaDiscos.appendChild(aviso);
         }
         listaDiscos.classList.remove('hidden');
@@ -177,19 +174,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function abrirLista() {
         listaSolicitada = true;
-        cargarDiscos(inputDisco.value, true);
+        renderListaDiscos();
     }
 
-    function abrirListaConBusqueda(q) {
+    function abrirListaConBusqueda() {
         listaSolicitada = true;
-        cargarDiscos(q, true);
+        renderListaDiscos();
     }
 
     // ---------- Selección y limpieza de disco ----------
     function seleccionarDisco(disco) {
         listaSolicitada = false;
-        solicitudDiscos++;
-        filtroDisco = normalizarDiscoBruto(disco);
         inputDisco.value = disco;
         limpiarDisco.classList.remove('hidden');
         listaDiscos.classList.add('hidden');
@@ -205,8 +200,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function limpiarSeleccion() {
         listaSolicitada = false;
-        solicitudDiscos++;
-        filtroDisco = null;
         inputDisco.value = '';
         limpiarDisco.classList.add('hidden');
         listaDiscos.classList.add('hidden');
@@ -220,7 +213,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ---------- Filtrado por disco (tarjetas y lista múltiple) ----------
     function aplicarFiltro() {
-        if (filtroDisco === null) {
+        const bruto = brutoActual();
+        if (bruto === '') {
             sinSeleccion.classList.remove('hidden');
             verVarios.classList.add('hidden');
             bloqueCarrusel.classList.add('hidden');
@@ -247,7 +241,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         filasDia.forEach((fila) => {
             const discoFila = fila.querySelector('.checkDia').dataset.disco;
-            const ok = discCoincide(discoFila, filtroDisco);
+            const ok = discCoincide(discoFila, bruto);
             fila.classList.toggle('hidden', !ok);
             if (!ok) fila.querySelector('.checkDia').checked = false;
         });
@@ -318,7 +312,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (inputDisco.value.replace(/\D/g, '') !== inputDisco.value) {
                 inputDisco.value = inputDisco.value.replace(/\D/g, '');
             }
-            abrirListaConBusqueda(inputDisco.value);
+            if (limpiarDisco) limpiarDisco.classList.toggle('hidden', inputDisco.value === '');
+            abrirListaConBusqueda();
+            aplicarFiltro();
+            renderCarrusel();
         });
 
     }
@@ -338,7 +335,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const cerrarListaDiscos = () => {
         listaSolicitada = false;
-        solicitudDiscos++;
         listaDiscos.classList.add('hidden');
     };
     document.addEventListener('pointerdown', (evento) => {
@@ -377,12 +373,6 @@ document.addEventListener('DOMContentLoaded', () => {
         detalleVarios.textContent = total > 0
             ? `${checksVisibles.filter((c) => c.checked).length} día(s) seleccionado(s) · Disco ${inputDisco.value}`
             : 'Selecciona al menos un día.';
-    }
-
-    function esc(texto) {
-        return String(texto ?? '').replace(/[&<>"']/g, (c) => ({
-            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-        }[c]));
     }
 
     function resaltar(texto) {
@@ -542,7 +532,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ---------- Estado inicial: no se muestra nada hasta elegir un disco ----------
-    cargarDiscos('');
 
     // ---------- Tiempo real (SSE) ----------
     let silencioHasta = 0;
@@ -558,6 +547,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!datos || !Array.isArray(datos.pendientes)) return;
             if (datos.hash && datos.hash === ultimoHash) return;
             ultimoHash = datos.hash || null;
+            if (Array.isArray(datos.discos)) discos = datos.discos;
             window.renderizarPendientes(datos.pendientes);
         } catch (error) {
             console.error(error);

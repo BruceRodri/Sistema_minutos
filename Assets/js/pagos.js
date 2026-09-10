@@ -140,7 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (normalizarDiscoBruto(bruto) === '') {
             tarjetas.forEach((c) => c.classList.add('hidden'));
             if (sinResultados) {
-                sinResultados.textContent = 'Selecciona un disco para ver tu historial.';
+                sinResultados.textContent = 'Selecciona un disco para consultar los pagos.';
                 sinResultados.classList.remove('hidden');
             }
             return;
@@ -168,7 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
             grilla.innerHTML = `
                 <div class="lg:col-span-full bg-white rounded-3xl p-10 text-center shadow-sm border border-gray-200">
                     <i class="fas fa-receipt text-gray-300 text-6xl mb-4"></i>
-                    <p class="text-2xl text-gray-500">Aún no has realizado ningún pago.</p>
+                    <p class="text-2xl text-gray-500">No hay pagos registrados.</p>
                 </div>`;
         } else {
             grilla.innerHTML = lista.map(tarjetaPago).join('');
@@ -265,12 +265,10 @@ function vincularBotonesRecibo() {
         boton.addEventListener('click', () => {
             const visor = document.getElementById('visorRecibo');
             const contenido = document.getElementById('contenidoRecibo');
-            const enlace = document.getElementById('abrirRecibo');
             const descargar = document.getElementById('descargarRecibo');
             if (!visor) return;
             const ruta = boton.dataset.verRecibo;
             contenido.replaceChildren();
-            enlace.href = ruta;
             if (descargar) {
                 descargar.href = ruta + (ruta.includes('?') ? '&' : '?') + 'descargar=1';
                 descargar.download = 'comprobante.png';
@@ -285,7 +283,7 @@ function vincularBotonesRecibo() {
                 archivo.alt = 'Comprobante de pago';
                 archivo.className = 'w-full h-auto rounded-lg';
                 archivo.onerror = () => {
-                    contenido.textContent = 'No se pudo cargar la imagen. Intenta abrir el comprobante en otra pestaña.';
+                    contenido.textContent = 'No se pudo cargar la imagen. Usa "Descargar comprobante" para verla.';
                 };
             }
             contenido.append(archivo);

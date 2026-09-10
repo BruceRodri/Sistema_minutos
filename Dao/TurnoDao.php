@@ -14,6 +14,10 @@ class TurnoDao {
     }
 
     public function obtenerBusPorDisco($disco) {
+        $disco = trim((string)$disco);
+        if (ctype_digit($disco)) {
+            $disco = str_pad((string)(int)$disco, 2, '0', STR_PAD_LEFT);
+        }
         $sql = "SELECT * FROM bus WHERE disco = :disco LIMIT 1";
         $stmt = $this->conexion->prepare($sql);
         $stmt->bindParam(':disco', $disco, PDO::PARAM_STR);
