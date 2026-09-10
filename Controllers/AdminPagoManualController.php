@@ -13,33 +13,30 @@ if (!isset($_SESSION['usuario_id']) || !usuarioPuedeVerModulo($conexion, 'web_pa
 }
 
 $accion = ($_SERVER['REQUEST_METHOD'] === 'GET' ? $_GET : $_POST)['accion'] ?? '';
-if (!in_array($accion, ['buscar_conductor', 'registrar_pago_manual'], true)) {
-    echo json_encode(['status' => 'error', 'message' => 'Solicitud no válida.']);
+
+if ($accion === 'verificar_codigo_ingreso') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+        echo json_encode(['status' => 'error', 'message' => 'Solicitud no válida.']);
+        exit;
+    }
+    $codigo = trim((string)($_GET['codigo_ingreso'] ?? ''));
+    if ($codigo === '') {
+        echo json_encode(['status' => 'success', 'disponible' => true]);
+        exit;
+    }
+    if (mb_strlen($codigo) > 50) {
+        echo json_encode(['status' => 'error', 'message' => 'El código no puede superar los 50 caracteres.']);
+        exit;
+    }
+    $stmt = $conexion->prepare("SELECT COUNT(*) FROM pago WHERE codigo_ingreso = :codigo AND activo = 1");
+    $stmt->execute([':codigo' => $codigo]);
+    $existe = (int)$stmt->fetchColumn() > 0;
+    echo json_encode(['status' => 'success', 'disponible' => !$existe]);
     exit;
 }
 
-$pagoDao = new PagoDao($conexion);
-
-if ($accion === 'buscar_conductor') {
-    $q = trim((string)($_GET['q'] ?? ''));
-    $stmt = $conexion->prepare(
-        "SELECT CONCAT(u.nombres, ' ', u.apellidos) AS nombre, u.cedula, u.codigo_conductor
-         FROM usuario u
-         INNER JOIN rol r ON u.rol_id = r.id
-         WHERE u.activo = 1 AND r.nombre = 'conductor' AND u.codigo_conductor IS NOT NULL AND u.codigo_conductor <> ''
-           AND (u.cedula LIKE :cedula OR u.codigo_conductor LIKE :codigo OR CONCAT(u.nombres, ' ', u.apellidos) LIKE :nombre)
-         ORDER BY u.nombres, u.apellidos
-         LIMIT 5"
-    );
-    $coincidencia = '%' . $q . '%';
-    $stmt->execute([':cedula' => $coincidencia, ':codigo' => $coincidencia, ':nombre' => $coincidencia]);
-    echo json_encode(['status' => 'success', 'resultados' => array_map(static function ($u) {
-        $detalle = $u['cedula'];
-        if ((string)$u['codigo_conductor'] !== '') {
-            $detalle .= ' · Cód. ' . $u['codigo_conductor'];
-        }
-        return ['valor' => $u['nombre'], 'label' => $u['nombre'], 'detalle' => $detalle];
-    }, $stmt->fetchAll())]);
+if ($accion !== 'registrar_pago_manual') {
+    echo json_encode(['status' => 'error', 'message' => 'Solicitud no válida.']);
     exit;
 }
 
@@ -48,42 +45,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
+$pagoDao = new PagoDao($conexion);
+
 function responderPagoManual($estado, $mensaje) {
     echo json_encode(['status' => $estado, 'message' => $mensaje]);
     exit;
-}
-
-$conductorTexto = trim((string)($_POST['conductor'] ?? ''));
-if ($conductorTexto === '') {
-    responderPagoManual('error', 'El conductor es obligatorio.');
-}
-
-$stmt = $conexion->prepare(
-    "SELECT u.id, CONCAT(u.nombres, ' ', u.apellidos) AS nombre, u.codigo_conductor
-     FROM usuario u
-     INNER JOIN rol r ON u.rol_id = r.id
-     WHERE u.activo = 1 AND r.nombre = 'conductor' AND u.codigo_conductor IS NOT NULL AND u.codigo_conductor <> ''
-       AND (u.codigo_conductor = :codigo OR u.cedula = :cedula)
-     ORDER BY u.nombres, u.apellidos
-     LIMIT 1"
-);
-$stmt->execute([':codigo' => $conductorTexto, ':cedula' => $conductorTexto]);
-$conductor = $stmt->fetch();
-if (!$conductor) {
-    $stmt = $conexion->prepare(
-        "SELECT u.id, CONCAT(u.nombres, ' ', u.apellidos) AS nombre, u.codigo_conductor
-         FROM usuario u
-         INNER JOIN rol r ON u.rol_id = r.id
-         WHERE u.activo = 1 AND r.nombre = 'conductor' AND u.codigo_conductor IS NOT NULL AND u.codigo_conductor <> ''
-           AND CONCAT(u.nombres, ' ', u.apellidos) LIKE :nombre
-         ORDER BY u.nombres, u.apellidos
-         LIMIT 1"
-    );
-    $stmt->execute([':nombre' => '%' . $conductorTexto . '%']);
-    $conductor = $stmt->fetch();
-}
-if (!$conductor) {
-    responderPagoManual('error', 'No se encontró un conductor con ese nombre, cédula o código.');
 }
 
 $codigoIngreso = trim((string)($_POST['codigo_ingreso'] ?? ''));
@@ -143,7 +109,6 @@ if (!move_uploaded_file($archivo['tmp_name'], $rutaAbsoluta)) {
 }
 
 $resultado = $pagoDao->registrarPagoManual(
-    (int)$conductor['id'],
     [
         'obligaciones_ids' => $obligacionesIds,
         'codigo_ingreso' => $codigoIngreso
@@ -158,7 +123,9 @@ if ($resultado['status'] !== 'success') {
     $mensajes = [
         'codigo_duplicado' => 'El código de ingreso ya fue utilizado. Debe ser único y no repetirse.',
         'sin_obligaciones' => 'Selecciona al menos un día para pagar.',
-        'obligaciones_invalidas' => 'Uno o más días ya no están disponibles para pagar. Recarga la página.'
+        'obligaciones_invalidas' => 'Uno o más días ya no están disponibles para pagar. Recarga la página.',
+        'conductor_no_encontrado' => 'El disco no tiene un conductor asignado. Asigna el bus a un conductor para registrar el pago.',
+        'conductor_ambiguo' => 'El disco tiene más de un conductor asignado. Verifica la asignación del bus.'
     ];
     responderPagoManual('error', $mensajes[$resultado['status']] ?? 'No se pudo registrar el pago manual.');
 }
@@ -169,14 +136,12 @@ $fechas = array_map(
 );
 
 $discos = array_values(array_map('strval', $resultado['discos'] ?? []));
-if (!$discos) $discos = [$resultado['disco'] !== '' ? $resultado['disco'] : $disco];
+if (!$discos) $discos = [$discos[0] ?? $disco];
 
 echo json_encode([
     'status' => 'success',
     'message' => 'Pago manual registrado y aprobado automáticamente.',
     'pago_id' => (int)$resultado['pago_id'],
-    'conductor' => (string)$conductor['nombre'],
-    'codigo_conductor' => (string)($conductor['codigo_conductor'] ?? ''),
     'disco' => $discos[0] ?? $disco,
     'discos' => $discos,
     'fechas' => $fechas,

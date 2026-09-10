@@ -167,13 +167,7 @@ sort($discosPendientes, SORT_NATURAL);
                     </div>
                 </div>
 
-                <form id="formPagoManual" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    <div class="relative">
-                        <label for="mConductor" class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-gray-500"><i class="fas fa-user mr-1 text-blue-600"></i>Conductor</label>
-                        <input id="mConductor" name="conductor" type="search" placeholder="Nombre, cédula o código" autocomplete="off"
-                               class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
-                        <ul id="sugMConductor" class="hidden absolute left-0 right-0 z-30 mt-1 max-h-64 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-xl" aria-label="Conductores"></ul>
-                    </div>
+                <form id="formPagoManual" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     <div class="relative">
                         <label for="mDisco" class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-gray-500"><i class="fas fa-compact-disc mr-1 text-blue-600"></i>Disco</label>
                         <input id="mDisco" name="disco" type="text" inputmode="numeric" placeholder="Ej.: 02" autocomplete="off"
@@ -182,8 +176,11 @@ sort($discosPendientes, SORT_NATURAL);
                     </div>
                     <div>
                         <label for="mCodigoIngreso" class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-gray-500"><i class="fas fa-hashtag mr-1 text-blue-600"></i>Código de ingreso</label>
-                        <input id="mCodigoIngreso" name="codigo_ingreso" type="text" placeholder="Código único (no se repite)" autocomplete="off"
+                        <input id="mCodigoIngreso" name="codigo_ingreso" type="text" value="ING" placeholder="Código único (no se repite)" autocomplete="off"
                                class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
+                        <p id="msgCodigoIngreso" class="mt-1 hidden text-xs font-bold text-red-600">
+                            <i class="fas fa-circle-exclamation mr-1"></i>Este código ya fue utilizado y no debe repetirse.
+                        </p>
                     </div>
                     <div>
                         <label for="mComprobante" class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-gray-500"><i class="fas fa-paperclip mr-1 text-blue-600"></i>Comprobante</label>
@@ -226,15 +223,7 @@ sort($discosPendientes, SORT_NATURAL);
 
             <form method="GET" action="pagos.php" id="formFiltrosPagosManuales" class="mt-5 mb-5 rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
                 <input type="hidden" name="seccion" value="manuales">
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
-                    <div>
-                        <label for="filtroConductorManual" class="block mb-1.5 text-xs font-bold uppercase tracking-wide text-gray-500">
-                            <i class="fas fa-user mr-1 text-blue-600"></i>Conductor
-                        </label>
-                        <input id="filtroConductorManual" name="m_conductor" type="search" value="<?php echo htmlspecialchars($filtrosManuales['conductor']); ?>"
-                               placeholder="Nombre o código"
-                               class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
-                    </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                     <div>
                         <label for="filtroDiscoManual" class="block mb-1.5 text-xs font-bold uppercase tracking-wide text-gray-500">
                             <i class="fas fa-compact-disc mr-1 text-blue-600"></i>Disco
@@ -282,10 +271,9 @@ sort($discosPendientes, SORT_NATURAL);
             </form>
 
             <div class="mt-5 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-md overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200 min-w-[1350px]">
+                <table class="min-w-full divide-y divide-gray-200 min-w-[1150px]">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Conductor</th>
                             <th class="px-5 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Disco</th>
                             <th class="px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Fecha(s) pagada(s)</th>
                             <th class="px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Ruta(s)</th>
@@ -298,7 +286,7 @@ sort($discosPendientes, SORT_NATURAL);
                     <tbody id="tablaPagosManuales" class="bg-white divide-y divide-gray-200">
                         <?php if (empty($pagosManuales)): ?>
                         <tr>
-                            <td colspan="8" class="px-6 py-12 text-center text-gray-500">
+                            <td colspan="7" class="px-6 py-12 text-center text-gray-500">
                                 <p class="mb-2">
                                     <i class="fas fa-hand-holding-dollar text-3xl text-gray-300"></i>
                                 </p>
@@ -312,10 +300,6 @@ sort($discosPendientes, SORT_NATURAL);
                                 $rutasManual = $manual['rutas'] ?: ['—'];
                             ?>
                             <tr class="hover:bg-gray-50 transition-colors">
-                                <td class="px-5 py-4 whitespace-nowrap">
-                                    <p class="text-sm font-bold text-gray-800"><?php echo htmlspecialchars($manual['conductor']); ?></p>
-                                    <p class="text-xs text-gray-500 font-mono">Código: <?php echo htmlspecialchars($manual['codigo_conductor'] ?: '—'); ?></p>
-                                </td>
                                 <td class="px-5 py-4 whitespace-nowrap text-center">
                                     <?php foreach ($manual['discos'] as $discoManual): ?>
                                         <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-blue-100 text-blue-800 border border-blue-200 mr-1">
@@ -479,62 +463,6 @@ sort($discosPendientes, SORT_NATURAL);
                 '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
             }[c]));
 
-            const inputConductor = document.getElementById('mConductor');
-            const listaConductores = document.getElementById('sugMConductor');
-            let temporizadorConductores = null;
-
-            const buscarConductores = () => {
-                if (!inputConductor || !listaConductores) return;
-                const params = new URLSearchParams({ accion: 'buscar_conductor', q: inputConductor.value });
-                fetch(URL_PAGO_MANUAL + '?' + params.toString())
-                    .then((r) => r.json())
-                    .then((data) => {
-                        const resultados = (data && Array.isArray(data.resultados) ? data.resultados : []);
-                        listaConductores.replaceChildren();
-                        if (!resultados.length) {
-                            listaConductores.classList.add('hidden');
-                            return;
-                        }
-                        resultados.forEach((conductor) => {
-                            const boton = document.createElement('button');
-                            boton.type = 'button';
-                            boton.className = 'w-full px-3 py-3 text-left hover:bg-blue-50 focus:bg-blue-50 focus:outline-none transition-colors';
-                            const nombre = document.createElement('span');
-                            nombre.className = 'block text-sm font-semibold text-gray-800';
-                            nombre.textContent = conductor.label;
-                            boton.appendChild(nombre);
-                            if (conductor.detalle) {
-                                const detalle = document.createElement('span');
-                                detalle.className = 'block text-xs text-gray-500 mt-0.5';
-                                detalle.textContent = conductor.detalle;
-                                boton.appendChild(detalle);
-                            }
-                            boton.addEventListener('click', () => {
-                                inputConductor.value = conductor.valor;
-                                listaConductores.classList.add('hidden');
-                            });
-                            listaConductores.appendChild(boton);
-                        });
-                        listaConductores.classList.remove('hidden');
-                    })
-                    .catch(() => listaConductores.classList.add('hidden'));
-            };
-
-            inputConductor?.addEventListener('input', () => {
-                clearTimeout(temporizadorConductores);
-                temporizadorConductores = setTimeout(buscarConductores, 300);
-            });
-            inputConductor?.addEventListener('focus', () => {
-                if (listaConductores && !listaConductores.classList.contains('hidden')) return;
-                clearTimeout(temporizadorConductores);
-                temporizadorConductores = setTimeout(buscarConductores, 300);
-            });
-            document.addEventListener('pointerdown', (evento) => {
-                if (listaConductores && !listaConductores.contains(evento.target) && evento.target !== inputConductor) {
-                    listaConductores.classList.add('hidden');
-                }
-            });
-
             // ---------- Disco (lista desplegable) + checklist de días pendientes ----------
             const datosManual = JSON.parse(String(document.getElementById('datosPagoManual')?.textContent || '{"pendientes":[],"discos":[]}'));
             let pendientes = Array.isArray(datosManual.pendientes) ? datosManual.pendientes : [];
@@ -669,6 +597,54 @@ sort($discosPendientes, SORT_NATURAL);
             const tablaManual = document.getElementById('tablaPagosManuales');
             const textoOriginalBtn = btnRegistrar?.textContent;
 
+            // ---------- Verificación en tiempo real del código de ingreso ----------
+            const inputCodigoIngreso = document.getElementById('mCodigoIngreso');
+            const msgCodigoIngreso = document.getElementById('msgCodigoIngreso');
+            let temporizadorCodigo = null;
+            let peticionCodigoActual = 0;
+
+            const marcarCodigoDuplicado = (duplicado) => {
+                if (!inputCodigoIngreso) return;
+                if (duplicado) {
+                    inputCodigoIngreso.classList.add('border-red-500', 'bg-red-50', 'focus:border-red-500', 'focus:ring-red-200');
+                    msgCodigoIngreso?.classList.remove('hidden');
+                } else {
+                    inputCodigoIngreso.classList.remove('border-red-500', 'bg-red-50', 'focus:border-red-500', 'focus:ring-red-200');
+                    msgCodigoIngreso?.classList.add('hidden');
+                }
+            };
+
+            const verificarCodigoIngreso = () => {
+                if (!inputCodigoIngreso) return;
+                const codigo = inputCodigoIngreso.value.trim();
+                if (codigo === '') {
+                    marcarCodigoDuplicado(false);
+                    return;
+                }
+                const numero = ++peticionCodigoActual;
+                const params = new URLSearchParams({ accion: 'verificar_codigo_ingreso', codigo_ingreso: codigo });
+                fetch(URL_PAGO_MANUAL + '?' + params.toString())
+                    .then((r) => r.json())
+                    .then((data) => {
+                        if (numero !== peticionCodigoActual) return;
+                        marcarCodigoDuplicado(!(data && data.disponible));
+                    })
+                    .catch(() => {
+                        if (numero === peticionCodigoActual) marcarCodigoDuplicado(false);
+                    });
+            };
+
+            inputCodigoIngreso?.addEventListener('input', () => {
+                clearTimeout(temporizadorCodigo);
+                temporizadorCodigo = setTimeout(verificarCodigoIngreso, 400);
+            });
+            inputCodigoIngreso?.addEventListener('focus', () => {
+                if (!inputCodigoIngreso.value.trim()) return;
+                clearTimeout(temporizadorCodigo);
+                temporizadorCodigo = setTimeout(verificarCodigoIngreso, 300);
+            });
+            verificarCodigoIngreso();
+
             const mostrarEstado = (tipo, mensaje) => {
                 if (!estadoManual) return;
                 estadoManual.textContent = mensaje;
@@ -700,10 +676,6 @@ sort($discosPendientes, SORT_NATURAL);
                     `<p class="text-sm text-gray-600 truncate"><i class="fas fa-route mr-1 text-indigo-400"></i>${esc(r)}</p>`).join('');
                 return `
                 <tr>
-                    <td class="px-5 py-4 whitespace-nowrap">
-                        <p class="text-sm font-bold text-gray-800">${esc(data.conductor)}</p>
-                        ${data.codigo_conductor ? `<p class="text-xs text-gray-500 font-mono">Código: ${esc(data.codigo_conductor)}</p>` : ''}
-                    </td>
                     <td class="px-5 py-4 whitespace-nowrap text-center">${discosHtml}</td>
                     <td class="px-5 py-4">${fechasHtml}</td>
                     <td class="px-5 py-4 max-w-60 text-left">${rutasHtml}</td>
@@ -745,7 +717,6 @@ sort($discosPendientes, SORT_NATURAL);
                 }
                 const formData = new FormData(formManual);
                 formData.append('accion', 'registrar_pago_manual');
-                formData.append('conductor', document.getElementById('mConductor')?.value || '');
                 seleccionadas.forEach((check) => formData.append('obligaciones[]', check.dataset.id));
                 try {
                     const response = await fetch(URL_PAGO_MANUAL, { method: 'POST', body: formData });
@@ -757,6 +728,7 @@ sort($discosPendientes, SORT_NATURAL);
                             pendientes = pendientes.filter((p) => !pagadas.has(Number(p.id)));
                         }
                         formManual.reset();
+                        marcarCodigoDuplicado(false);
                         renderPendientes(discoActivo);
                         mostrarEstado('success', data.message);
                     } else {
@@ -774,6 +746,7 @@ sort($discosPendientes, SORT_NATURAL);
 
             btnLimpiar?.addEventListener('click', () => {
                 formManual?.reset();
+                marcarCodigoDuplicado(false);
                 renderPendientes('');
                 mostrarEstado(null, '');
             });

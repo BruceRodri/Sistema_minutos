@@ -80,7 +80,6 @@ function obtenerFiltrosPagosAdmin() {
 
 function obtenerFiltrosPagosManuales() {
     $filtros = [
-        'conductor' => isset($_GET['m_conductor']) && is_scalar($_GET['m_conductor']) ? trim((string)$_GET['m_conductor']) : '',
         'disco' => isset($_GET['m_disco']) && is_scalar($_GET['m_disco']) ? trim((string)$_GET['m_disco']) : '',
         'fecha_desde' => isset($_GET['m_fecha_desde']) && is_scalar($_GET['m_fecha_desde']) ? trim((string)$_GET['m_fecha_desde']) : '',
         'fecha_hasta' => isset($_GET['m_fecha_hasta']) && is_scalar($_GET['m_fecha_hasta']) ? trim((string)$_GET['m_fecha_hasta']) : '',

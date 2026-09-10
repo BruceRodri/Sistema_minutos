@@ -245,7 +245,7 @@ class PagoDao {
         }
     }
 
-    public function registrarPagoManual($usuarioId, array $datos, $comprobante) {
+    public function registrarPagoManual(array $datos, $comprobante) {
         $this->conexion->beginTransaction();
         try {
             $stmt = $this->conexion->prepare(
@@ -272,6 +272,32 @@ class PagoDao {
             if (count($obligaciones) !== count($obligacionesIds)) {
                 throw new RuntimeException('obligaciones_invalidas');
             }
+
+            $discos = array_values(array_unique(array_map('intval', array_map(
+                static fn($o) => (int)$o['disco'],
+                $obligaciones
+            ))));
+            if (count($discos) !== 1) {
+                throw new RuntimeException('obligaciones_invalidas');
+            }
+            $discosPlaceholders = implode(',', array_fill(0, count($discos), '?'));
+            $stmt = $this->conexion->prepare(
+                "SELECT DISTINCT u.id
+                 FROM usuario u
+                 INNER JOIN rol r ON u.rol_id = r.id AND r.nombre = 'conductor'
+                 INNER JOIN usuario_bus ub ON ub.usuario_id = u.id AND ub.activo = 1
+                 INNER JOIN bus b ON b.id = ub.bus_id
+                 WHERE u.activo = 1 AND CAST(b.disco AS UNSIGNED) IN ({$discosPlaceholders})"
+            );
+            $stmt->execute($discos);
+            $conductores = array_values(array_unique(array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN))));
+            if (count($conductores) === 0) {
+                throw new RuntimeException('conductor_no_encontrado');
+            }
+            if (count($conductores) > 1) {
+                throw new RuntimeException('conductor_ambiguo');
+            }
+            $usuarioId = $conductores[0];
 
             $montoTotal = round(array_reduce(
                 $obligaciones,
@@ -316,7 +342,7 @@ class PagoDao {
 
             $this->conexion->commit();
             $fechas = array_values(array_unique(array_map(static fn($o) => $o['fecha'], $obligaciones)));
-            $discos = array_values(array_unique(array_map(static fn($o) => trim((string)$o['disco']), $obligaciones)));
+            $discosTexto = array_values(array_unique(array_map(static fn($o) => trim((string)$o['disco']), $obligaciones)));
             $rutas = array_values(array_filter(array_unique(array_map(
                 static fn($o) => trim((string)$o['ruta']),
                 $obligaciones
@@ -325,8 +351,8 @@ class PagoDao {
                 'status' => 'success',
                 'pago_id' => $pagoId,
                 'monto' => $montoTotal,
-                'disco' => $discos[0] ?? '',
-                'discos' => $discos,
+                'disco' => $discosTexto[0] ?? '',
+                'discos' => $discosTexto,
                 'fechas' => $fechas,
                 'rutas' => $rutas
             ];
@@ -340,26 +366,17 @@ class PagoDao {
     }
 
     public function obtenerPagosManuales($filtros = []) {
-        $conductor = trim((string)($filtros['conductor'] ?? ''));
         $disco = trim((string)($filtros['disco'] ?? ''));
         $fechaDesde = (string)($filtros['fecha_desde'] ?? '');
         $fechaHasta = (string)($filtros['fecha_hasta'] ?? '');
         $ruta = trim((string)($filtros['ruta'] ?? ''));
 
-        $sql = "SELECT p.id, p.usuario_id, u.nombres, u.apellidos, u.codigo_conductor,
-                       p.monto_total, p.fecha_pago, p.comprobante, p.estado, p.motivo_rechazo,
+        $sql = "SELECT p.id, p.usuario_id, p.monto_total, p.fecha_pago, p.comprobante, p.estado, p.motivo_rechazo,
                        p.codigo_ingreso, p.detalle_pagos
                 FROM pago p
-                INNER JOIN usuario u ON u.id = p.usuario_id
                 WHERE p.activo = 1 AND p.tipo = 'manual'";
         $parametros = [];
 
-        if ($conductor !== '') {
-            $sql .= " AND (CONCAT(u.nombres, ' ', u.apellidos) LIKE :conductor_nombre
-                           OR u.codigo_conductor LIKE :conductor_codigo)";
-            $parametros[':conductor_nombre'] = '%' . $conductor . '%';
-            $parametros[':conductor_codigo'] = '%' . $conductor . '%';
-        }
         $sql .= " ORDER BY p.fecha_pago DESC, p.id DESC";
 
         $stmt = $this->conexion->prepare($sql);
@@ -390,7 +407,6 @@ class PagoDao {
                 $pagos[$i]['discos'] = $detalle['discos'];
                 $pagos[$i]['rutas'] = $detalle['rutas'];
             }
-            $pagos[$i]['conductor'] = trim(($pago['nombres'] ?? '') . ' ' . ($pago['apellidos'] ?? ''));
             $pagos[$i]['dias'] = count($pagos[$i]['fechas']);
         }
 
