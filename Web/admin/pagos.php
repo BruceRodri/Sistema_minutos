@@ -1,12 +1,14 @@
 <?php
 // Web/admin/pagos.php
 session_start();
-if (!isset($_SESSION['usuario_id']) || !in_array($_SESSION['rol'] ?? '', ['admin', 'secretaria', 'operativo'])) {
+if (!isset($_SESSION['usuario_id'])) {
     header("Location: ../../index.php");
     exit;
 }
 
 require_once '../../Config/conexion.php';
+require_once '../../Config/permisos.php';
+exigirPermisoModulo($conexion, 'web_pagos', 'dashboard.php');
 require_once '../../Dao/PagoDao.php';
 require_once '../../Config/vistas_pagos.php';
 
@@ -120,6 +122,7 @@ $pagos = $pagoDao->obtenerPagosParaAdmin($filtros);
                             <th class="px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Ruta(s)</th>
                             <th class="px-5 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Valor Total</th>
                             <th class="px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Nro. Comprobante</th>
+                            <th class="px-5 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Comprobante</th>
                             <th class="px-5 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Estado</th>
                             <th class="px-5 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Acciones</th>
                         </tr>

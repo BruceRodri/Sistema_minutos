@@ -13,6 +13,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const estadoArchivo = document.getElementById('estadoArchivo');
     const fechaArchivo = document.getElementById('fechaArchivo');
     let eventos = null;
+    let temporizadorAlerta = null;
+    let consultaActual = null;
+    let subiendo = false;
+
+    if (!form || !inputArchivo || !nombreArchivo || !btnSubir || !alerta || !modal ||
+        !tabla || !total || !rango || !paginacion || !estadoArchivo || !fechaArchivo) {
+        console.error('Valores Diarios no pudo iniciar porque falta un elemento requerido de la interfaz.');
+        return;
+    }
 
     const escapar = (valor) => String(valor ?? '')
         .replaceAll('&', '&amp;')
@@ -22,17 +31,19 @@ document.addEventListener('DOMContentLoaded', () => {
         .replaceAll("'", '&#039;');
 
     const mostrarAlerta = (tipo, mensaje) => {
+        if (temporizadorAlerta) window.clearTimeout(temporizadorAlerta);
         alerta.textContent = mensaje;
         alerta.className = 'mb-5 rounded-xl border p-4 text-sm font-bold text-center ' +
             (tipo === 'success'
                 ? 'border-green-200 bg-green-100 text-green-800'
                 : 'border-red-200 bg-red-100 text-red-800');
+        temporizadorAlerta = window.setTimeout(() => alerta.classList.add('hidden'), 5000);
     };
 
     const cerrarModal = () => modal.classList.add('hidden');
-    document.getElementById('btnAbrirCarga').addEventListener('click', () => modal.classList.remove('hidden'));
-    document.getElementById('btnCerrarCarga').addEventListener('click', cerrarModal);
-    document.getElementById('btnCancelarCarga').addEventListener('click', cerrarModal);
+    document.getElementById('btnAbrirCarga')?.addEventListener('click', () => modal.classList.remove('hidden'));
+    document.getElementById('btnCerrarCarga')?.addEventListener('click', cerrarModal);
+    document.getElementById('btnCancelarCarga')?.addEventListener('click', cerrarModal);
     modal.addEventListener('click', (evento) => {
         if (evento.target === modal) cerrarModal();
     });
@@ -53,9 +64,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         btnSubir.disabled = true;
+        subiendo = true;
+        consultaActual?.abort();
         btnSubir.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Cargando...';
         const formData = new FormData(form);
         formData.append('accion', 'subir');
+        // Liberar la conexión persistente mientras se sube el archivo evita
+        // bloqueos en navegadores móviles con pocos canales HTTP disponibles.
+        if (eventos) eventos.close();
+        eventos = null;
 
         try {
             const response = await fetch('../../Controllers/ValoresController.php', { method: 'POST', body: formData });
@@ -66,14 +83,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 form.reset();
                 nombreArchivo.textContent = 'Seleccione un archivo .xlsx';
                 cerrarModal();
-                conectarEventos(true);
+                actualizarTabla();
             }
         } catch (error) {
             console.error(error);
             mostrarAlerta('error', 'Error de conexión con el servidor.');
         } finally {
+            subiendo = false;
             btnSubir.disabled = false;
             btnSubir.innerHTML = '<i class="fas fa-upload mr-2"></i>Cargar';
+            if (!eventos) conectarEventos(true);
         }
     });
 
@@ -87,16 +106,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const formularioFiltros = document.querySelector('form[action="valores.php"]');
     if (formularioFiltros) {
         let temporizadorFiltros = null;
-        const lanzarBusqueda = () => {
-            if (temporizadorFiltros) clearTimeout(temporizadorFiltros);
-            temporizadorFiltros = setTimeout(() => {
-                formularioFiltros.requestSubmit();
-            }, 400);
+        const aplicarFiltros = () => {
+            const parametros = new URLSearchParams(new FormData(formularioFiltros));
+            [...parametros.entries()].forEach(([nombre, valor]) => {
+                if (String(valor).trim() === '') parametros.delete(nombre);
+            });
+            parametros.delete('pagina');
+            const consulta = parametros.toString();
+            window.history.replaceState({}, '', `${window.location.pathname}${consulta ? `?${consulta}` : ''}`);
+            actualizarTabla();
         };
-        formularioFiltros.querySelectorAll('input, select').forEach((control) => {
-            control.addEventListener('input', lanzarBusqueda);
-            control.addEventListener('change', lanzarBusqueda);
+        const lanzarBusqueda = (evento) => {
+            if (!evento.target.closest('form[action="valores.php"]')) return;
+            if (temporizadorFiltros) clearTimeout(temporizadorFiltros);
+            temporizadorFiltros = setTimeout(aplicarFiltros, 400);
+        };
+        formularioFiltros.addEventListener('submit', (evento) => {
+            evento.preventDefault();
+            if (temporizadorFiltros) clearTimeout(temporizadorFiltros);
+            aplicarFiltros();
         });
+        document.addEventListener('input', lanzarBusqueda);
+        document.addEventListener('change', lanzarBusqueda);
     }
 
     const urlPagina = (pagina) => {
@@ -113,6 +144,8 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const renderizarPaginacion = (paginaActual, totalPaginas) => {
+        paginaActual = Math.max(1, Number.parseInt(paginaActual, 10) || 1);
+        totalPaginas = Math.max(1, Number.parseInt(totalPaginas, 10) || 1);
         if (totalPaginas <= 1) {
             paginacion.innerHTML = '';
             paginacion.classList.add('hidden');
@@ -130,31 +163,70 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const renderizar = (datos) => {
-        total.textContent = datos.total;
-        estadoArchivo.className = `font-bold ${datos.archivo_existe ? 'text-green-700' : 'text-amber-700'}`;
-        estadoArchivo.innerHTML = `<i class="fas ${datos.archivo_existe ? 'fa-circle-check' : 'fa-circle-exclamation'} mr-1"></i>${datos.archivo_existe ? 'Archivo cargado' : 'Sin archivo cargado'}`;
+        if (!datos || typeof datos !== 'object' || !Array.isArray(datos.filas)) {
+            console.warn('Se ignoró una actualización SSE de valores con formato incompleto.');
+            return;
+        }
+
+        const filasValidas = datos.filas.filter((fila) => fila && typeof fila === 'object');
+        const totalRegistros = Math.max(0, Number.parseInt(datos.total, 10) || 0);
+        const archivoExiste = Boolean(datos.archivo_existe);
+        total.textContent = totalRegistros;
+        estadoArchivo.className = `font-bold ${archivoExiste ? 'text-green-700' : 'text-amber-700'}`;
+        estadoArchivo.innerHTML = `<i class="fas ${archivoExiste ? 'fa-circle-check' : 'fa-circle-exclamation'} mr-1"></i>${archivoExiste ? 'Archivo cargado' : 'Sin archivo cargado'}`;
         fechaArchivo.textContent = datos.fecha_subida
             ? `Última carga: ${datos.fecha_subida}`
             : 'Cargue un archivo para visualizar datos';
 
-        if (!datos.filas.length) {
-            tabla.innerHTML = `<tr><td colspan="4" class="px-6 py-14 text-center text-gray-500"><i class="fas fa-table-list text-3xl text-gray-300 mb-3"></i><p>${datos.archivo_existe ? 'No se encontraron datos con los filtros seleccionados.' : 'Aún no se ha cargado un archivo de valores.'}</p></td></tr>`;
+        if (!filasValidas.length) {
+            tabla.innerHTML = `<tr><td colspan="5" class="px-6 py-14 text-center text-gray-500"><i class="fas fa-table-list text-3xl text-gray-300 mb-3"></i><p>${archivoExiste ? 'No se encontraron datos con los filtros seleccionados.' : 'Aún no se han cargado valores.'}</p></td></tr>`;
             rango.textContent = '';
             rango.classList.add('hidden');
         } else {
-            tabla.innerHTML = datos.filas.map((fila) => `
+            tabla.innerHTML = filasValidas.map((fila) => `
                 <tr class="hover:bg-gray-50 transition-colors">
                     <td class="px-6 py-4 whitespace-nowrap text-center font-mono font-bold text-blue-800">${escapar(fila.disco)}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-700">${escapar(formatearFecha(fila.fecha))}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-bold text-gray-800">$ ${Number(fila.valor).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td class="px-6 py-4 text-sm text-gray-700">${escapar(fila.ruta || '—')}</td>
+                    <td class="px-6 py-4 text-center"><span class="inline-flex rounded-full px-3 py-1 text-xs font-bold ${Number(fila.pagado) === 1 ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}">${Number(fila.pagado) === 1 ? 'Pagado' : 'No pagado'}</span></td>
                 </tr>`).join('');
-            rango.textContent = `Mostrando ${datos.primero}–${datos.ultimo} de ${datos.total}`;
+            const primero = Math.max(1, Number.parseInt(datos.primero, 10) || 1);
+            const ultimo = Math.max(primero, Number.parseInt(datos.ultimo, 10) || filasValidas.length);
+            rango.textContent = `Mostrando ${primero}–${ultimo} de ${totalRegistros}`;
             rango.classList.remove('hidden');
         }
 
         renderizarPaginacion(datos.pagina, datos.total_paginas);
     };
+
+    async function actualizarTabla() {
+        consultaActual?.abort();
+        const consulta = new AbortController();
+        consultaActual = consulta;
+        const url = new URL('../../Controllers/ValoresStreamController.php', window.location.href);
+        url.search = window.location.search;
+        url.searchParams.set('consulta', '1');
+        try {
+            const respuesta = await fetch(url, { signal: consulta.signal, cache: 'no-store' });
+            if (!respuesta.ok) throw new Error(`HTTP ${respuesta.status}`);
+            const datos = await respuesta.json();
+            if (consultaActual === consulta && !consulta.signal.aborted) renderizar(datos);
+        } catch (error) {
+            if (error.name !== 'AbortError') {
+                console.error('No se pudo consultar Valores Diarios.', error);
+                mostrarAlerta('error', 'No se pudieron actualizar los datos. Intente filtrar nuevamente.');
+            }
+        }
+    }
+
+    paginacion.addEventListener('click', (evento) => {
+        const enlace = evento.target.closest('a');
+        if (!enlace || evento.ctrlKey || evento.metaKey || evento.shiftKey || evento.altKey) return;
+        evento.preventDefault();
+        window.history.replaceState({}, '', enlace.href);
+        actualizarTabla();
+    });
 
     function conectarEventos(reiniciar = false) {
         if (typeof EventSource === 'undefined') return;
@@ -162,22 +234,26 @@ document.addEventListener('DOMContentLoaded', () => {
         if (eventos) eventos.close();
 
         const url = new URL('../../Controllers/ValoresStreamController.php', window.location.href);
-        const parametros = new URLSearchParams(window.location.search);
-        ['disco', 'fecha', 'valor', 'ruta', 'pagina'].forEach((nombre) => {
-            const valor = parametros.get(nombre);
-            if (valor) url.searchParams.set(nombre, valor);
-        });
-
+        // Una conexión estable avisa de cambios; AJAX aplica los filtros vigentes.
         eventos = new EventSource(url.toString());
         eventos.addEventListener('valores', (evento) => {
             try {
-                renderizar(JSON.parse(evento.data));
+                if (typeof evento.data !== 'string' || evento.data.trim() === '') return;
+                const datos = JSON.parse(evento.data);
+                if (datos && Array.isArray(datos.filas) && !subiendo) actualizarTabla();
             } catch (error) {
                 console.error('No se pudo actualizar la tabla de valores.', error);
             }
         });
+        eventos.addEventListener('error', () => {
+            // EventSource reintenta automáticamente; el resto de botones permanece operativo.
+            console.warn('La conexión en tiempo real de Valores Diarios se está reconectando.');
+        });
     }
 
     conectarEventos();
-    window.addEventListener('beforeunload', () => eventos?.close());
+    window.addEventListener('beforeunload', () => {
+        eventos?.close();
+        consultaActual?.abort();
+    });
 });

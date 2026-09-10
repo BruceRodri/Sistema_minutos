@@ -119,6 +119,7 @@ CREATE TABLE `obligacion_pago` (
   `pago_id` int DEFAULT NULL,
   `pagado` tinyint(1) NOT NULL DEFAULT '0',
   `activo` tinyint(1) NOT NULL DEFAULT '1',
+  `creado_en` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `unq_obligacion_disco_fecha` (`disco`,`fecha`),
   KEY `idx_obligacion_pendiente` (`disco`,`pagado`,`activo`),
@@ -133,7 +134,7 @@ CREATE TABLE `obligacion_pago` (
 
 LOCK TABLES `obligacion_pago` WRITE;
 /*!40000 ALTER TABLE `obligacion_pago` DISABLE KEYS */;
-INSERT INTO `obligacion_pago` VALUES (1,'77','2026-09-06',1.00,'LINEA 23B',NULL,0,1),(2,'84','2026-09-06',3.00,'LINEA 23B',NULL,0,1),(3,'93','2026-09-06',2.00,'LINEA 23B',NULL,0,1),(4,'12','2026-09-06',1.00,'LINEA 23B',NULL,0,1),(5,'77','2026-09-12',3.00,'LINEA 23B',NULL,0,1),(6,'77','2026-09-30',5.00,'LINEA 23B',NULL,0,1),(7,'84','2026-09-07',2.00,'LINEA 23B',NULL,0,1),(484,'80','2026-09-14',4.00,'LINEA 23B',2,1,1),(485,'80','2026-09-02',6.00,'LINEA 23B',NULL,0,1),(486,'80','2026-09-03',2.00,'LINEA 23B',2,1,1),(487,'80','2026-09-04',3.00,'LINEA 23B',NULL,0,1),(488,'2','2026-09-05',2.00,'LINEA 23B',4,1,1),(489,'2','2026-09-06',1.00,'LINEA 23B',3,1,1),(490,'2','2026-09-07',3.00,'LINEA 23B',3,1,1),(491,'47','2026-09-08',5.00,'LINEA 23B',NULL,0,1);
+INSERT INTO `obligacion_pago` (`id`,`disco`,`fecha`,`valor`,`ruta`,`pago_id`,`pagado`,`activo`) VALUES (1,'77','2026-09-06',1.00,'LINEA 23B',NULL,0,1),(2,'84','2026-09-06',3.00,'LINEA 23B',NULL,0,1),(3,'93','2026-09-06',2.00,'LINEA 23B',NULL,0,1),(4,'12','2026-09-06',1.00,'LINEA 23B',NULL,0,1),(5,'77','2026-09-12',3.00,'LINEA 23B',NULL,0,1),(6,'77','2026-09-30',5.00,'LINEA 23B',NULL,0,1),(7,'84','2026-09-07',2.00,'LINEA 23B',NULL,0,1),(484,'80','2026-09-14',4.00,'LINEA 23B',2,1,1),(485,'80','2026-09-02',6.00,'LINEA 23B',NULL,0,1),(486,'80','2026-09-03',2.00,'LINEA 23B',2,1,1),(487,'80','2026-09-04',3.00,'LINEA 23B',NULL,0,1),(488,'2','2026-09-05',2.00,'LINEA 23B',4,1,1),(489,'2','2026-09-06',1.00,'LINEA 23B',3,1,1),(490,'2','2026-09-07',3.00,'LINEA 23B',3,1,1),(491,'47','2026-09-08',5.00,'LINEA 23B',NULL,0,1);
 /*!40000 ALTER TABLE `obligacion_pago` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -246,6 +247,7 @@ CREATE TABLE `usuario` (
   `cedula` varchar(20) NOT NULL,
   `codigo_conductor` varchar(10) DEFAULT NULL COMMENT 'Codigo correlativo 001, 002... solo para conductores',
   `codigo_socio` varchar(10) DEFAULT NULL COMMENT 'Codigo correlativo 001, 002... solo para socios',
+  `codigo_usuario` varchar(10) GENERATED ALWAYS AS (coalesce(`codigo_conductor`,`codigo_socio`)) STORED,
   `rol_id` int NOT NULL,
   `estado_usuario_id` int NOT NULL,
   `activo` tinyint(1) DEFAULT '1',
@@ -253,6 +255,7 @@ CREATE TABLE `usuario` (
   UNIQUE KEY `cedula` (`cedula`),
   UNIQUE KEY `codigo_conductor` (`codigo_conductor`),
   UNIQUE KEY `codigo_socio` (`codigo_socio`),
+  UNIQUE KEY `unq_codigo_usuario` (`codigo_usuario`),
   KEY `rol_id` (`rol_id`),
   KEY `estado_usuario_id` (`estado_usuario_id`),
   CONSTRAINT `usuario_ibfk_1` FOREIGN KEY (`rol_id`) REFERENCES `rol` (`id`),
@@ -266,9 +269,39 @@ CREATE TABLE `usuario` (
 
 LOCK TABLES `usuario` WRITE;
 /*!40000 ALTER TABLE `usuario` DISABLE KEYS */;
-INSERT INTO `usuario` VALUES (1,'Bruce Leroy','Rodriguez Montalvan','1990-05-14','1234567890','001',NULL,5,1,1),(2,'Adonis Vladimir','Alegria Valle','1985-02-20','2300446305',NULL,NULL,1,1,1),(3,'María Fernanda','López Cedeño','1992-11-03','0912345678',NULL,'001',4,1,1),(4,'Carlos Eduardo','Vera Pinargote','1980-07-18','0923456789',NULL,'002',4,1,1),(5,'Jorge Luis','Mendoza Bravo','1988-09-23','1312345678',NULL,NULL,2,1,1),(6,'Gabriela Michelle','Salazar Ordoñez','1995-04-12','1301234567',NULL,NULL,3,1,1),(7,'Luis Alberto','Cedeño Anchundia','1990-01-15','0987654321','002',NULL,5,1,1),(8,'Pedro Vicente','Guamán Delgado','1985-06-30','0967123456','003',NULL,5,1,1),(9,'José Manuel','Cobeña Garcés','1992-11-08','0998765432','004',NULL,5,1,1),(10,'Felipe Andrés','Morales Zambrano','1987-03-19','2312345678','005',NULL,5,1,1),(11,'Rosa Elena','Paredes Blum','1998-02-28','0965432109',NULL,'003',4,1,1),(12,'Marco Antonio','Delgado Vinces','1983-12-05','0982345671',NULL,'004',4,1,1),(13,'Carmen Luisa','Franco Tapia','1994-08-17','0985432167',NULL,'005',4,1,1),(16,'Pedro Santos','Ordoñez Rodrigo','1994-08-17','1722656244',NULL,'006',4,1,1),(18,'PRUEBA','PRUEBA','2026-09-08','1234567891',NULL,'007',4,1,1);
+INSERT INTO `usuario` (`id`,`nombres`,`apellidos`,`fecha_nacimiento`,`cedula`,`codigo_conductor`,`codigo_socio`,`rol_id`,`estado_usuario_id`,`activo`) VALUES (1,'Bruce Leroy','Rodriguez Montalvan','1990-05-14','1234567890','001',NULL,5,1,1),(2,'Adonis Vladimir','Alegria Valle','1985-02-20','2300446305',NULL,NULL,1,1,1),(3,'María Fernanda','López Cedeño','1992-11-03','0912345678',NULL,'006',4,1,1),(4,'Carlos Eduardo','Vera Pinargote','1980-07-18','0923456789',NULL,'007',4,1,1),(5,'Jorge Luis','Mendoza Bravo','1988-09-23','1312345678',NULL,NULL,2,1,1),(6,'Gabriela Michelle','Salazar Ordoñez','1995-04-12','1301234567',NULL,NULL,3,1,1),(7,'Luis Alberto','Cedeño Anchundia','1990-01-15','0987654321','002',NULL,5,1,1),(8,'Pedro Vicente','Guamán Delgado','1985-06-30','0967123456','003',NULL,5,1,1),(9,'José Manuel','Cobeña Garcés','1992-11-08','0998765432','004',NULL,5,1,1),(10,'Felipe Andrés','Morales Zambrano','1987-03-19','2312345678','005',NULL,5,1,1),(11,'Rosa Elena','Paredes Blum','1998-02-28','0965432109',NULL,'008',4,1,1),(12,'Marco Antonio','Delgado Vinces','1983-12-05','0982345671',NULL,'009',4,1,1),(13,'Carmen Luisa','Franco Tapia','1994-08-17','0985432167',NULL,'010',4,1,1),(16,'Pedro Santos','Ordoñez Rodrigo','1994-08-17','1722656244',NULL,'011',4,1,1),(18,'PRUEBA','PRUEBA','2026-09-08','1234567891',NULL,'012',4,1,1);
 /*!40000 ALTER TABLE `usuario` ENABLE KEYS */;
 UNLOCK TABLES;
+
+DELIMITER ;;
+CREATE TRIGGER `validar_codigo_usuario_insert` BEFORE INSERT ON `usuario` FOR EACH ROW
+BEGIN
+    IF (NEW.codigo_conductor IS NOT NULL AND EXISTS (SELECT 1 FROM usuario WHERE codigo_socio = NEW.codigo_conductor))
+       OR (NEW.codigo_socio IS NOT NULL AND EXISTS (SELECT 1 FROM usuario WHERE codigo_conductor = NEW.codigo_socio)) THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El codigo de usuario ya existe en otro rol';
+    END IF;
+END ;;
+CREATE TRIGGER `validar_codigo_usuario_update` BEFORE UPDATE ON `usuario` FOR EACH ROW
+BEGIN
+    IF (NEW.codigo_conductor IS NOT NULL AND EXISTS (SELECT 1 FROM usuario WHERE id <> NEW.id AND codigo_socio = NEW.codigo_conductor))
+       OR (NEW.codigo_socio IS NOT NULL AND EXISTS (SELECT 1 FROM usuario WHERE id <> NEW.id AND codigo_conductor = NEW.codigo_socio)) THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El codigo de usuario ya existe en otro rol';
+    END IF;
+END ;;
+DELIMITER ;
+
+--
+-- Table structure for table `usuario_permiso_modulo`
+--
+
+CREATE TABLE `usuario_permiso_modulo` (
+  `usuario_id` int NOT NULL,
+  `modulo` varchar(40) NOT NULL,
+  `habilitado` tinyint(1) NOT NULL DEFAULT '1',
+  `actualizado_en` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`usuario_id`,`modulo`),
+  CONSTRAINT `fk_permiso_modulo_usuario` FOREIGN KEY (`usuario_id`) REFERENCES `usuario` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 --
 -- Table structure for table `usuario_bus`

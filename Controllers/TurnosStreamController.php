@@ -1,8 +1,10 @@
 <?php
 // Controllers/TurnosStreamController.php
 session_start();
+require_once '../Config/conexion.php';
+require_once '../Config/permisos.php';
 
-if (!isset($_SESSION['usuario_id']) || !in_array($_SESSION['rol'] ?? '', ['admin', 'secretaria', 'operativo'], true)) {
+if (!isset($_SESSION['usuario_id']) || !usuarioPuedeVerModulo($conexion, 'web_turnos')) {
     http_response_code(403);
     exit;
 }
@@ -10,7 +12,6 @@ if (!isset($_SESSION['usuario_id']) || !in_array($_SESSION['rol'] ?? '', ['admin
 // Evita mantener bloqueada la sesión durante toda la conexión SSE.
 session_write_close();
 
-require_once '../Config/conexion.php';
 require_once '../Dao/TurnoDao.php';
 
 header('Content-Type: text/event-stream; charset=utf-8');

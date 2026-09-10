@@ -5,16 +5,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const formularioFiltros = document.querySelector('form[action="turnos.php"]');
     if (formularioFiltros) {
         let temporizadorFiltros = null;
-        const lanzarBusqueda = () => {
+        const lanzarBusqueda = (evento) => {
+            if (!evento.target.closest('form[action="turnos.php"]')) return;
             if (temporizadorFiltros) clearTimeout(temporizadorFiltros);
             temporizadorFiltros = setTimeout(() => {
                 formularioFiltros.requestSubmit();
             }, 400);
         };
-        formularioFiltros.querySelectorAll('input, select').forEach((control) => {
-            control.addEventListener('input', lanzarBusqueda);
-            control.addEventListener('change', lanzarBusqueda);
-        });
+        document.addEventListener('input', lanzarBusqueda);
+        document.addEventListener('change', lanzarBusqueda);
     }
 
     document.querySelectorAll('.btnToggleBus').forEach((btn) => {
@@ -33,7 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
             formData.append('estado', nuevoEstado);
 
             try {
-                const response = await fetch('../Controllers/TurnoController.php', {
+                const response = await fetch('../../Controllers/TurnoController.php', {
                     method: 'POST',
                     body: formData
                 });

@@ -1,12 +1,14 @@
 <?php
 // Web/admin/socios.php
 session_start();
-if (!isset($_SESSION['usuario_id']) || !in_array($_SESSION['rol'] ?? '', ['admin', 'secretaria', 'operativo'])) {
+if (!isset($_SESSION['usuario_id'])) {
     header("Location: ../../index.php");
     exit;
 }
 
 require_once '../../Config/conexion.php';
+require_once '../../Config/permisos.php';
+exigirPermisoModulo($conexion, 'web_socios', 'dashboard.php');
 require_once '../../Dao/SocioDao.php';
 
 $socioDao = new SocioDao($conexion);

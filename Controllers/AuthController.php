@@ -5,6 +5,7 @@ session_start();
 require_once '../Config/conexion.php';
 require_once '../Config/rutas.php';
 require_once '../Dao/UsuarioDao.php';
+require_once '../Config/permisos.php';
 
 header('Content-Type: application/json');
 
@@ -22,7 +23,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Login actual: usuario y contraseña = cédula (sin columna password en la BD nueva)
     if ($usuario && $password === $cedula) {
-        $redirect = obtenerRutaInicio($usuario['rol']);
+        $permisos = permisosEfectivosUsuario($conexion, (int)$usuario['id'], (string)$usuario['rol']);
+        $interfazInicial = in_array($usuario['rol'], ['conductor', 'socio'], true) ? 'APP' : 'WEB';
+        $interfazAlterna = $interfazInicial === 'APP' ? 'WEB' : 'APP';
+        $redirect = rutaPrimeraInterfaz($permisos, $interfazInicial)
+            ?? rutaPrimeraInterfaz($permisos, $interfazAlterna);
+        if ($redirect !== null) $redirect = ltrim($redirect, '/');
 
         if ($redirect === null) {
             echo json_encode([
@@ -38,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $_SESSION['rol'] = $usuario['rol'];
         $_SESSION['nombre'] = $usuario['nombre'];
         $_SESSION['codigo_conductor'] = $usuario['codigo_conductor'] ?? null;
-        $_SESSION['permisos'] = [];
+        $_SESSION['permisos'] = $permisos;
 
         echo json_encode(['status' => 'success', 'redirect' => $redirect]);
     } else {

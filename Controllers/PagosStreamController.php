@@ -1,11 +1,12 @@
 <?php
 session_start();
-if (!isset($_SESSION['usuario_id']) || !in_array($_SESSION['rol'] ?? '', ['admin', 'secretaria', 'operativo'], true)) {
+require_once __DIR__ . '/../Config/conexion.php';
+require_once __DIR__ . '/../Config/permisos.php';
+if (!isset($_SESSION['usuario_id']) || !usuarioPuedeVerModulo($conexion, 'web_pagos')) {
     http_response_code(403);
     exit;
 }
 session_write_close();
-require_once __DIR__ . '/../Config/conexion.php';
 require_once __DIR__ . '/../Dao/PagoDao.php';
 require_once __DIR__ . '/../Config/vistas_pagos.php';
 header('Content-Type: text/event-stream; charset=utf-8');

@@ -8,6 +8,7 @@ if (!isset($_SESSION['usuario_id']) || ($_SESSION['rol'] ?? '') !== 'admin') {
 
 require_once '../../Config/conexion.php';
 require_once '../../Dao/UsuarioDao.php';
+require_once '../../Config/permisos.php';
 
 if (empty($_SESSION['csrf_admin_usuarios'])) {
     $_SESSION['csrf_admin_usuarios'] = bin2hex(random_bytes(32));
@@ -16,6 +17,7 @@ if (empty($_SESSION['csrf_admin_usuarios'])) {
 $usuarioDao = new UsuarioDao($conexion);
 $usuarios = $usuarioDao->obtenerUsuariosAdministrables();
 $roles = $usuarioDao->obtenerRolesActivos();
+$modulosSistema = catalogoModulosSistema();
 
 function etiquetaRolUsuario($rol) {
     return match ($rol) {
@@ -52,10 +54,14 @@ function etiquetaRolUsuario($rol) {
                 </h2>
                 <p class="text-xs text-gray-500">Registro de conductores, socios y personal del sistema</p>
             </div>
-            <button id="btnNuevoUsuario" type="button"
-                    class="inline-flex w-full items-center justify-center rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow hover:bg-blue-700 transition-colors md:w-auto">
-                <i class="fas fa-user-plus mr-2"></i>Crear usuario
-            </button>
+            <div class="flex w-full flex-col gap-2 sm:flex-row md:w-auto">
+                <button id="btnGestionarPermisos" type="button" class="inline-flex items-center justify-center rounded-lg border border-indigo-200 bg-indigo-50 px-5 py-2.5 text-sm font-bold text-indigo-700 hover:bg-indigo-100">
+                    <i class="fas fa-user-shield mr-2"></i>Habilitar módulos
+                </button>
+                <button id="btnNuevoUsuario" type="button" class="inline-flex items-center justify-center rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow hover:bg-blue-700">
+                    <i class="fas fa-user-plus mr-2"></i>Crear usuario
+                </button>
+            </div>
         </header>
 
         <div class="p-4 md:p-8 w-full max-w-7xl mx-auto">
@@ -148,6 +154,50 @@ function etiquetaRolUsuario($rol) {
             </section>
         </div>
     </main>
+
+    <div id="modalPermisos" class="fixed inset-0 z-[70] hidden items-center justify-center bg-gray-950/60 p-4 backdrop-blur-sm">
+        <div class="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
+            <div class="flex items-center justify-between bg-gradient-to-r from-indigo-700 to-blue-800 px-6 py-5 text-white">
+                <div><h3 class="text-xl font-extrabold"><i class="fas fa-user-shield mr-2"></i>Permisos por usuario</h3><p class="text-sm text-blue-100">Seleccione una persona y habilite los módulos que podrá abrir.</p></div>
+                <button id="btnCerrarPermisos" type="button" class="h-10 w-10 rounded-full hover:bg-white/15" aria-label="Cerrar"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="overflow-y-auto p-6">
+                <div class="grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
+                    <div class="relative"><label for="buscarUsuarioPermisos" class="mb-2 block text-sm font-bold text-gray-700">Usuario</label>
+                        <div class="relative">
+                            <i class="fas fa-search absolute left-4 top-4 text-gray-400"></i>
+                            <input id="buscarUsuarioPermisos" type="search" autocomplete="off" placeholder="Buscar por nombre o cédula…" class="w-full rounded-xl border border-gray-300 bg-white py-3 pl-11 pr-4 outline-none focus:ring-2 focus:ring-blue-200">
+                            <input id="usuarioPermisos" type="hidden" value="">
+                        </div>
+                        <div id="resultadosUsuarioPermisos" class="absolute left-0 right-0 top-full z-20 mt-2 hidden overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl"></div>
+                    </div>
+                    <button id="btnGuardarPermisos" type="button" disabled class="rounded-xl bg-blue-600 px-6 py-3 font-bold text-white shadow disabled:opacity-50"><i class="fas fa-save mr-2"></i>Guardar cambios</button>
+                </div>
+                <div class="mt-4 overflow-hidden rounded-xl border border-gray-200">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
+                            <tr><th class="px-4 py-3 text-left">Nombres</th><th class="px-4 py-3 text-center">C.I.</th><th class="px-4 py-3 text-center">Rol</th><th class="px-4 py-3 text-center">Eliminar</th></tr>
+                        </thead>
+                        <tbody id="usuariosPermisosSeleccionados" class="divide-y divide-gray-100 bg-white"></tbody>
+                    </table>
+                    <p id="sinUsuariosPermisos" class="px-4 py-5 text-center text-sm text-gray-400">Agregue uno o varios usuarios desde el buscador.</p>
+                </div>
+                <p id="alertaPermisos" class="hidden mt-4 rounded-xl border p-3 text-sm font-bold"></p>
+                <?php foreach (['APP', 'WEB'] as $grupo): ?>
+                    <section class="mt-6"><h4 class="mb-3 text-sm font-extrabold tracking-widest text-gray-500"><?php echo $grupo; ?></h4>
+                        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                            <?php foreach ($modulosSistema as $codigo => $modulo): if ($modulo['grupo'] !== $grupo) continue; ?>
+                            <label class="permiso-modulo flex cursor-pointer items-center gap-4 rounded-2xl border-2 border-gray-200 p-5 transition hover:border-blue-300">
+                                <input type="checkbox" name="permisos_modulos" value="<?php echo htmlspecialchars($codigo); ?>" class="h-5 w-5 rounded text-blue-600">
+                                <i class="fas <?php echo htmlspecialchars($modulo['icono']); ?> text-2xl text-blue-600"></i><span class="font-extrabold text-gray-700"><?php echo htmlspecialchars($modulo['nombre']); ?></span>
+                            </label>
+                            <?php endforeach; ?>
+                        </div>
+                    </section>
+                <?php endforeach; ?>
+            </div>
+        </div>
+    </div>
 
     <div id="modalUsuario" class="fixed inset-0 z-50 hidden items-center justify-center bg-gray-900/60 p-4" role="dialog" aria-modal="true" aria-labelledby="tituloFormularioUsuario">
         <div class="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">

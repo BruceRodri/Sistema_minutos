@@ -2,12 +2,12 @@
 // Controllers/BusController.php
 session_start();
 require_once '../Config/conexion.php';
+require_once '../Config/permisos.php';
 require_once '../Dao/BusDao.php';
 
 header('Content-Type: application/json');
 
-$rolesAdmin = ['admin', 'secretaria', 'operativo'];
-if (!isset($_SESSION['usuario_id']) || !in_array($_SESSION['rol'] ?? '', $rolesAdmin)) {
+if (!isset($_SESSION['usuario_id']) || !usuarioPuedeVerModulo($conexion, 'web_buses')) {
     echo json_encode(['status' => 'error', 'message' => 'Acceso denegado.']);
     exit;
 }

@@ -1,12 +1,14 @@
 <?php
 // Web/admin/buses.php
 session_start();
-if (!isset($_SESSION['usuario_id']) || !in_array($_SESSION['rol'] ?? '', ['admin', 'secretaria', 'operativo'])) {
+if (!isset($_SESSION['usuario_id'])) {
     header("Location: ../../index.php");
     exit;
 }
 
 require_once '../../Config/conexion.php';
+require_once '../../Config/permisos.php';
+exigirPermisoModulo($conexion, 'web_buses', 'dashboard.php');
 require_once '../../Dao/BusDao.php';
 
 $busDao = new BusDao($conexion);
@@ -128,7 +130,8 @@ $totalResultados = count($listaBuses);
                                 <td class="px-6 py-4 whitespace-nowrap text-center">
                                     <div class="flex flex-wrap justify-center gap-1">
                                         <button class="btnVerQR text-blue-700 hover:text-white bg-blue-50 hover:bg-blue-700 border border-blue-200 text-xs font-bold px-3 py-2 rounded-lg transition-all"
-                                                data-disco="<?php echo htmlspecialchars($bus['disco']); ?>">
+                                                data-disco="<?php echo htmlspecialchars((string)$bus['disco'], ENT_QUOTES, 'UTF-8'); ?>"
+                                                data-placa="<?php echo htmlspecialchars((string)($bus['placa'] ?: 'Sin placa'), ENT_QUOTES, 'UTF-8'); ?>">
                                             <i class="fas fa-qrcode mr-1"></i> QR
                                         </button>
                                         <button class="btnEditarBus text-yellow-700 hover:text-white bg-yellow-50 hover:bg-yellow-600 border border-yellow-200 text-xs font-bold px-3 py-2 rounded-lg transition-all"
@@ -193,9 +196,13 @@ $totalResultados = count($listaBuses);
                 <i class="fas fa-qrcode text-blue-600 text-xl"></i>
             </div>
             <h3 class="text-xl font-bold text-gray-800 mb-1">Código QR del Bus</h3>
-            <p id="qrDiscoLabel" class="text-sm text-gray-500 mb-6"></p>
+            <p id="qrDiscoLabel" class="text-sm text-gray-500"></p>
+            <p id="qrPlacaLabel" class="text-sm text-gray-500 mb-6"></p>
             <div id="qrCodigo" class="mx-auto inline-block p-3 border border-gray-200 rounded-xl"></div>
-            <button id="btnCerrarQR" class="mt-6 w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2.5 px-4 rounded-xl transition-all">
+            <button id="btnDescargarQR" type="button" class="mt-6 inline-flex w-full items-center justify-center rounded-xl bg-blue-600 px-4 py-3 font-bold text-white shadow hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 transition-all">
+                <i class="fas fa-download mr-2"></i>Descargar QR
+            </button>
+            <button id="btnCerrarQR" type="button" class="mt-3 w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2.5 px-4 rounded-xl transition-all">
                 Cerrar
             </button>
         </div>

@@ -7,16 +7,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const formularioFiltros = document.querySelector('form[action="buses.php"]');
     if (formularioFiltros) {
         let temporizadorFiltros = null;
-        const lanzarBusqueda = () => {
+        const lanzarBusqueda = (evento) => {
+            if (!evento.target.closest('form[action="buses.php"]')) return;
             if (temporizadorFiltros) clearTimeout(temporizadorFiltros);
             temporizadorFiltros = setTimeout(() => {
                 formularioFiltros.requestSubmit();
             }, 400);
         };
-        formularioFiltros.querySelectorAll('input, select').forEach((control) => {
-            control.addEventListener('input', lanzarBusqueda);
-            control.addEventListener('change', lanzarBusqueda);
-        });
+        document.addEventListener('input', lanzarBusqueda);
+        document.addEventListener('change', lanzarBusqueda);
     }
 
     function mostrarAlerta(elemento, tipo, mensaje) {
@@ -191,17 +190,92 @@ document.addEventListener('DOMContentLoaded', () => {
     // ---------- Ver QR ----------
     const qrModal = document.getElementById('qrModal');
     if (qrModal) {
-        let qrGenerado = null;
+        let discoQrActual = '';
+        let placaQrActual = '';
+        const btnDescargarQR = document.getElementById('btnDescargarQR');
+
+        const cargarImagenQr = (imagen) => new Promise((resolve, reject) => {
+            if (imagen.complete && imagen.naturalWidth > 0) {
+                resolve(imagen);
+                return;
+            }
+            imagen.addEventListener('load', () => resolve(imagen), { once: true });
+            imagen.addEventListener('error', reject, { once: true });
+        });
+
+        const dibujarTextoEspaciado = (contexto, texto, centroX, y, espacio) => {
+            const caracteres = Array.from(texto);
+            const ancho = caracteres.reduce((total, caracter) => total + contexto.measureText(caracter).width, 0)
+                + Math.max(0, caracteres.length - 1) * espacio;
+            let x = centroX - ancho / 2;
+
+            caracteres.forEach((caracter) => {
+                contexto.fillText(caracter, x, y);
+                x += contexto.measureText(caracter).width + espacio;
+            });
+        };
+
+        const crearEtiquetaQr = async () => {
+            const contenedor = document.getElementById('qrCodigo');
+            const qrCanvas = contenedor?.querySelector('canvas');
+            const qrImagen = contenedor?.querySelector('img');
+            const fuenteQr = qrCanvas || (qrImagen ? await cargarImagenQr(qrImagen) : null);
+
+            if (!fuenteQr || !discoQrActual) {
+                throw new Error('No hay un código QR disponible.');
+            }
+
+            // La impresión múltiple usa etiquetas de 60 mm de ancho: 3 columnas
+            // dentro de 190 mm, con dos separaciones de 5 mm.
+            const escala = 10;
+            const mm = (valor) => valor * escala;
+            const etiqueta = document.createElement('canvas');
+            etiqueta.width = mm(60);
+            etiqueta.height = mm(74);
+            const contexto = etiqueta.getContext('2d');
+
+            contexto.fillStyle = '#ffffff';
+            contexto.fillRect(0, 0, etiqueta.width, etiqueta.height);
+            contexto.fillStyle = '#111111';
+            contexto.textBaseline = 'alphabetic';
+
+            contexto.font = '32px Arial, sans-serif';
+            dibujarTextoEspaciado(contexto, 'EJECUTTRANS', etiqueta.width / 2, mm(8.2), 5);
+
+            // Equivale al bloque de 44 mm con 3 mm de relleno de imprimir_qrs.php.
+            const qrExterior = mm(44);
+            const rellenoQr = mm(3);
+            const qrX = (etiqueta.width - qrExterior) / 2 + rellenoQr;
+            const qrY = mm(11.2) + rellenoQr;
+            const ladoQr = qrExterior - (rellenoQr * 2);
+            contexto.imageSmoothingEnabled = false;
+            contexto.drawImage(fuenteQr, qrX, qrY, ladoQr, ladoQr);
+
+            contexto.textAlign = 'center';
+            contexto.font = 'bold 53px Arial, sans-serif';
+            contexto.fillText(`Disco ${discoQrActual}`, etiqueta.width / 2, mm(63.5));
+
+            contexto.font = '34px Arial, sans-serif';
+            contexto.fillText(`Placa: ${placaQrActual || 'Sin placa'}`, etiqueta.width / 2, mm(70.2));
+
+            return etiqueta;
+        };
 
         document.querySelectorAll('.btnVerQR').forEach((btn) => {
             btn.addEventListener('click', () => {
                 const disco = btn.dataset.disco;
+                const placa = btn.dataset.placa || 'Sin placa';
                 const contenedor = document.getElementById('qrCodigo');
                 const etiqueta = document.getElementById('qrDiscoLabel');
+                const etiquetaPlaca = document.getElementById('qrPlacaLabel');
 
                 contenedor.innerHTML = '';
                 etiqueta.textContent = 'Disco ' + disco;
-                qrGenerado = new QRCode(contenedor, {
+                if (etiquetaPlaca) etiquetaPlaca.textContent = 'Placa: ' + placa;
+                discoQrActual = disco;
+                placaQrActual = placa;
+                if (btnDescargarQR) btnDescargarQR.disabled = false;
+                new QRCode(contenedor, {
                     text: disco,
                     width: 200,
                     height: 200,
@@ -210,6 +284,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 qrModal.classList.remove('hidden');
             });
+        });
+
+        btnDescargarQR?.addEventListener('click', async () => {
+            btnDescargarQR.disabled = true;
+            try {
+                const etiqueta = await crearEtiquetaQr();
+                const discoSeguro = /^\d+$/.test(discoQrActual)
+                    ? discoQrActual.padStart(3, '0')
+                    : discoQrActual.replace(/[^a-z0-9_-]+/gi, '_');
+                const enlace = document.createElement('a');
+                enlace.href = etiqueta.toDataURL('image/png');
+                enlace.download = `QR_Disco_${discoSeguro}.png`;
+                document.body.appendChild(enlace);
+                enlace.click();
+                enlace.remove();
+            } catch (error) {
+                console.error('No se pudo generar la etiqueta QR:', error);
+                window.alert('No se pudo preparar la etiqueta QR para descargar.');
+            } finally {
+                btnDescargarQR.disabled = false;
+            }
         });
 
         const btnCerrarQR = document.getElementById('btnCerrarQR');

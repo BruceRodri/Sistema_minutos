@@ -1,6 +1,6 @@
 <?php if (empty($pagos)): ?>
                             <tr>
-                                <td colspan="8" class="px-6 py-12 text-center text-gray-500">
+                                <td colspan="9" class="px-6 py-12 text-center text-gray-500">
                                     <i class="fas fa-receipt text-3xl mb-3 text-gray-300"></i>
                                     <p>No hay pagos que coincidan con los filtros seleccionados.</p>
                                 </td>
@@ -13,7 +13,6 @@
                                 $conductor = trim(($p['nombres'] ?? '') . ' ' . ($p['apellidos'] ?? ''));
                                 $tieneComprobante = trim((string)($p['comprobante'] ?? '')) !== '';
                                 $rutaComprobante = htmlspecialchars('../../Controllers/ComprobanteController.php?pago_id=' . (int)$p['id'] . '&archivo=' . rawurlencode(basename($p['comprobante'] ?: '')), ENT_QUOTES, 'UTF-8');
-                                $rutaDescarga = htmlspecialchars('../../Controllers/ComprobanteController.php?pago_id=' . (int)$p['id'] . '&archivo=' . rawurlencode(basename($p['comprobante'] ?: '')) . '&descargar=1', ENT_QUOTES, 'UTF-8');
                             ?>
                             <tr class="hover:bg-gray-50 transition-colors">
                                 <td class="px-5 py-4 whitespace-nowrap">
@@ -71,6 +70,17 @@
                                     <?php endif; ?>
                                 </td>
                                 <td class="px-5 py-4 whitespace-nowrap text-center">
+                                    <?php if ($tieneComprobante): ?>
+                                        <a href="<?php echo $rutaComprobante; ?>" target="_blank" rel="noopener"
+                                           title="Abrir comprobante en otra pestaña"
+                                           class="inline-flex items-center justify-center rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-100 transition-colors">
+                                            <i class="fas fa-eye mr-1.5"></i>Ver
+                                        </a>
+                                    <?php else: ?>
+                                        <span class="text-xs font-bold text-gray-400">Sin comprobante</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="px-5 py-4 whitespace-nowrap text-center">
                                     <?php if ($esAprobado): ?>
                                         <span class="inline-flex items-center rounded-full border border-green-200 bg-green-50 px-2.5 py-0.5 text-xs font-bold text-green-700">
                                             <i class="fas fa-circle-check mr-1"></i>Aprobado
@@ -87,25 +97,6 @@
                                 </td>
                                 <td class="px-5 py-4">
                                     <div class="flex flex-col gap-2">
-                                        <?php if ($tieneComprobante): ?>
-                                            <span class="flex gap-1.5">
-                                                <a href="<?php echo $rutaComprobante; ?>" target="_blank" rel="noopener"
-                                                   title="Abrir comprobante en otra pestaña"
-                                                   class="inline-flex items-center justify-center rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-100 transition-colors">
-                                                    <i class="fas fa-eye mr-1.5"></i>Ver comprobante
-                                                </a>
-                                                <a href="<?php echo $rutaDescarga; ?>" target="_blank" rel="noopener"
-                                                   title="Descargar comprobante"
-                                                   class="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-100 transition-colors">
-                                                    <i class="fas fa-download"></i>
-                                                </a>
-                                            </span>
-                                        <?php else: ?>
-                                            <span class="inline-flex items-center justify-center rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-bold text-gray-400 cursor-not-allowed">
-                                                <i class="fas fa-eye-slash mr-1.5"></i>Sin comprobante
-                                            </span>
-                                        <?php endif; ?>
-
                                         <?php if ($esEspera): ?>
                                             <div class="flex gap-2">
                                                 <button type="button" data-aprobar="<?php echo (int)$p['id']; ?>"
