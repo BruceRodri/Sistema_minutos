@@ -114,6 +114,7 @@ sort($discosPendientes, SORT_NATURAL);
                             <option value="en_espera" <?php echo $filtros['estado'] === 'en_espera' ? 'selected' : ''; ?>>En espera</option>
                             <option value="aprobado" <?php echo $filtros['estado'] === 'aprobado' ? 'selected' : ''; ?>>Aprobado</option>
                             <option value="anulado" <?php echo $filtros['estado'] === 'anulado' ? 'selected' : ''; ?>>Anulado</option>
+                            <option value="incompleto" <?php echo $filtros['estado'] === 'incompleto' ? 'selected' : ''; ?>>Incompleto</option>
                         </select>
                     </div>
                 </div>
@@ -297,6 +298,7 @@ sort($discosPendientes, SORT_NATURAL);
                             <?php foreach ($pagosManuales as $manual):
                                 $esManualAnulado = $manual['estado'] === 'anulado';
                                 $esManualAprobado = $manual['estado'] === 'aprobado';
+                                $esManualIncompleto = $manual['estado'] === 'incompleto';
                                 $rutasManual = $manual['rutas'] ?: ['—'];
                             ?>
                             <tr class="hover:bg-gray-50 transition-colors">
@@ -347,6 +349,10 @@ sort($discosPendientes, SORT_NATURAL);
                                     <?php elseif ($esManualAnulado): ?>
                                         <span class="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-2.5 py-0.5 text-xs font-bold text-red-700">
                                             <i class="fas fa-circle-xmark mr-1"></i>Anulado
+                                        </span>
+                                    <?php elseif ($esManualIncompleto): ?>
+                                        <span class="inline-flex items-center rounded-full border border-orange-200 bg-orange-50 px-2.5 py-0.5 text-xs font-bold text-orange-700">
+                                            <i class="fas fa-exclamation-circle mr-1"></i>Incompleto
                                         </span>
                                     <?php else: ?>
                                         <span class="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-bold text-amber-700">
@@ -409,6 +415,31 @@ sort($discosPendientes, SORT_NATURAL);
         </div>
     </div>
 
+    <!-- Modal: Incompleto -->
+    <div id="modalIncompleto" class="hidden fixed inset-0 z-[70] items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/60"></div>
+        <div class="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-8">
+            <div class="w-20 h-20 mx-auto rounded-full bg-amber-100 flex items-center justify-center mb-5">
+                <i class="fas fa-triangle-exclamation text-amber-600 text-4xl"></i>
+            </div>
+            <h3 class="text-2xl font-extrabold text-gray-800 mb-3 text-center">Marcar como incompleto</h3>
+            <p class="text-gray-600 mb-4">Indique la cantidad faltante que el conductor debe adjuntar:</p>
+            <textarea id="motivoIncompleto" rows="4" maxlength="255" required
+                      placeholder="Ej.: Faltan $3.00. Adjunte el comprobante del valor restante."
+                      class="w-full rounded-xl border-2 border-gray-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none px-4 py-3 text-base resize-none"></textarea>
+            <div class="text-right text-xs text-gray-400 mt-1"><span id="contadorMotivoIncompleto">0</span>/255</div>
+            <p id="errorIncompleto" class="hidden text-sm font-bold text-red-600 mt-2"></p>
+            <div class="grid grid-cols-2 gap-3 mt-4">
+                <button id="cancelarIncompleto" type="button" class="py-3 rounded-xl font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors">
+                    Cancelar
+                </button>
+                <button id="confirmarIncompleto" type="button" class="py-3 rounded-xl font-bold text-white bg-amber-500 hover:bg-orange-600 transition-colors">
+                    <i class="fas fa-triangle-exclamation mr-1.5"></i>Marcar incompleto
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal: Comprobante requerido -->
     <div id="modalAlertaComprobante" class="hidden fixed inset-0 z-[70] items-center justify-center p-4">
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" data-cerrar="modalAlertaComprobante"></div>
@@ -417,7 +448,7 @@ sort($discosPendientes, SORT_NATURAL);
                 <i class="fas fa-triangle-exclamation text-amber-600 text-4xl"></i>
             </div>
             <h3 class="text-xl font-extrabold text-gray-800 mb-3">Comprobante requerido</h3>
-            <p class="text-gray-600 mb-6">Ingresa el número de comprobante antes de aprobar.</p>
+            <p class="text-gray-600 mb-6">Ingresa un número de comprobante para cada uno de los archivos subidos antes de aprobar.</p>
             <button id="btnCerrarAlertaComprobante" type="button" class="w-full py-3 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 transition-colors">
                 Entendido
             </button>
