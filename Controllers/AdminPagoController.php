@@ -53,22 +53,31 @@ if ($accion === 'guardar_comprobantes') {
             'message' => 'Códigos de comprobante guardados.',
             'codigos' => $resultado['codigos']
         ]);
-    } elseif ($resultado['status'] === 'no_encontrado') {
-        echo json_encode(['status' => 'error', 'message' => 'El pago ya no está disponible.']);
-    } elseif ($resultado['status'] === 'comprobante_obligatorio') {
-        echo json_encode(['status' => 'error', 'message' => 'Ingresa al menos un número de comprobante.']);
-    } elseif ($resultado['status'] === 'comprobante_invalido') {
-        echo json_encode(['status' => 'error', 'message' => 'El número de comprobante solo puede contener dígitos.']);
-    } elseif ($resultado['status'] === 'muy_largo') {
-        echo json_encode(['status' => 'error', 'message' => 'El código no puede superar los 255 caracteres en total.']);
     } else {
-        echo json_encode(['status' => 'error', 'message' => 'No se pudieron guardar los códigos.']);
+        $mensajes = [
+            'no_encontrado' => 'El pago ya no está disponible.',
+            'comprobante_obligatorio' => 'Ingresa al menos un número de comprobante.',
+            'comprobante_invalido' => 'El número de comprobante solo puede contener dígitos.',
+            'muy_largo' => 'El código no puede superar los 255 caracteres en total.',
+            'sin_comprobantes' => 'Este pago no tiene comprobantes subidos para asociar.',
+            'cantidad_invalida' => 'Debe ingresar un número de comprobante para cada uno de los ' . ($resultado['esperado'] ?? 0) . ' archivos subidos.',
+            'codigo_duplicado_sistema' => 'El número de comprobante ' . ($resultado['codigo'] ?? '') . ' ya ha sido utilizado en otro pago.',
+            'codigo_duplicado' => 'El número de comprobante ' . ($resultado['codigo'] ?? '') . ' está repetido dentro del mismo pago.'
+        ];
+        echo json_encode(['status' => 'error', 'message' => $mensajes[$resultado['status']] ?? 'No se pudieron guardar los códigos.']);
     }
     exit;
 }
 
 if (in_array($accion, ['aprobar', 'en_espera'], true)) {
-    $numero = isset($_POST['codigos']) && is_string($_POST['codigos']) ? trim($_POST['codigos']) : null;
+    if ($accion === 'aprobar') {
+        $numero = array_values(array_filter(
+            array_map(static fn($c) => trim((string)$c), (array)($_POST['codigos'] ?? [])),
+            static fn($c) => $c !== ''
+        ));
+    } else {
+        $numero = isset($_POST['codigos']) && is_string($_POST['codigos']) ? trim($_POST['codigos']) : null;
+    }
     $resultado = $pagoDao->actualizarEstadoPago($pagoId, $accion === 'aprobar' ? 'aprobado' : 'en_espera', null, $numero);
     if ($resultado['status'] === 'success') {
         echo json_encode(['status' => 'success', 'message' => 'Estado del pago actualizado correctamente.']);
@@ -80,7 +89,11 @@ if (in_array($accion, ['aprobar', 'en_espera'], true)) {
             'comprobante_invalido' => 'El número de comprobante solo puede contener dígitos.',
             'muy_largo' => 'Los números de comprobante no pueden superar 255 caracteres.',
             'detalle_no_disponible' => 'No se pueden identificar las deudas originales de este pago. Revisa su detalle antes de cambiarlo.',
-            'deuda_pagada' => 'Una deuda de este comprobante ya tiene otro pago. No se puede cobrar dos veces.'
+            'deuda_pagada' => 'Una deuda de este comprobante ya tiene otro pago. No se puede cobrar dos veces.',
+            'sin_comprobantes' => 'Este pago no tiene comprobantes subidos para asociar.',
+            'cantidad_invalida' => 'Debe ingresar un número de comprobante para cada uno de los ' . $pagoDao->contarComprobantesPago($pagoId) . ' archivos subidos.',
+            'codigo_duplicado_sistema' => 'El número de comprobante ' . ($pagoDao->obtenerUltimoCodigoDuplicado() ?? '') . ' ya ha sido utilizado en otro pago.',
+            'codigo_duplicado' => 'El número de comprobante ' . ($pagoDao->obtenerUltimoCodigoDuplicado() ?? '') . ' está repetido dentro del mismo pago.'
         ];
         echo json_encode(['status' => 'error', 'message' => $mensajes[$resultado['status']] ?? 'No se pudo actualizar el pago.']);
     }
@@ -105,6 +118,28 @@ if ($accion === 'desaprobar') {
         echo json_encode(['status' => 'error', 'message' => 'El pago ya no está disponible.']);
     } else {
         echo json_encode(['status' => 'error', 'message' => 'No se pudo anular el pago.']);
+    }
+    exit;
+}
+
+if ($accion === 'incompleto') {
+    $motivo = trim((string)($_POST['motivo'] ?? ''));
+    if ($motivo === '') {
+        echo json_encode(['status' => 'error', 'message' => 'El motivo del pago incompleto es obligatorio.']);
+        exit;
+    }
+    if (mb_strlen($motivo) > 255) {
+        echo json_encode(['status' => 'error', 'message' => 'El motivo no puede superar los 255 caracteres.']);
+        exit;
+    }
+
+    $resultado = $pagoDao->actualizarEstadoPago($pagoId, 'incompleto', $motivo);
+    if ($resultado['status'] === 'success') {
+        echo json_encode(['status' => 'success', 'message' => 'Pago marcado como incompleto.']);
+    } elseif ($resultado['status'] === 'no_encontrado') {
+        echo json_encode(['status' => 'error', 'message' => 'El pago ya no está disponible.']);
+    } else {
+        echo json_encode(['status' => 'error', 'message' => 'No se pudo marcar el pago como incompleto.']);
     }
     exit;
 }

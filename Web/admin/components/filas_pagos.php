@@ -10,9 +10,13 @@
                                 $esEspera = $p['estado'] === 'en_espera';
                                 $esAnulado = $p['estado'] === 'anulado';
                                 $esAprobado = $p['estado'] === 'aprobado';
+                                $esIncompleto = $p['estado'] === 'incompleto';
                                 $conductor = trim(($p['nombres'] ?? '') . ' ' . ($p['apellidos'] ?? ''));
-                                $tieneComprobante = trim((string)($p['comprobante'] ?? '')) !== '';
-                                $rutaComprobante = htmlspecialchars('../../Controllers/ComprobanteController.php?pago_id=' . (int)$p['id'] . '&archivo=' . rawurlencode(basename($p['comprobante'] ?: '')), ENT_QUOTES, 'UTF-8');
+                                $comprobantes = array_values(array_filter(array_map('strval', $p['comprobantes'] ?? [])));
+                                $tieneComprobante = !empty($comprobantes) && !$esAnulado;
+                                $etiquetaComprobante = function ($indice) use ($p) {
+                                    return htmlspecialchars('../../Controllers/ComprobanteController.php?pago_id=' . (int)$p['id'] . '&archivo=' . rawurlencode($indice), ENT_QUOTES, 'UTF-8');
+                                };
                             ?>
                             <tr class="hover:bg-gray-50 transition-colors">
                                 <td class="px-5 py-4 whitespace-nowrap">
@@ -49,6 +53,7 @@
                                     <div class="flex flex-col gap-1.5 mt-2 <?php echo $esAnulado ? 'opacity-50 pointer-events-none' : ''; ?>"
                                          data-pago="<?php echo (int)$p['id']; ?>"
                                          data-codigos="<?php echo htmlspecialchars($p['nro_comprobante'] ?? ''); ?>"
+                                         data-cantidad-comprobantes="<?php echo count($comprobantes); ?>"
                                          <?php echo $esAnulado ? 'data-bloqueado="1"' : ''; ?>>
                                         <div class="contenedorCodigos flex flex-col gap-1.5"></div>
                                         <div class="flex items-center gap-1.5">
@@ -70,12 +75,19 @@
                                     <?php endif; ?>
                                 </td>
                                 <td class="px-5 py-4 whitespace-nowrap text-center">
-                                    <?php if ($tieneComprobante): ?>
-                                        <a href="<?php echo $rutaComprobante; ?>" target="_blank" rel="noopener"
-                                           title="Abrir comprobante en otra pestaña"
-                                           class="inline-flex items-center justify-center rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-100 transition-colors">
-                                            <i class="fas fa-eye mr-1.5"></i>Ver
-                                        </a>
+                                    <?php if ($esAnulado): ?>
+                                        <span class="text-xs font-bold text-gray-400">Comprobante no disponible</span>
+                                    <?php elseif ($tieneComprobante): ?>
+                                        <?php $cantidad = count($comprobantes); ?>
+                                        <div class="flex flex-col gap-1.5">
+                                            <?php foreach ($comprobantes as $i => $archivoRelativo): ?>
+                                                <a href="<?php echo $etiquetaComprobante(basename($archivoRelativo)); ?>" target="_blank" rel="noopener"
+                                                   title="Abrir comprobante en otra pestaña"
+                                                   class="inline-flex items-center justify-center rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-100 transition-colors">
+                                                    <i class="fas fa-eye mr-1.5"></i>Ver comprobante<?php echo $cantidad > 1 ? ' ' . ($i + 1) : ''; ?>
+                                                </a>
+                                            <?php endforeach; ?>
+                                        </div>
                                     <?php else: ?>
                                         <span class="text-xs font-bold text-gray-400">Sin comprobante</span>
                                     <?php endif; ?>
@@ -89,6 +101,10 @@
                                         <span class="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-2.5 py-0.5 text-xs font-bold text-red-700">
                                             <i class="fas fa-circle-xmark mr-1"></i>Anulado
                                         </span>
+                                    <?php elseif ($esIncompleto): ?>
+                                        <span class="inline-flex items-center rounded-full border border-orange-200 bg-orange-50 px-2.5 py-0.5 text-xs font-bold text-orange-700">
+                                            <i class="fas fa-exclamation-circle mr-1"></i>Incompleto
+                                        </span>
                                     <?php else: ?>
                                         <span class="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-bold text-amber-700">
                                             <i class="fas fa-clock mr-1"></i>En espera
@@ -98,15 +114,38 @@
                                 <td class="px-5 py-4">
                                     <div class="flex flex-col gap-2">
                                         <?php if ($esEspera): ?>
-                                            <div class="flex gap-2">
+                                            <div class="flex gap-2 flex-wrap">
                                                 <button type="button" data-aprobar="<?php echo (int)$p['id']; ?>"
                                                         class="inline-flex items-center justify-center rounded-lg bg-green-600 px-3 py-1.5 text-xs font-bold text-white shadow hover:bg-green-700 transition-colors">
                                                     <i class="fas fa-check mr-1.5"></i>Aprobar
+                                                </button>
+                                                <button type="button" data-incompleto="<?php echo (int)$p['id']; ?>"
+                                                        class="inline-flex items-center justify-center rounded-lg bg-amber-400 px-3 py-1.5 text-xs font-bold text-white shadow hover:bg-orange-500 transition-colors">
+                                                    <i class="fas fa-triangle-exclamation mr-1.5"></i>Incompleto
                                                 </button>
                                                 <button type="button" data-desaprobar="<?php echo (int)$p['id']; ?>"
                                                         class="inline-flex items-center justify-center rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white shadow hover:bg-red-700 transition-colors">
                                                     <i class="fas fa-xmark mr-1.5"></i>Anular
                                                 </button>
+                                            </div>
+                                        <?php elseif ($esIncompleto): ?>
+                                            <div class="flex gap-2 flex-wrap">
+                                                <button type="button" data-aprobar="<?php echo (int)$p['id']; ?>"
+                                                        class="inline-flex items-center justify-center rounded-lg bg-green-600 px-3 py-1.5 text-xs font-bold text-white shadow hover:bg-green-700 transition-colors">
+                                                    <i class="fas fa-check mr-1.5"></i>Aprobar
+                                                </button>
+                                                <button type="button" data-espera="<?php echo (int)$p['id']; ?>"
+                                                        class="inline-flex items-center justify-center rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-bold text-amber-800 hover:bg-amber-200 transition-colors">
+                                                    <i class="fas fa-clock mr-1.5"></i>En espera
+                                                </button>
+                                                <button type="button" data-desaprobar="<?php echo (int)$p['id']; ?>"
+                                                        class="inline-flex items-center justify-center rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white shadow hover:bg-red-700 transition-colors">
+                                                    <i class="fas fa-xmark mr-1.5"></i>Anular
+                                                </button>
+                                            </div>
+                                            <div class="rounded-lg bg-orange-50 border border-orange-200 px-3 py-2 max-w-72 mt-2">
+                                                <p class="text-xs font-bold text-orange-700"><i class="fas fa-triangle-exclamation mr-1"></i>Pago incompleto:</p>
+                                                <p class="text-xs text-orange-600 break-words"><?php echo htmlspecialchars($p['motivo_rechazo'] ?: 'Sin motivo especificado.'); ?></p>
                                             </div>
                                         <?php elseif ($esAprobado): ?>
                                             <button type="button" data-editar-estado
@@ -115,6 +154,7 @@
                                             </button>
                                             <div data-opciones-estado class="hidden flex flex-wrap gap-2">
                                                 <button type="button" data-aprobar="<?php echo (int)$p['id']; ?>" class="rounded-lg bg-green-600 px-3 py-2 text-xs font-bold text-white">Aprobar</button>
+                                                <button type="button" data-incompleto="<?php echo (int)$p['id']; ?>" class="rounded-lg bg-amber-400 px-3 py-2 text-xs font-bold text-white">Incompleto</button>
                                                 <button type="button" data-desaprobar="<?php echo (int)$p['id']; ?>" class="rounded-lg bg-red-600 px-3 py-2 text-xs font-bold text-white">Anular</button>
                                                 <button type="button" data-espera="<?php echo (int)$p['id']; ?>" class="rounded-lg bg-amber-100 px-3 py-2 text-xs font-bold text-amber-800">En espera</button>
                                             </div>

@@ -5,16 +5,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalAlertaComprobante = document.getElementById('modalAlertaComprobante');
     const modalAprobar = document.getElementById('modalAprobar');
     const modalDesaprobar = document.getElementById('modalDesaprobar');
+    const modalIncompleto = document.getElementById('modalIncompleto');
     const motivoRechazo = document.getElementById('motivoRechazo');
     const contadorMotivo = document.getElementById('contadorMotivo');
+    const motivoIncompleto = document.getElementById('motivoIncompleto');
+    const contadorMotivoIncompleto = document.getElementById('contadorMotivoIncompleto');
     const errorAprobar = document.getElementById('errorAprobar');
     const errorDesaprobar = document.getElementById('errorDesaprobar');
+    const errorIncompleto = document.getElementById('errorIncompleto');
 
     const tablaPagos = document.getElementById('tablaPagos');
     let actualizacionPendiente = null;
     const aplicarActualizacion = () => {
         if (!actualizacionPendiente || document.querySelector('[data-pago][data-editando]') ||
-            [modalAprobar, modalDesaprobar, modalAlertaComprobante].some((modal) => modal && !modal.classList.contains('hidden'))) return;
+            [modalAprobar, modalDesaprobar, modalIncompleto, modalAlertaComprobante].some((modal) => modal && !modal.classList.contains('hidden'))) return;
         tablaPagos.innerHTML = actualizacionPendiente.html;
         tablaPagos.dataset.hash = actualizacionPendiente.hash;
         actualizacionPendiente = null;
@@ -39,6 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let pagoAprobar = null;
     let pagoDesaprobar = null;
+    let pagoIncompleto = null;
 
     function abrirModal(modal) {
         modal.classList.remove('hidden');
@@ -82,10 +87,12 @@ document.addEventListener('DOMContentLoaded', () => {
     function actualizarBotonesQuitar(contenedor) {
         const raiz = contenedor.closest('[data-pago]');
         const bloqueado = !!(raiz && raiz.dataset.bloqueado === '1');
+        const fijo = !!(raiz && raiz.dataset.cantidadFija === '1');
         const unico = contenedor.querySelectorAll('input').length <= 1;
         contenedor.querySelectorAll('[data-quitar-codigo]').forEach((boton) => {
-            boton.disabled = bloqueado || unico;
-            boton.title = bloqueado ? 'Comprobante bloqueado' : (unico ? 'Debe quedar al menos un comprobante' : 'Quitar');
+            boton.disabled = bloqueado || fijo || unico;
+            boton.title = bloqueado ? 'Comprobante bloqueado'
+                : (fijo ? 'Un número por archivo subido' : (unico ? 'Debe quedar al menos un comprobante' : 'Quitar'));
         });
     }
 
@@ -107,6 +114,8 @@ document.addEventListener('DOMContentLoaded', () => {
         quitar.className = 'text-gray-400 hover:text-red-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors shrink-0';
         quitar.innerHTML = '<i class="fas fa-times-circle"></i>';
         quitar.addEventListener('click', () => {
+            const raiz = contenedor.closest('[data-pago]');
+            if (raiz && raiz.dataset.cantidadFija === '1') return;
             if (contenedor.querySelectorAll('input').length <= 1) return;
             contenedor.closest('[data-pago]').dataset.editando = '1';
             fila.remove();
@@ -125,16 +134,30 @@ document.addEventListener('DOMContentLoaded', () => {
             raiz.dataset.inicializado = '1';
 
             const contenedor = raiz.querySelector('.contenedorCodigos');
+            const bloqueado = raiz.dataset.bloqueado === '1';
+            const cantidad = parseInt(raiz.dataset.cantidadComprobantes || '0', 10);
             const codigosGuardados = (raiz.dataset.codigos || '')
                 .split(' | ')
                 .map((c) => c.trim())
                 .filter(Boolean);
-            const inicial = codigosGuardados.length > 0 ? codigosGuardados : [''];
-            inicial.forEach((codigo) => agregarInputCodigo(contenedor, codigo));
 
-            if (raiz.dataset.bloqueado === '1') {
+            const total = bloqueado ? Math.max(codigosGuardados.length, 1) : Math.max(cantidad, 1);
+            for (let i = 0; i < total; i++) {
+                agregarInputCodigo(contenedor, codigosGuardados[i] || '');
+            }
+
+            if (bloqueado) {
                 contenedor.querySelectorAll('input').forEach((input) => { input.disabled = true; });
                 return;
+            }
+
+            if (cantidad > 0) {
+                raiz.dataset.cantidadFija = '1';
+                raiz.querySelectorAll('[data-agregar-codigo]').forEach((boton) => {
+                    boton.disabled = true;
+                    boton.title = 'Ingresa exactamente un número por archivo subido';
+                });
+                actualizarBotonesQuitar(contenedor);
             }
 
             raiz.querySelectorAll('[data-agregar-codigo]').forEach((boton) => {
@@ -158,6 +181,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const boton = raiz.querySelector('[data-guardar-codigos]');
         if (!pagoId || !contenedor || !boton) return;
 
+        const cantidad = parseInt(raiz.dataset.cantidadComprobantes || '0', 10);
         const codigos = [...contenedor.querySelectorAll('input')]
             .map((input) => input.value.trim())
             .filter(Boolean);
@@ -167,11 +191,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const textoOriginal = boton.textContent;
         boton.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i>Guardando…';
         try {
-            if (codigos.length === 0 || codigos.some((codigo) => !/^[0-9]+$/.test(codigo))) {
+            if (cantidad < 1) {
                 boton.innerHTML = textoOriginal;
                 boton.disabled = false;
                 if (estado) {
-                    estado.textContent = 'Ingresa al menos un número de comprobante, solo con dígitos.';
+                    estado.textContent = 'Este pago no tiene comprobantes subidos para asociar.';
+                    estado.className = 'text-xs font-bold text-red-600';
+                }
+                return;
+            }
+            if (codigos.length !== cantidad || codigos.some((codigo) => !/^[0-9]+$/.test(codigo))) {
+                boton.innerHTML = textoOriginal;
+                boton.disabled = false;
+                if (estado) {
+                    estado.textContent = 'Debe ingresar un número de comprobante para cada uno de los ' + cantidad + ' archivos subidos.';
                     estado.className = 'text-xs font-bold text-red-600';
                 }
                 return;
@@ -234,8 +267,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const botonAprobar = evento.target.closest('[data-aprobar]');
         if (botonAprobar) {
             const raiz = botonAprobar.closest('tr').querySelector('[data-pago]');
+            const cantidad = parseInt(raiz.dataset.cantidadComprobantes || '0', 10);
             const codigos = [...raiz.querySelectorAll('input')].map((input) => input.value.trim()).filter(Boolean);
-            if (!codigos.length || codigos.some((codigo) => !/^[0-9]+$/.test(codigo))) {
+            if (cantidad < 1 || codigos.length !== cantidad || codigos.some((codigo) => !/^[0-9]+$/.test(codigo))) {
                 if (modalAlertaComprobante) abrirModal(modalAlertaComprobante);
                 return;
             }
@@ -254,6 +288,18 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             if (errorDesaprobar) errorDesaprobar.classList.add('hidden');
             abrirModal(modalDesaprobar);
+            return;
+        }
+
+        const botonIncompleto = evento.target.closest('[data-incompleto]');
+        if (botonIncompleto) {
+            pagoIncompleto = botonIncompleto.dataset.incompleto;
+            if (motivoIncompleto) {
+                motivoIncompleto.value = '';
+                if (contadorMotivoIncompleto) contadorMotivoIncompleto.textContent = '0';
+            }
+            if (errorIncompleto) errorIncompleto.classList.add('hidden');
+            abrirModal(modalIncompleto);
             return;
         }
 
@@ -278,15 +324,30 @@ document.addEventListener('DOMContentLoaded', () => {
             boton.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i>Procesando…';
             try {
                 const raiz = [...document.querySelectorAll('[data-pago]')].find((fila) => fila.dataset.pago === pagoAprobar);
-                const codigos = [...raiz.querySelectorAll('input')].map((input) => input.value.trim()).filter(Boolean).join(' | ');
-                const data = await enviarAccion({ accion: 'aprobar', pago_id: pagoAprobar, codigos });
+                const cantidad = parseInt(raiz.dataset.cantidadComprobantes || '0', 10);
+                const codigos = [...raiz.querySelectorAll('input')].map((input) => input.value.trim()).filter(Boolean);
+                const mostrarError = (mensaje) => {
+                    if (errorAprobar) {
+                        errorAprobar.textContent = mensaje;
+                        errorAprobar.classList.remove('hidden');
+                    }
+                };
+                if (cantidad < 1 || codigos.length !== cantidad || codigos.some((codigo) => !/^[0-9]+$/.test(codigo))) {
+                    mostrarError('Debe ingresar un número de comprobante para cada uno de los ' + cantidad + ' archivos subidos.');
+                    boton.innerHTML = textoOriginal;
+                    boton.disabled = false;
+                    return;
+                }
+                const formData = new FormData();
+                formData.append('accion', 'aprobar');
+                formData.append('pago_id', pagoAprobar);
+                codigos.forEach((codigo) => formData.append('codigos[]', codigo));
+                const response = await fetch(URL_CONTROLADOR, { method: 'POST', body: formData });
+                const data = await response.json();
                 if (data.status === 'success') {
                     window.location.reload();
                 } else {
-                    if (errorAprobar) {
-                        errorAprobar.textContent = data.message || 'No se pudo aprobar el pago.';
-                        errorAprobar.classList.remove('hidden');
-                    }
+                    mostrarError(data.message || 'No se pudo aprobar el pago.');
                     boton.innerHTML = textoOriginal;
                     boton.disabled = false;
                 }
@@ -353,5 +414,54 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('cancelarDesaprobar').addEventListener('click', () => {
         cerrarModal(modalDesaprobar);
         pagoDesaprobar = null;
+    });
+
+    if (motivoIncompleto) {
+        motivoIncompleto.addEventListener('input', () => {
+            if (contadorMotivoIncompleto) contadorMotivoIncompleto.textContent = String(motivoIncompleto.value.length);
+        });
+    }
+
+    const confirmarIncompleto = document.getElementById('confirmarIncompleto');
+    if (confirmarIncompleto) {
+        confirmarIncompleto.addEventListener('click', async () => {
+            if (!pagoIncompleto) return;
+            const motivo = motivoIncompleto ? motivoIncompleto.value.trim() : '';
+            const mostrarError = (mensaje) => {
+                if (errorIncompleto) {
+                    errorIncompleto.textContent = mensaje;
+                    errorIncompleto.classList.remove('hidden');
+                }
+            };
+            if (!motivo) {
+                mostrarError('El motivo del pago incompleto es obligatorio.');
+                if (motivoIncompleto) motivoIncompleto.focus();
+                return;
+            }
+
+            const boton = confirmarIncompleto;
+            boton.disabled = true;
+            const textoOriginal = boton.textContent;
+            boton.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i>Procesando…';
+            try {
+                const data = await enviarAccion({ accion: 'incompleto', pago_id: pagoIncompleto, motivo });
+                if (data.status === 'success') {
+                    window.location.reload();
+                } else {
+                    mostrarError(data.message || 'No se pudo marcar el pago como incompleto.');
+                    boton.innerHTML = textoOriginal;
+                    boton.disabled = false;
+                }
+            } catch (e) {
+                mostrarError('Error de conexión con el servidor.');
+                boton.innerHTML = textoOriginal;
+                boton.disabled = false;
+            }
+        });
+    }
+
+    document.getElementById('cancelarIncompleto').addEventListener('click', () => {
+        cerrarModal(modalIncompleto);
+        pagoIncompleto = null;
     });
 });

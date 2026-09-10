@@ -86,6 +86,44 @@ if ($accion === 'listar_discos') {
     exit;
 }
 
+if ($accion === 'adjuntar_comprobante') {
+    $pagoId = (int)($_POST['pago_id'] ?? 0);
+    if ($pagoId <= 0) {
+        echo json_encode(['status' => 'error', 'message' => 'Pago no válido.']);
+        exit;
+    }
+    $comprobante = guardarComprobante($_SESSION['usuario_id']);
+    if ($comprobante['status'] !== 'success') {
+        responderErrorComprobante($comprobante['status']);
+        exit;
+    }
+
+    $resultado = $pagoDao->adjuntarComprobantePago(
+        $pagoId,
+        $_SESSION['usuario_id'],
+        $comprobante['ruta_relativa']
+    );
+
+    if ($resultado['status'] !== 'success') {
+        if (is_file($comprobante['ruta_absoluta'])) {
+            unlink($comprobante['ruta_absoluta']);
+        }
+        $mensajes = [
+            'no_autorizado' => 'Este comprobante de pago no te pertenece.',
+            'estado_invalido' => 'El pago ya no admite adjuntar más comprobantes.',
+            'no_encontrado' => 'El pago ya no está disponible.'
+        ];
+        echo json_encode(['status' => 'error', 'message' => $mensajes[$resultado['status']] ?? 'No se pudo adjuntar el comprobante.']);
+        exit;
+    }
+
+    echo json_encode([
+        'status' => 'success',
+        'message' => 'Comprobante adjuntado. El pago vuelve a estar en espera.'
+    ]);
+    exit;
+}
+
 if ($accion === 'pagar_varios') {
     $obligacionesIds = array_values(array_unique(array_filter(array_map(
         'intval',
