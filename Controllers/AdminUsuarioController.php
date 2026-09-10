@@ -4,6 +4,7 @@ session_start();
 require_once '../Config/conexion.php';
 require_once '../Dao/UsuarioDao.php';
 require_once '../Config/permisos.php';
+require_once '../Config/validacion_cedula.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -33,6 +34,19 @@ if (!is_string($token) || !isset($_SESSION['csrf_admin_usuarios']) || !hash_equa
 
 $accion = $_POST['accion'] ?? '';
 $usuarioDao = new UsuarioDao($conexion);
+
+if ($accion === 'verificar_cedula') {
+    $cedula = preg_replace('/\D+/', '', (string)($_POST['cedula'] ?? ''));
+    $usuarioId = filter_var($_POST['usuario_id'] ?? null, FILTER_VALIDATE_INT) ?: null;
+    $valida = validarCedulaEcuatoriana($cedula);
+    $disponible = $valida && !$usuarioDao->cedulaExiste($cedula, $usuarioId);
+    responderUsuario('success', $disponible
+        ? 'Cédula válida y disponible.'
+        : ($valida ? 'Ya existe un usuario con esta cédula.' : 'La cédula ecuatoriana no es válida.'), [
+        'valida' => $valida,
+        'disponible' => $disponible
+    ]);
+}
 
 if ($accion === 'buscar_usuarios_permisos') {
     $termino = is_scalar($_POST['termino'] ?? '') ? trim((string)$_POST['termino']) : '';
@@ -115,8 +129,8 @@ if (mb_strlen($nombres) > 100 || mb_strlen($apellidos) > 100) {
     responderUsuario('error', 'Los nombres y apellidos no pueden superar los 100 caracteres.');
 }
 
-if (!preg_match('/^\d{10}$/', $cedula)) {
-    responderUsuario('error', 'La cédula debe contener exactamente 10 números.');
+if (!validarCedulaEcuatoriana($cedula)) {
+    responderUsuario('error', 'Ingrese una cédula ecuatoriana válida de 10 dígitos.');
 }
 
 $fecha = DateTime::createFromFormat('!Y-m-d', $fechaNacimiento);
@@ -142,6 +156,9 @@ if ($accion === 'editar_usuario') {
     if ((int)$usuarioId === (int)$_SESSION['usuario_id'] && $rol !== 'admin') {
         responderUsuario('error', 'No puede quitarse su propio rol de administrador.');
     }
+    if ($usuarioDao->cedulaExiste($cedula, $usuarioId)) {
+        responderUsuario('error', 'Ya existe otro usuario con esta cédula.');
+    }
 
     $resultado = $usuarioDao->actualizarUsuarioAdministrable(
         $usuarioId,
@@ -152,6 +169,9 @@ if ($accion === 'editar_usuario') {
         $rol
     );
 } else {
+    if ($usuarioDao->cedulaExiste($cedula)) {
+        responderUsuario('error', 'Ya existe un usuario con esta cédula.');
+    }
     $resultado = $usuarioDao->registrarUsuario($nombres, $apellidos, $fechaNacimiento, $cedula, $rol);
 }
 

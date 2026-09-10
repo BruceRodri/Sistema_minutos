@@ -230,6 +230,18 @@ class UsuarioDao {
         return (int)$stmt->fetchColumn() === 1;
     }
 
+    public function cedulaExiste($cedula, $excluirUsuarioId = null) {
+        $sql = 'SELECT COUNT(*) FROM usuario WHERE cedula = :cedula';
+        $parametros = [':cedula' => $cedula];
+        if ($excluirUsuarioId !== null) {
+            $sql .= ' AND id <> :usuario_id';
+            $parametros[':usuario_id'] = (int)$excluirUsuarioId;
+        }
+        $stmt = $this->conexion->prepare($sql);
+        $stmt->execute($parametros);
+        return (int)$stmt->fetchColumn() > 0;
+    }
+
     public function obtenerUsuarioAdministrablePorId($id) {
         $sql = "SELECT u.id, u.nombres, u.apellidos, u.fecha_nacimiento, u.cedula,
                        u.codigo_conductor, u.codigo_socio, u.activo, r.nombre AS rol

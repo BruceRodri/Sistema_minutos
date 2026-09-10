@@ -51,8 +51,9 @@ if (isset($_SESSION['usuario_id'])) {
         <form id="loginForm">
             <div class="mb-4">
                 <label for="cedula" class="block text-gray-700 text-sm font-bold mb-2">Número de Cédula</label>
-                <input type="text" id="cedula" name="cedula" required autocomplete="off"
+                <input type="text" id="cedula" name="cedula" required autocomplete="off" inputmode="numeric" minlength="10" maxlength="10" pattern="[0-9]{10}" data-validar-cedula data-mensaje-cedula="mensajeCedulaLogin"
                     class="w-full px-3 py-2 bg-gray-50 border border-gray-300 text-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <p id="mensajeCedulaLogin" class="hidden"></p>
             </div>
             
             <div class="mb-6">
@@ -69,7 +70,8 @@ if (isset($_SESSION['usuario_id'])) {
         </form>
     </div>
 
-    <script src="Assets/js/auth.js"></script>
+    <script src="Assets/js/cedula-ecuatoriana.js?v=1"></script>
+    <script src="Assets/js/auth.js?v=2"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {

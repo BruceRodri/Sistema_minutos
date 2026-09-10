@@ -217,23 +217,24 @@ function etiquetaRolUsuario($rol) {
                 <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_admin_usuarios']); ?>">
 
                 <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <div>
-                        <label for="nombres" class="mb-2 block text-sm font-bold text-gray-700">Nombres <span class="text-red-500">*</span></label>
-                        <input id="nombres" name="nombres" type="text" maxlength="100" required autocomplete="given-name" class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200" placeholder="Nombres">
+                    <div class="md:col-span-2">
+                        <label for="cedula" class="mb-2 block text-sm font-bold text-gray-700">Cédula <span class="text-red-500">*</span></label>
+                        <input id="cedula" name="cedula" type="text" inputmode="numeric" pattern="[0-9]{10}" minlength="10" maxlength="10" required autocomplete="off" data-validar-cedula data-mensaje-cedula="mensajeCedula" class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-center font-mono outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200" placeholder="10 números">
+                        <p id="mensajeCedula" class="hidden"></p>
                     </div>
                     <div>
                         <label for="apellidos" class="mb-2 block text-sm font-bold text-gray-700">Apellidos <span class="text-red-500">*</span></label>
                         <input id="apellidos" name="apellidos" type="text" maxlength="100" required autocomplete="family-name" class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200" placeholder="Apellidos">
                     </div>
                     <div>
+                        <label for="nombres" class="mb-2 block text-sm font-bold text-gray-700">Nombres <span class="text-red-500">*</span></label>
+                        <input id="nombres" name="nombres" type="text" maxlength="100" required autocomplete="given-name" class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200" placeholder="Nombres">
+                    </div>
+                    <div>
                         <label for="fechaNacimiento" class="mb-2 block text-sm font-bold text-gray-700">Fecha de nacimiento <span class="text-red-500">*</span></label>
                         <input id="fechaNacimiento" name="fecha_nacimiento" type="date" max="<?php echo date('Y-m-d'); ?>" required class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-center outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
                     </div>
                     <div>
-                        <label for="cedula" class="mb-2 block text-sm font-bold text-gray-700">Cédula <span class="text-red-500">*</span></label>
-                        <input id="cedula" name="cedula" type="text" inputmode="numeric" pattern="[0-9]{10}" minlength="10" maxlength="10" required autocomplete="off" class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-center font-mono outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200" placeholder="10 números">
-                    </div>
-                    <div class="md:col-span-2">
                         <label for="rol" class="mb-2 block text-sm font-bold text-gray-700">Rol <span class="text-red-500">*</span></label>
                         <select id="rol" name="rol" required class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
                             <option value="">Seleccione...</option>
@@ -259,7 +260,8 @@ function etiquetaRolUsuario($rol) {
         </div>
     </div>
 
-    <script src="../../Assets/js/admin-usuarios.js?v=2"></script>
+    <script src="../../Assets/js/cedula-ecuatoriana.js?v=1"></script>
+    <script src="../../Assets/js/admin-usuarios.js?v=3"></script>
 <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {

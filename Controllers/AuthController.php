@@ -6,6 +6,7 @@ require_once '../Config/conexion.php';
 require_once '../Config/rutas.php';
 require_once '../Dao/UsuarioDao.php';
 require_once '../Config/permisos.php';
+require_once '../Config/validacion_cedula.php';
 
 header('Content-Type: application/json');
 
@@ -15,6 +16,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (empty($cedula) || empty($password)) {
         echo json_encode(['status' => 'error', 'message' => 'Por favor complete todos los campos.']);
+        exit;
+    }
+
+    if (!validarCedulaEcuatoriana($cedula)) {
+        echo json_encode(['status' => 'error', 'message' => 'Ingrese una cédula ecuatoriana válida de 10 dígitos.']);
         exit;
     }
 

@@ -4,9 +4,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const loginForm = document.getElementById('loginForm');
     const alertaError = document.getElementById('alertaError');
     const btnSubmit = document.getElementById('btnSubmit');
+    const inputCedula = document.getElementById('cedula');
 
     loginForm.addEventListener('submit', async (e) => {
         e.preventDefault(); // Evita que la página se recargue
+
+        if (!window.CedulaEcuador.validarCampo(inputCedula, true) || !loginForm.reportValidity()) {
+            return;
+        }
 
         // Ocultar alerta y cambiar texto del botón
         alertaError.classList.add('hidden');

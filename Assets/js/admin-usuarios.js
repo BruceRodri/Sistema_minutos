@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const sinUsuarios = document.getElementById('sinUsuarios');
     const accion = document.getElementById('accionUsuario');
     const usuarioId = document.getElementById('usuarioId');
+    const inputCedula = document.getElementById('cedula');
     const titulo = document.getElementById('tituloFormularioUsuario');
     const textoGuardar = document.getElementById('textoGuardarUsuario');
     const cancelarEdicion = document.getElementById('btnCancelarEdicion');
@@ -27,6 +28,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let rolPermisosActual = '';
     let temporizadorBusquedaPermisos = null;
     let busquedaPermisosActual = null;
+    let verificacionCedulaActual = null;
+    let temporizadorCedula = null;
     checksPermisos.forEach((c) => { c.disabled = true; });
 
     const abrirModal = () => {
@@ -53,12 +56,60 @@ document.addEventListener('DOMContentLoaded', () => {
         titulo.innerHTML = '<i class="fas fa-user-plus mr-2"></i>Crear nuevo usuario';
         textoGuardar.textContent = 'Guardar usuario';
         alerta.classList.add('hidden');
+        inputCedula.setCustomValidity('');
+        window.CedulaEcuador.mostrarEstado(inputCedula, '', '');
     };
 
     abrirCreacion?.addEventListener('click', () => {
         prepararCreacion();
         abrirModal();
-        window.setTimeout(() => document.getElementById('nombres')?.focus(), 50);
+        window.setTimeout(() => inputCedula?.focus(), 50);
+    });
+
+    const validarDisponibilidadCedula = async () => {
+        if (!window.CedulaEcuador.validarCampo(inputCedula, true)) return false;
+
+        verificacionCedulaActual?.abort();
+        const consulta = new AbortController();
+        verificacionCedulaActual = consulta;
+        const cedulaConsultada = inputCedula.value;
+        const cuerpo = new FormData();
+        cuerpo.append('accion', 'verificar_cedula');
+        cuerpo.append('cedula', cedulaConsultada);
+        cuerpo.append('usuario_id', usuarioId.value);
+        cuerpo.append('csrf_token', token);
+
+        try {
+            const respuesta = await fetch('../../Controllers/AdminUsuarioController.php', {
+                method: 'POST',
+                body: cuerpo,
+                signal: consulta.signal
+            });
+            const datos = await respuesta.json();
+            if (consulta.signal.aborted || inputCedula.value !== cedulaConsultada) return false;
+            if (!datos.disponible) {
+                const mensaje = datos.message || 'Esta cédula no está disponible.';
+                inputCedula.setCustomValidity(mensaje);
+                window.CedulaEcuador.mostrarEstado(inputCedula, 'error', mensaje);
+                return false;
+            }
+            inputCedula.setCustomValidity('');
+            window.CedulaEcuador.mostrarEstado(inputCedula, 'success', 'Cédula ecuatoriana válida y disponible.');
+            return true;
+        } catch (error) {
+            if (error.name === 'AbortError') return false;
+            inputCedula.setCustomValidity('No se pudo verificar si la cédula está disponible.');
+            window.CedulaEcuador.mostrarEstado(inputCedula, 'error', 'No se pudo verificar si la cédula está disponible.');
+            return false;
+        }
+    };
+
+    inputCedula?.addEventListener('input', () => {
+        verificacionCedulaActual?.abort();
+        if (temporizadorCedula) window.clearTimeout(temporizadorCedula);
+        if (window.CedulaEcuador.validar(inputCedula.value)) {
+            temporizadorCedula = window.setTimeout(validarDisponibilidadCedula, 350);
+        }
     });
 
     const cerrarPermisos = () => { modalPermisos?.classList.add('hidden'); modalPermisos?.classList.remove('flex'); };
@@ -238,7 +289,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (form) {
         form.addEventListener('submit', async (evento) => {
             evento.preventDefault();
-            if (!form.reportValidity()) return;
+            if (!window.CedulaEcuador.validarCampo(inputCedula, true) || !form.reportValidity()) return;
+            if (!await validarDisponibilidadCedula()) {
+                inputCedula.reportValidity();
+                return;
+            }
 
             boton.disabled = true;
             alerta.classList.add('hidden');
@@ -275,6 +330,8 @@ document.addEventListener('DOMContentLoaded', () => {
             titulo.innerHTML = '<i class="fas fa-user-pen mr-2"></i>Editar usuario';
             textoGuardar.textContent = 'Guardar cambios';
             alerta.classList.add('hidden');
+            window.CedulaEcuador.validarCampo(inputCedula, true);
+            validarDisponibilidadCedula();
             abrirModal();
         });
     });
