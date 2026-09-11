@@ -121,6 +121,61 @@ if ($accion === 'adjuntar_comprobante') {
     exit;
 }
 
+if ($accion === 'completar_y_pagar') {
+    $pagoIds = array_values(array_unique(array_filter(array_map(
+        'intval',
+        (array)($_POST['pago_ids'] ?? [])
+    ))));
+    $obligacionesIds = array_values(array_unique(array_filter(array_map(
+        'intval',
+        (array)($_POST['obligaciones_ids'] ?? [])
+    ))));
+    if (empty($pagoIds)) {
+        echo json_encode(['status' => 'error', 'message' => 'Selecciona al menos un pago incompleto.']);
+        exit;
+    }
+    if (empty($obligacionesIds)) {
+        echo json_encode(['status' => 'error', 'message' => 'Selecciona al menos un pago pendiente.']);
+        exit;
+    }
+
+    $comprobante = guardarComprobante($_SESSION['usuario_id']);
+    if ($comprobante['status'] !== 'success') {
+        responderErrorComprobante($comprobante['status']);
+        exit;
+    }
+
+    $resultado = $pagoDao->completarPagosYRegistrar(
+        $_SESSION['usuario_id'],
+        $pagoIds,
+        $obligacionesIds,
+        $comprobante['ruta_relativa']
+    );
+
+    if ($resultado['status'] !== 'success') {
+        if (is_file($comprobante['ruta_absoluta'])) {
+            unlink($comprobante['ruta_absoluta']);
+        }
+        $mensajes = [
+            'sin_pagos_incompletos' => 'Selecciona al menos un pago incompleto.',
+            'pagos_invalidos' => 'Uno o más pagos ya no están disponibles.',
+            'no_autorizado' => 'Uno de los pagos incompletos no te pertenece.',
+            'estado_invalido' => 'Uno de los pagos ya no admite adjuntar comprobantes.',
+            'obligaciones_invalidas' => 'Uno o más valores ya fueron pagados o dejaron de estar disponibles.',
+            'error' => 'No se pudo registrar el pago.'
+        ];
+        echo json_encode(['status' => 'error', 'message' => $mensajes[$resultado['status']] ?? 'No se pudo registrar el pago.']);
+        exit;
+    }
+
+    $descripcion = 'Pago incompleto completado y ' . $resultado['cantidad'] . ($resultado['cantidad'] === 1 ? ' día' : ' días') . ' agregados.';
+    echo json_encode([
+        'status' => 'success',
+        'message' => $descripcion . ' Total: $ ' . number_format($resultado['monto'], 2, '.', ',')
+    ]);
+    exit;
+}
+
 if ($accion === 'pagar_varios') {
     $obligacionesIds = array_values(array_unique(array_filter(array_map(
         'intval',

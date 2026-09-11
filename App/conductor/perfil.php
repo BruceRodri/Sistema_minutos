@@ -55,11 +55,11 @@ $datosPerfil = [
     <nav aria-label="Navegación de la app" class="fixed bottom-0 left-0 right-0 border-t border-gray-200 bg-white shadow-lg">
         <div class="mx-auto flex max-w-2xl">
             <a href="dashboard.php" class="flex flex-1 flex-col items-center py-3 text-gray-500"><i class="fas fa-house text-xl sm:text-2xl"></i><span class="mt-1 whitespace-nowrap text-xs sm:text-sm font-semibold leading-tight">Menú</span></a>
-            <a href="perfil.php" aria-current="page" class="flex flex-1 flex-col items-center rounded-t-xl bg-blue-600 py-3 text-white"><i class="fas fa-user text-xl sm:text-2xl"></i><span class="mt-1 whitespace-nowrap text-xs sm:text-sm font-bold leading-tight">Perfil</span></a>
             <?php if ($puedePagos): ?>
                 <a href="pagar.php" class="flex flex-1 flex-col items-center py-3 text-gray-500"><i class="fas fa-money-bill-wave text-xl sm:text-2xl"></i><span class="mt-1 whitespace-nowrap text-xs sm:text-sm font-semibold leading-tight">Pagar</span></a>
                 <a href="pagos.php" class="flex flex-1 flex-col items-center py-3 text-gray-500"><i class="fas fa-receipt text-xl sm:text-2xl"></i><span class="mt-1 whitespace-nowrap text-xs sm:text-sm font-semibold leading-tight"><span class="sm:hidden">Pagos</span><span class="hidden sm:inline">Pagos realizados</span></span></a>
             <?php endif; ?>
+            <a href="perfil.php" aria-current="page" class="flex flex-1 flex-col items-center rounded-t-xl bg-blue-600 py-3 text-white"><i class="fas fa-user text-xl sm:text-2xl"></i><span class="mt-1 whitespace-nowrap text-xs sm:text-sm font-bold leading-tight">Perfil</span></a>
         </div>
     </nav>
 </body>

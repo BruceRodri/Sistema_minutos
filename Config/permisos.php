@@ -1,10 +1,15 @@
 <?php
 
 function basePath(): string {
+    static $base = null;
+    if ($base !== null) return $base;
     $raiz = dirname(__DIR__);
-    $scriptDir = dirname($_SERVER['SCRIPT_FILENAME']);
-    $rel = ltrim(str_replace('\\', '/', substr($scriptDir, strlen($raiz))), '/');
-    return $rel ? '/' . $rel . '/' : '/';
+    $docRoot = rtrim((string)($_SERVER['DOCUMENT_ROOT'] ?? ''), '/\\');
+    $raizNorm = str_replace('\\', '/', $raiz);
+    $base = ($docRoot && str_starts_with($raizNorm, $docRoot))
+        ? rtrim(substr($raizNorm, strlen($docRoot)), '/') . '/'
+        : '/';
+    return $base;
 }
 
 function ruta(string $relativa): string {

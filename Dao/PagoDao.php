@@ -247,6 +247,148 @@ class PagoDao {
         }
     }
 
+    public function completarPagosYRegistrar($usuarioId, array $pagoIdsIncompletos, array $obligacionesIds, $comprobante) {
+        $pagoIdsIncompletos = array_values(array_unique(array_filter(array_map('intval', $pagoIdsIncompletos))));
+        $obligacionesIds = array_values(array_unique(array_filter(array_map('intval', $obligacionesIds))));
+        if (empty($pagoIdsIncompletos)) {
+            return ['status' => 'sin_pagos_incompletos'];
+        }
+
+        $manejaTransaccion = !$this->conexion->inTransaction();
+        if ($manejaTransaccion) {
+            $this->conexion->beginTransaction();
+        }
+        try {
+            $ph = implode(',', array_fill(0, count($pagoIdsIncompletos), '?'));
+            $stmt = $this->conexion->prepare(
+                "SELECT id, usuario_id, estado, monto_total, comprobante, detalle_pagos
+                 FROM pago WHERE id IN ({$ph}) AND activo = 1 FOR UPDATE"
+            );
+            $stmt->execute($pagoIdsIncompletos);
+            $pagos = $stmt->fetchAll();
+            if (count($pagos) !== count($pagoIdsIncompletos)) {
+                if ($manejaTransaccion) $this->conexion->rollBack();
+                return ['status' => 'pagos_invalidos'];
+            }
+            foreach ($pagos as $pago) {
+                if ((int)$pago['usuario_id'] !== (int)$usuarioId) {
+                    if ($manejaTransaccion) $this->conexion->rollBack();
+                    return ['status' => 'no_autorizado'];
+                }
+                if (($pago['estado'] ?? '') !== 'incompleto') {
+                    if ($manejaTransaccion) $this->conexion->rollBack();
+                    return ['status' => 'estado_invalido'];
+                }
+            }
+
+            $obligaciones = [];
+            if ($obligacionesIds) {
+                $ph2 = implode(',', array_fill(0, count($obligacionesIds), '?'));
+                $stmt = $this->conexion->prepare(
+                    "SELECT id, valor, fecha, disco, ruta
+                     FROM obligacion_pago
+                     WHERE id IN ({$ph2}) AND pagado = 0 AND pago_id IS NULL AND activo = 1 AND valor > 0
+                     FOR UPDATE"
+                );
+                $stmt->execute($obligacionesIds);
+                $obligaciones = $stmt->fetchAll();
+                if (count($obligaciones) !== count($obligacionesIds)) {
+                    if ($manejaTransaccion) $this->conexion->rollBack();
+                    return ['status' => 'obligaciones_invalidas'];
+                }
+            }
+
+            $pagoIdObjetivo = (int)$pagos[0]['id'];
+            $comprobantes = [];
+            $detalle = [];
+            $montoTotal = 0.0;
+
+            $stmtDeb = $this->conexion->prepare(
+                "SELECT fecha, disco, ruta FROM turno t
+                 INNER JOIN bus b ON t.bus_id = b.id
+                 WHERE t.pago_id = ?
+                 UNION
+                 SELECT fecha, disco, ruta FROM obligacion_pago WHERE pago_id = ?
+                 ORDER BY fecha"
+            );
+            foreach ($pagos as $pago) {
+                $comprobantes = array_merge($comprobantes, self::normalizarComprobantes($pago['comprobante'] ?? null));
+                $montoTotal += (float)$pago['monto_total'];
+                $detalleInc = json_decode($pago['detalle_pagos'] ?? '', true);
+                if (is_array($detalleInc) && count($detalleInc) > 0) {
+                    $detalle = array_merge($detalle, $detalleInc);
+                } else {
+                    $stmtDeb->execute([$pago['id'], $pago['id']]);
+                    foreach ($stmtDeb->fetchAll() as $fila) {
+                        $detalle[] = ['fecha' => $fila['fecha'], 'disco' => $fila['disco'], 'ruta' => $fila['ruta']];
+                    }
+                }
+            }
+
+            foreach ($obligaciones as $obligacion) {
+                $montoTotal += (float)$obligacion['valor'];
+                $detalle[] = [
+                    'obligacion_id' => (int)$obligacion['id'],
+                    'fecha' => $obligacion['fecha'],
+                    'disco' => $obligacion['disco'],
+                    'ruta' => $obligacion['ruta'] ?? null
+                ];
+            }
+
+            $comprobantes[] = (string)$comprobante;
+            $comprobantes = array_values(array_unique(array_filter($comprobantes, static fn($r) => trim($r) !== '')));
+
+            $stmt = $this->conexion->prepare(
+                "UPDATE pago
+                 SET monto_total = :monto, fecha_pago = CURDATE(), comprobante = :comprobante,
+                     estado = 'en_espera', motivo_rechazo = NULL, detalle_pagos = :detalle
+                 WHERE id = :id"
+            );
+            $stmt->execute([
+                ':monto' => round($montoTotal, 2),
+                ':comprobante' => self::serializarComprobantes($comprobantes),
+                ':detalle' => json_encode($detalle, JSON_UNESCAPED_UNICODE),
+                ':id' => $pagoIdObjetivo
+            ]);
+
+            if ($obligaciones) {
+                $stmt = $this->conexion->prepare(
+                    "UPDATE obligacion_pago SET pagado = 0, pago_id = :pago_id
+                     WHERE id = :id AND pagado = 0 AND pago_id IS NULL"
+                );
+                foreach ($obligaciones as $obligacion) {
+                    $stmt->execute([':pago_id' => $pagoIdObjetivo, ':id' => $obligacion['id']]);
+                }
+            }
+
+            if (count($pagos) > 1) {
+                $otros = array_map(static fn($p) => (int)$p['id'], array_slice($pagos, 1));
+                $phO = implode(',', array_fill(0, count($otros), '?'));
+                foreach (['obligacion_pago', 'turno'] as $tabla) {
+                    $stmt = $this->conexion->prepare("UPDATE {$tabla} SET pago_id = ? WHERE pago_id IN ({$phO})");
+                    $stmt->execute(array_merge([$pagoIdObjetivo], $otros));
+                }
+                $stmt = $this->conexion->prepare("UPDATE pago SET activo = 0 WHERE id IN ({$phO})");
+                $stmt->execute($otros);
+            }
+
+            if ($manejaTransaccion) {
+                $this->conexion->commit();
+            }
+            return [
+                'status' => 'success',
+                'pago_id' => $pagoIdObjetivo,
+                'cantidad' => count($obligaciones),
+                'monto' => round($montoTotal, 2)
+            ];
+        } catch (Throwable $e) {
+            if ($manejaTransaccion && $this->conexion->inTransaction()) {
+                $this->conexion->rollBack();
+            }
+            return ['status' => 'error'];
+        }
+    }
+
     public function registrarPagoManual(array $datos, $comprobante) {
         $this->conexion->beginTransaction();
         try {

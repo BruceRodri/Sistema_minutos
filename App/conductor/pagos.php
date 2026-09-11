@@ -43,14 +43,14 @@ $discosTodos = $pagoDao->obtenerTodosDiscos();
                 <a href="dashboard.php" class="px-5 py-2.5 rounded-xl font-semibold text-gray-500 hover:bg-gray-100 hover:text-blue-600 transition-colors">
                     <i class="fas fa-house mr-2"></i>Menú
                 </a>
-                <a href="perfil.php" class="px-5 py-2.5 rounded-xl font-semibold text-gray-500 hover:bg-gray-100 hover:text-blue-600 transition-colors">
-                    <i class="fas fa-user mr-2"></i>Perfil
-                </a>
                 <a href="pagar.php" class="px-5 py-2.5 rounded-xl font-semibold text-gray-500 hover:bg-gray-100 hover:text-blue-600 transition-colors">
                     <i class="fas fa-money-bill-wave mr-2"></i>Pagar
                 </a>
                 <a href="pagos.php" class="px-5 py-2.5 rounded-xl font-bold text-white bg-blue-600 shadow-lg transition-colors">
                     <i class="fas fa-receipt mr-2"></i>Pagos realizados
+                </a>
+                <a href="perfil.php" class="px-5 py-2.5 rounded-xl font-semibold text-gray-500 hover:bg-gray-100 hover:text-blue-600 transition-colors">
+                    <i class="fas fa-user mr-2"></i>Perfil
                 </a>
             </div>
         </div>
@@ -103,10 +103,6 @@ $discosTodos = $pagoDao->obtenerTodosDiscos();
                 <i class="fas fa-house text-xl sm:text-2xl"></i>
                 <span class="text-xs sm:text-sm font-semibold mt-1 whitespace-nowrap leading-tight">Menú</span>
             </a>
-            <a href="perfil.php" class="flex flex-col items-center py-3 text-gray-500 hover:text-blue-600 transition-colors">
-                <i class="fas fa-user text-xl sm:text-2xl"></i>
-                <span class="text-xs sm:text-sm font-semibold mt-1 whitespace-nowrap leading-tight">Perfil</span>
-            </a>
             <a href="pagar.php" class="flex flex-col items-center py-3 text-gray-500 hover:text-blue-600 transition-colors">
                 <i class="fas fa-money-bill-wave text-xl sm:text-2xl"></i>
                 <span class="text-xs sm:text-sm font-semibold mt-1 whitespace-nowrap leading-tight">Pagar</span>
@@ -114,6 +110,10 @@ $discosTodos = $pagoDao->obtenerTodosDiscos();
             <a href="pagos.php" class="flex flex-col items-center py-3 text-white bg-blue-600 rounded-t-xl -mt-1 shadow-lg transition-colors">
                 <i class="fas fa-receipt text-xl sm:text-2xl"></i>
                 <span class="text-xs sm:text-sm font-bold mt-1 whitespace-nowrap leading-tight"><span class="sm:hidden">Pagos</span><span class="hidden sm:inline">Pagos realizados</span></span>
+            </a>
+            <a href="perfil.php" class="flex flex-col items-center py-3 text-gray-500 hover:text-blue-600 transition-colors">
+                <i class="fas fa-user text-xl sm:text-2xl"></i>
+                <span class="text-xs sm:text-sm font-semibold mt-1 whitespace-nowrap leading-tight">Perfil</span>
             </a>
         </div>
     </nav>

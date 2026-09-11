@@ -13,21 +13,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     let incompletos = datos.incompletos || [];
-    function renderIncompletos() {
-        document.getElementById('pagosIncompletos').classList.toggle('hidden', !incompletos.length);
-        document.getElementById('tarjetasIncompletas').innerHTML = incompletos.map(tarjetaPago).join('');
-        vincularBotonesRecibo();
-    }
+    let ultimosPendientes = Array.isArray(pagables) ? pagables : [];
+
     inicializarSubirRestante((pagoId) => {
         incompletos = incompletos.filter((p) => String(p.id) !== String(pagoId));
-        renderIncompletos();
+        window.renderizarPendientes(ultimosPendientes);
     });
-    renderIncompletos();
 
     let discos = Array.isArray(datos.discos) ? datos.discos : [];
     let indiceTarjetas = 0;
     let flujoActivo = null;   // 'card' | 'multi'
     let idsAPagar = [];
+    let idsIncompletosApagar = [];
 
     // ---------- Utilidades ----------
     function soloNumeros(e) {
@@ -69,14 +66,27 @@ document.addEventListener('DOMContentLoaded', () => {
         return null;
     }
 
+    // Convierte un pago incompleto al mismo formato de tarjetas del carrusel.
+    function itemIncompleto(pagoInc) {
+        const disco = (Array.isArray(pagoInc.discos) && String(pagoInc.discos[0] || '') !== '')
+            ? pagoInc.discos[0]
+            : '';
+        return {
+            _incompleto: true,
+            id: 'inc-' + pagoInc.id,
+            pagoId: pagoInc.id,
+            disco: disco,
+            fechaLegible: pagoInc.fechaPagoLegible || formatearFechaISO(pagoInc.fecha_pago),
+            valor: typeof pagoInc.monto === 'number' ? pagoInc.monto : parseFloat(pagoInc.monto || 0),
+            valorFmt: pagoInc.montoFmt || Number(pagoInc.monto || 0).toFixed(2),
+            motivo: pagoInc.motivo_rechazo || 'Adjunta el comprobante del valor restante.',
+            ruta: ''
+        };
+    }
+
     async function ejecutarPago() {
-        const formData = new FormData();
-        formData.append('accion', 'pagar_varios');
-        idsAPagar.forEach((id) => formData.append('obligaciones_ids[]', id));
         const archivo = inputComprobante.files[0];
         if (!archivo) return;
-        formData.append('archivo', archivo);
-
         const alerta = flujoActivo === 'card' ? alertaTarjetas : alertaVarios;
         if (alerta) {
             clearTimeout(Number(alerta.dataset.timer) || 0);
@@ -85,34 +95,103 @@ document.addEventListener('DOMContentLoaded', () => {
             alerta.classList.remove('hidden');
         }
 
-        try {
-            const response = await fetch(urlControlador, { method: 'POST', body: formData });
-            const data = await response.json();
-            mostrarAlerta(alerta, data.status === 'success' ? 'success' : 'error', data.message);
-            if (data.status === 'success') {
-                quitarPagados(idsAPagar);
-                if (window.marcarCambioPendiente) window.marcarCambioPendiente(8000);
+        let errores = [];
+        let completados = 0;
+
+        if (idsIncompletosApagar.length && idsAPagar.length) {
+            const formData = new FormData();
+            formData.append('accion', 'completar_y_pagar');
+            idsIncompletosApagar.forEach((id) => formData.append('pago_ids[]', id));
+            idsAPagar.forEach((id) => formData.append('obligaciones_ids[]', id));
+            formData.append('archivo', archivo);
+            try {
+                const response = await fetch(urlControlador, { method: 'POST', body: formData });
+                const data = await response.json();
+                if (data.status === 'success') {
+                    completados++;
+                    incompletos = incompletos.filter((p) => !idsIncompletosApagar.some((id) => String(p.id) === String(id)));
+                    quitarPagados(idsAPagar);
+                } else {
+                    errores.push(data.message);
+                }
+            } catch (error) {
+                console.error(error);
+                errores.push('Error de conexión con el servidor.');
             }
-        } catch (error) {
-            console.error(error);
-            mostrarAlerta(alerta, 'error', 'Error de conexión con el servidor.');
-        } finally {
-            inputComprobante.value = '';
-            flujoActivo = null;
-            idsAPagar = [];
+        } else if (idsIncompletosApagar.length) {
+            for (const pagoId of idsIncompletosApagar) {
+                const formData = new FormData();
+                formData.append('accion', 'adjuntar_comprobante');
+                formData.append('pago_id', pagoId);
+                formData.append('archivo', archivo);
+                try {
+                    const response = await fetch(urlControlador, { method: 'POST', body: formData });
+                    const data = await response.json();
+                    if (data.status === 'success') {
+                        completados++;
+                        incompletos = incompletos.filter((p) => String(p.id) !== String(pagoId));
+                    } else {
+                        errores.push(data.message);
+                    }
+                } catch (error) {
+                    console.error(error);
+                    errores.push('Error de conexión con el servidor.');
+                }
+            }
         }
+
+        if (idsAPagar.length) {
+            const formData = new FormData();
+            formData.append('accion', 'pagar_varios');
+            idsAPagar.forEach((id) => formData.append('obligaciones_ids[]', id));
+            formData.append('archivo', archivo);
+            try {
+                const response = await fetch(urlControlador, { method: 'POST', body: formData });
+                const data = await response.json();
+                if (data.status === 'success') {
+                    completados++;
+                    quitarPagados(idsAPagar);
+                } else {
+                    errores.push(data.message);
+                }
+            } catch (error) {
+                console.error(error);
+                errores.push('Error de conexión con el servidor.');
+            }
+        }
+
+        if (completados > 0) {
+            const mensaje = idsAPagar.length && idsIncompletosApagar.length
+                ? 'Pago incompleto completado y días agregados en un solo pago.'
+                : (idsAPagar.length
+                    ? 'Pago registrado correctamente.'
+                    : 'Comprobante adjuntado. El pago vuelve a estar en espera.');
+            mostrarAlerta(alerta, 'success', mensaje);
+            if (idsIncompletosApagar.length) window.renderizarPendientes(ultimosPendientes);
+            if (window.marcarCambioPendiente) window.marcarCambioPendiente(8000);
+        } else if (errores.length) {
+            mostrarAlerta(alerta, 'error', errores[0]);
+        }
+
+        inputComprobante.value = '';
+        flujoActivo = null;
+        idsAPagar = [];
+        idsIncompletosApagar = [];
     }
 
     function quitarPagados(ids) {
         const pagados = new Set(ids.map((id) => String(id)));
+        ultimosPendientes = ultimosPendientes.filter((p) => !pagados.has(String(p.id)));
         if (carrusel) {
             carrusel.querySelectorAll('.cardPagar').forEach((card) => {
-                if (pagados.has(String(card.dataset.id))) card.remove();
+                if (pagados.has(String(card.dataset.id)) || (card.dataset.pagoId && pagados.has(String(card.dataset.pagoId)))) {
+                    card.remove();
+                }
             });
             todasLasTarjetas = [...carrusel.querySelectorAll('.cardPagar')];
         }
-        document.querySelectorAll('.checkDia').forEach((check) => {
-            if (pagados.has(String(check.value))) check.closest('.checkDiaFila')?.remove();
+        document.querySelectorAll('.checkGlob').forEach((check) => {
+            if (pagados.has(String(check.value))) check.closest('.checkGlobFila')?.remove();
         });
         aplicarFiltro();
         renderCarrusel();
@@ -126,13 +205,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const sinSeleccion = document.getElementById('sinSeleccion');
     const verVarios = document.getElementById('verVarios');
     const bloqueCarrusel = document.getElementById('bloqueCarrusel');
+    const bannerIncompletos = document.getElementById('bannerIncompletos');
     const carrusel = document.getElementById('carrusel');
     const puntosTarjetas = document.getElementById('puntosTarjetas');
     const sinResultados = document.getElementById('sinResultadosDisco');
     const volverTarjetas = document.getElementById('volverTarjetas');
     const vistaCarousel = document.getElementById('vistaCarousel');
     const vistaMulti = document.getElementById('vistaMulti');
-    let filasDia = [...document.querySelectorAll('.checkDiaFila')];
+    let filasDia = [...document.querySelectorAll('.checkGlobFila')];
     const totalVarios = document.getElementById('totalVarios');
     const detalleVarios = document.getElementById('detalleVarios');
     const inputComprobante = document.getElementById('inputComprobante');
@@ -157,6 +237,101 @@ document.addEventListener('DOMContentLoaded', () => {
                 ? []
                 : todasLasTarjetas.filter((c) => discExacto(c.dataset.disco, bruto))
         );
+    }
+
+    // ---------- Plantillas de tarjeta del carrusel ----------
+    function tarjetaCompleta(p) {
+        if (p._incompleto) {
+            return `
+                <article data-id="${p.id}" data-incompleto="1" data-pago-id="${p.pagoId}"
+                         data-disco="${esc(p.disco)}"
+                         data-fecha="${esc(p.fechaLegible)}"
+                         data-valor="${esc(p.valorFmt)}"
+                         class="cardPagar snap-center shrink-0 w-[82%] max-w-[340px] md:w-auto md:max-w-none md:shrink min-h-0 bg-gradient-to-br from-orange-400 to-orange-600 rounded-3xl p-7 lg:p-9 shadow-xl text-white cursor-pointer active:scale-95 transition-transform">
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                            <p class="text-orange-100 text-sm lg:text-base font-bold uppercase tracking-widest"><i class="fas fa-triangle-exclamation mr-1"></i>Pago incompleto</p>
+                            <p class="text-2xl lg:text-3xl font-bold mt-1">${esc(p.fechaLegible)}</p>
+                        </div>
+                        <span class="bg-white text-orange-600 font-extrabold px-4 py-2 rounded-full text-lg lg:text-xl shadow max-w-full break-all">Disco ${esc(p.disco)}</span>
+                    </div>
+                    <div class="mt-9 lg:mt-11 text-center">
+                        <div class="text-7xl lg:text-8xl font-extrabold leading-none">
+                            <span class="align-top text-4xl lg:text-5xl">$</span>${esc(p.valorFmt)}
+                        </div>
+                    </div>
+                    <div class="mt-7 rounded-2xl bg-white/15 border border-white/30 px-4 py-3">
+                        <p class="text-sm lg:text-base font-bold text-white break-words"><i class="fas fa-triangle-exclamation mr-1"></i>${esc(p.motivo)}</p>
+                    </div>
+                    <button type="button" data-subir-restante="${p.pagoId}"
+                        class="mt-5 w-full flex items-center justify-center gap-2 rounded-xl bg-white py-3 text-lg font-extrabold text-orange-600 hover:bg-orange-100 transition-colors">
+                        <i class="fas fa-upload"></i>Subir valor restante
+                    </button>
+                </article>`;
+        }
+        return `
+            <article data-id="${p.id}"
+                     data-disco="${esc(p.disco)}"
+                     data-fecha="${esc(p.fechaLegible)}"
+                     data-valor="${esc(p.valorFmt)}"
+                     class="cardPagar snap-center shrink-0 w-[82%] max-w-[340px] md:w-auto md:max-w-none md:shrink min-h-0 bg-gradient-to-br from-blue-500 to-blue-700 rounded-3xl p-7 lg:p-9 shadow-xl text-white cursor-pointer active:scale-95 transition-transform">
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                        <p class="text-blue-100 text-sm lg:text-base font-bold uppercase tracking-widest">${p.hoy ? 'Pago de hoy' : 'Pago pendiente'}</p>
+                        <p class="text-2xl lg:text-3xl font-bold mt-1">${esc(p.fechaLegible)}</p>
+                    </div>
+                    <span class="bg-white text-blue-700 font-extrabold px-4 py-2 rounded-full text-lg lg:text-xl shadow max-w-full break-all">Disco ${esc(p.disco)}</span>
+                </div>
+                <div class="mt-9 lg:mt-11 text-center">
+                    <div class="text-7xl lg:text-8xl font-extrabold leading-none">
+                        <span class="align-top text-4xl lg:text-5xl">$</span>${esc(p.valorFmt)}
+                    </div>
+                </div>
+                <div class="mt-9 lg:mt-11 flex items-center gap-3 justify-center">
+                    <i class="fas fa-route text-2xl"></i>
+                    <span class="text-xl lg:text-2xl font-bold truncate">${esc(p.ruta)}</span>
+                </div>
+                <span class="mt-5 flex items-center justify-center gap-2 rounded-xl bg-white py-3 text-lg font-extrabold text-blue-700"><i class="fas fa-money-bill-wave"></i>Pagar</span>
+            </article>`;
+    }
+
+    // ---------- Plantillas de fila para el pago múltiple ----------
+    function filaMulti(p) {
+        if (p._incompleto) {
+            return `
+                <label class="checkIncFila checkGlobFila flex items-center gap-4 p-5 lg:p-6 cursor-pointer hover:bg-orange-50 transition-colors bg-orange-50/60">
+                    <input type="checkbox" class="checkGlob w-7 h-7 lg:w-8 lg:h-8 accent-orange-500 shrink-0"
+                           value="${p.pagoId}"
+                           data-tipo="inc"
+                           data-valor="${esc(p.valor)}"
+                           data-disco="${esc(p.disco)}"
+                           data-fecha="${esc(p.fechaLegible)}"
+                           data-valorfmt="${esc(p.valorFmt)}">
+                    <div class="flex-1 min-w-0">
+                        <p class="font-bold text-orange-700 text-xl lg:text-2xl"><i class="fas fa-triangle-exclamation mr-1"></i>${esc(p.fechaLegible)}</p>
+                        <p class="text-sm lg:text-base text-orange-600 truncate mt-1">Pago incompleto · ${esc(p.motivo)}</p>
+                    </div>
+                    <p class="font-extrabold text-orange-700 text-2xl lg:text-3xl whitespace-nowrap">$ ${esc(p.valorFmt)}</p>
+                </label>`;
+        }
+        return `
+            <label class="checkDiaFila checkGlobFila flex items-center gap-4 p-5 lg:p-6 cursor-pointer hover:bg-blue-50 transition-colors">
+                <input type="checkbox" class="checkDia checkGlob w-7 h-7 lg:w-8 lg:h-8 accent-blue-600 shrink-0"
+                       value="${p.id}"
+                       data-tipo="oblig"
+                       data-valor="${esc(p.valor)}"
+                       data-disco="${esc(p.disco)}"
+                       data-fecha="${esc(p.fechaLegible)}"
+                       data-valorfmt="${esc(p.valorFmt)}">
+                <div class="flex-1 min-w-0">
+                    <p class="font-bold text-gray-800 text-xl lg:text-2xl">${esc(p.fechaLegible)}</p>
+                    <p class="text-lg text-gray-500 truncate mt-1">
+                        <i class="fas fa-route mr-1"></i>${esc(p.ruta)}
+                        <span class="mx-1">·</span>Disco ${esc(p.disco)}
+                    </p>
+                </div>
+                <p class="font-extrabold text-blue-700 text-2xl lg:text-3xl whitespace-nowrap">$ ${esc(p.valorFmt)}</p>
+            </label>`;
     }
 
     // ---------- Lista de discos (filtro en vivo, sin peticiones al servidor) ----------
@@ -230,6 +405,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ---------- Filtrado por disco (tarjetas y lista múltiple) ----------
     function aplicarFiltro() {
         const bruto = brutoActual();
+        if (bannerIncompletos) bannerIncompletos.classList.add('hidden');
         if (bruto === '') {
             sinSeleccion.classList.remove('hidden');
             verVarios.classList.add('hidden');
@@ -250,22 +426,27 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        if (bannerIncompletos) {
+            const hayIncompletos = visibles.some((c) => c.dataset.incompleto === '1');
+            bannerIncompletos.classList.toggle('hidden', !hayIncompletos);
+        }
+
         verVarios.classList.toggle('hidden', visibles.length <= 1);
         bloqueCarrusel.classList.remove('hidden');
         sinResultados.classList.add('hidden');
         indiceTarjetas = Math.min(indiceTarjetas, visibles.length - 1);
 
         filasDia.forEach((fila) => {
-            const discoFila = fila.querySelector('.checkDia').dataset.disco;
+            const discoFila = fila.querySelector('.checkGlob').dataset.disco;
             const ok = discExacto(discoFila, bruto);
             fila.classList.toggle('hidden', !ok);
-            if (!ok) fila.querySelector('.checkDia').checked = false;
+            if (!ok) fila.querySelector('.checkGlob').checked = false;
         });
         calcularTotal();
     }
 
     function desmarcarTodos() {
-        document.querySelectorAll('.checkDia').forEach((c) => { c.checked = false; });
+        document.querySelectorAll('.checkGlob').forEach((c) => { c.checked = false; });
         calcularTotal();
     }
 
@@ -381,13 +562,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // ---------- Pago múltiple: total dinámico ----------
     function calcularTotal() {
         if (!totalVarios) return;
-        const checksVisibles = [...document.querySelectorAll('.checkDia')]
-            .filter((c) => !c.closest('.checkDiaFila').classList.contains('hidden'));
+        const checksVisibles = [...document.querySelectorAll('.checkGlob')]
+            .filter((c) => !c.closest('.checkGlobFila').classList.contains('hidden'));
         let total = 0;
         checksVisibles.forEach((c) => { if (c.checked) total += parseFloat(c.dataset.valor || 0); });
         totalVarios.textContent = total.toFixed(2);
+        const cant = checksVisibles.filter((c) => c.checked).length;
         detalleVarios.textContent = total > 0
-            ? `${checksVisibles.filter((c) => c.checked).length} día(s) seleccionado(s) · Disco ${inputDisco.value}`
+            ? `${cant} seleccionado(s) · Disco ${inputDisco.value}`
             : 'Selecciona al menos un día.';
     }
 
@@ -401,61 +583,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const listaDias = document.getElementById('listaDiasPagables');
 
+    // ---------- Render principal: incompletos primero + pendientes ----------
     window.renderizarPendientes = function (pendientes) {
-        const lista = Array.isArray(pendientes) ? pendientes : [];
+        ultimosPendientes = Array.isArray(pendientes) ? pendientes : [];
+        const incItems = incompletos.map(itemIncompleto);
+        const todos = [...incItems, ...ultimosPendientes];
+
         if (carrusel) {
-            carrusel.innerHTML = lista.map((p) => `
-                <article data-id="${p.id}"
-                         data-disco="${esc(p.disco)}"
-                         data-fecha="${esc(p.fechaLegible)}"
-                         data-valor="${esc(p.valorFmt)}"
-                         class="cardPagar snap-center shrink-0 w-[82%] max-w-[340px] md:w-auto md:max-w-none md:shrink min-h-0 bg-gradient-to-br from-blue-500 to-blue-700 rounded-3xl p-7 lg:p-9 shadow-xl text-white cursor-pointer active:scale-95 transition-transform">
-                    <div class="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                            <p class="text-blue-100 text-sm lg:text-base font-bold uppercase tracking-widest">${p.hoy ? 'Pago de hoy' : 'Pago pendiente'}</p>
-                            <p class="text-2xl lg:text-3xl font-bold mt-1">${esc(p.fechaLegible)}</p>
-                        </div>
-                        <span class="bg-white text-blue-700 font-extrabold px-4 py-2 rounded-full text-lg lg:text-xl shadow max-w-full break-all">Disco ${esc(p.disco)}</span>
-                    </div>
-                    <div class="mt-9 lg:mt-11 text-center">
-                        <div class="text-7xl lg:text-8xl font-extrabold leading-none">
-                            <span class="align-top text-4xl lg:text-5xl">$</span>${esc(p.valorFmt)}
-                        </div>
-                    </div>
-                    <div class="mt-9 lg:mt-11 flex items-center gap-3 justify-center bg-white/20 rounded-2xl px-4 py-4">
-                        <i class="fas fa-route text-2xl"></i>
-                        <span class="text-xl lg:text-2xl font-bold truncate">${esc(p.ruta)}</span>
-                    </div>
-                    <span class="mt-5 flex items-center justify-center gap-2 rounded-xl bg-white py-3 text-lg font-extrabold text-blue-700"><i class="fas fa-money-bill-wave"></i>Pagar</span>
-                </article>
-            `).join('');
+            carrusel.innerHTML = todos.map(tarjetaCompleta).join('');
         }
         if (listaDias) {
-            if (!lista.length) {
+            if (!todos.length) {
                 listaDias.innerHTML = '<div class="p-8 text-center"><i class="fas fa-circle-check text-green-500 text-4xl mb-3"></i><p class="text-2xl text-gray-600">No hay pagos pendientes para este disco.</p></div>';
             } else {
-                listaDias.innerHTML = lista.map((p) => `
-                    <label class="checkDiaFila flex items-center gap-4 p-5 lg:p-6 cursor-pointer hover:bg-blue-50 transition-colors">
-                        <input type="checkbox" class="checkDia w-7 h-7 lg:w-8 lg:h-8 accent-blue-600 shrink-0"
-                               value="${p.id}"
-                               data-valor="${esc(p.valor)}"
-                               data-disco="${esc(p.disco)}"
-                               data-fecha="${esc(p.fechaLegible)}"
-                               data-valorfmt="${esc(p.valorFmt)}">
-                        <div class="flex-1 min-w-0">
-                            <p class="font-bold text-gray-800 text-xl lg:text-2xl">${esc(p.fechaLegible)}</p>
-                            <p class="text-lg text-gray-500 truncate mt-1">
-                                <i class="fas fa-route mr-1"></i>${esc(p.ruta)}
-                                <span class="mx-1">·</span>Disco ${esc(p.disco)}
-                            </p>
-                        </div>
-                        <p class="font-extrabold text-blue-700 text-2xl lg:text-3xl whitespace-nowrap">$ ${esc(p.valorFmt)}</p>
-                    </label>
-                `).join('');
+                listaDias.innerHTML = todos.map(filaMulti).join('');
             }
         }
         todasLasTarjetas = carrusel ? [...carrusel.querySelectorAll('.cardPagar')] : [];
-        filasDia = [...document.querySelectorAll('.checkDiaFila')];
+        filasDia = [...document.querySelectorAll('.checkGlobFila')];
         desmarcarTodos();
         aplicarFiltro();
         renderCarrusel();
@@ -464,36 +609,44 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (listaDias) {
         listaDias.addEventListener('change', (evento) => {
-            if (evento.target.classList.contains('checkDia')) calcularTotal();
+            if (evento.target.classList.contains('checkGlob')) calcularTotal();
         });
     }
 
     if (btnPagarVarios) {
         btnPagarVarios.addEventListener('click', () => {
-            const seleccionados = [...document.querySelectorAll('.checkDia')]
-                .filter((c) => !c.closest('.checkDiaFila').classList.contains('hidden') && c.checked);
+            const seleccionados = [...document.querySelectorAll('.checkGlob')]
+                .filter((c) => !c.closest('.checkGlobFila').classList.contains('hidden') && c.checked);
             if (!seleccionados.length) {
                 mostrarAlerta(alertaVarios, 'error', 'Selecciona al menos un día para pagar.');
                 return;
             }
+            const idsObligacion = seleccionados.filter((c) => c.dataset.tipo !== 'inc').map((c) => c.value);
+            const idsIncompletos = seleccionados.filter((c) => c.dataset.tipo === 'inc').map((c) => c.value);
             const total = seleccionados.reduce((suma, c) => suma + parseFloat(c.dataset.valor || 0), 0);
             const disco = seleccionados[0].dataset.disco;
+
             let mensaje;
-            if (seleccionados.length === 1) {
+            if (idsIncompletos.length && !idsObligacion.length) {
+                mensaje = `¿Está seguro de completar ${resaltar(`${idsIncompletos.length} pago(s) incompleto(s)`)} del ${resaltar('DISCO ' + disco)} por un total de $ ${resaltar(total.toFixed(2))}?`;
+            } else if (idsIncompletos.length && idsObligacion.length) {
+                mensaje = `¿Está seguro de completar ${resaltar(`${idsIncompletos.length} pago(s) incompleto(s)`)} y pagar ${resaltar(`${idsObligacion.length} día(s)`)} del ${resaltar('DISCO ' + disco)} por un total de $ ${resaltar(total.toFixed(2))}?`;
+            } else if (idsObligacion.length === 1) {
                 mensaje = mensajeConfirmar('¿Está seguro de registrar el pago', seleccionados[0].dataset.disco, seleccionados[0].dataset.fecha, seleccionados[0].dataset.valorfmt);
             } else {
                 const fechas = seleccionados.map((c) => esc(c.dataset.fecha)).join(', ');
-                mensaje = `¿Está seguro de registrar el pago de ${resaltar(`${seleccionados.length} día(s)`)} del ${resaltar('DISCO ' + disco)} (${fechas}) por un total de $ ${resaltar(total.toFixed(2))}?`;
+                mensaje = `¿Está seguro de registrar el pago de ${resaltar(`${idsObligacion.length} día(s)`)} del ${resaltar('DISCO ' + disco)} (${fechas}) por un total de $ ${resaltar(total.toFixed(2))}?`;
             }
-            abrirModal(mensaje, 'multi', seleccionados.map((c) => c.value));
+            abrirModal(mensaje, 'multi', idsObligacion, idsIncompletos);
         });
     }
 
     // ---------- Confirmación vía modal ----------
-    function abrirModal(mensaje, flujo, ids) {
+    function abrirModal(mensaje, flujo, ids, idsIncompletos) {
         modalMensaje.innerHTML = mensaje;
         flujoActivo = flujo;
-        idsAPagar = ids;
+        idsAPagar = Array.isArray(ids) ? ids : [];
+        idsIncompletosApagar = Array.isArray(idsIncompletos) ? idsIncompletos : [];
         modal.classList.remove('hidden');
         modal.classList.add('flex');
     }
@@ -503,6 +656,7 @@ document.addEventListener('DOMContentLoaded', () => {
         modal.classList.remove('flex');
         flujoActivo = null;
         idsAPagar = [];
+        idsIncompletosApagar = [];
     }
 
     if (modalCancelar) modalCancelar.addEventListener('click', cerrarModal);
@@ -511,20 +665,29 @@ document.addEventListener('DOMContentLoaded', () => {
         modalAceptar.addEventListener('click', () => {
             const flujo = flujoActivo;
             const ids = [...idsAPagar];
+            const idsInc = [...idsIncompletosApagar];
             cerrarModal();
-            if (!flujo || !ids.length) return;
+            if (!flujo || (!ids.length && !idsInc.length)) return;
             flujoActivo = flujo;
             idsAPagar = ids;
+            idsIncompletosApagar = idsInc;
             [alertaTarjetas, alertaVarios].forEach((a) => { if (a) a.classList.add('hidden'); });
             inputComprobante.click();
         });
     }
 
-    // ---------- Tarjeta del carrusel: confirmar y luego subir comprobante ----------
+    // ---------- Tarjeta del carrusel: incompleto sube restante, pendiente paga ----------
     if (carrusel) {
         carrusel.addEventListener('click', (evento) => {
             const card = evento.target.closest('.cardPagar');
             if (!card) return;
+            if (card.dataset.incompleto === '1') {
+                if (!evento.target.closest('[data-subir-restante]')) {
+                    const boton = card.querySelector('[data-subir-restante]');
+                    if (boton) boton.click();
+                }
+                return;
+            }
             const mensaje = mensajeConfirmar('¿Está seguro de registrar el pago pendiente', card.dataset.disco, card.dataset.fecha, card.dataset.valor);
             abrirModal(mensaje, 'card', [card.dataset.id]);
         });
@@ -541,13 +704,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 inputComprobante.value = '';
                 flujoActivo = null;
                 idsAPagar = [];
+                idsIncompletosApagar = [];
                 return;
             }
             await ejecutarPago();
         });
     }
-
-    // ---------- Estado inicial: no se muestra nada hasta elegir un disco ----------
 
     // ---------- Tiempo real (SSE) ----------
     let silencioHasta = 0;
@@ -565,7 +727,6 @@ document.addEventListener('DOMContentLoaded', () => {
             ultimoHash = datos.hash || null;
             if (Array.isArray(datos.discos)) discos = datos.discos;
             incompletos = datos.incompletos || [];
-            renderIncompletos();
             window.renderizarPendientes(datos.pendientes);
         } catch (error) {
             console.error(error);

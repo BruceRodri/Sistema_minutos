@@ -51,14 +51,14 @@ $discoInicial = null;
                 <a href="dashboard.php" class="px-5 py-2.5 rounded-xl font-semibold text-gray-500 hover:bg-gray-100 hover:text-blue-600 transition-colors">
                     <i class="fas fa-house mr-2"></i>Menú
                 </a>
-                <a href="perfil.php" class="px-5 py-2.5 rounded-xl font-semibold text-gray-500 hover:bg-gray-100 hover:text-blue-600 transition-colors">
-                    <i class="fas fa-user mr-2"></i>Perfil
-                </a>
                 <a href="pagar.php" class="px-5 py-2.5 rounded-xl font-bold text-white bg-blue-600 shadow-lg transition-colors">
                     <i class="fas fa-money-bill-wave mr-2"></i>Pagar
                 </a>
                 <a href="pagos.php" class="px-5 py-2.5 rounded-xl font-semibold text-gray-500 hover:bg-gray-100 hover:text-blue-600 transition-colors">
                     <i class="fas fa-receipt mr-2"></i>Pagos realizados
+                </a>
+                <a href="perfil.php" class="px-5 py-2.5 rounded-xl font-semibold text-gray-500 hover:bg-gray-100 hover:text-blue-600 transition-colors">
+                    <i class="fas fa-user mr-2"></i>Perfil
                 </a>
             </div>
         </div>
@@ -92,10 +92,6 @@ $discoInicial = null;
             </div>
         </header>
 
-        <section id="pagosIncompletos" class="hidden mb-8" aria-label="Pagos incompletos">
-            <h2 class="text-2xl font-bold text-orange-700 mb-4">Completar mis pagos</h2>
-            <div id="tarjetasIncompletas" class="grid gap-4 md:grid-cols-2 xl:grid-cols-3"></div>
-        </section>
         <!-- ================= VISTA CARRUSEL ================= -->
         <section id="vistaCarousel">
 
@@ -103,6 +99,11 @@ $discoInicial = null;
                 <i class="fas fa-compact-disc text-blue-300 text-6xl mb-4"></i>
                 <p class="text-2xl lg:text-3xl font-bold text-gray-700 mb-2">Selecciona un disco</p>
                 <p class="text-xl lg:text-2xl text-gray-500">Usa la casilla <span class="font-bold text-blue-700">Disco</span> de arriba para ver sus pagos pendientes.</p>
+            </div>
+
+            <div id="bannerIncompletos" class="hidden mb-6 p-5 rounded-2xl bg-orange-50 border-2 border-orange-200">
+                <p class="text-xl lg:text-2xl font-bold text-orange-700"><i class="fas fa-triangle-exclamation mr-2"></i>Completar mis pagos</p>
+                <p class="text-base lg:text-lg text-orange-600 mt-1">Tienes pagos incompletos para este disco. Adjunta el valor restante.</p>
             </div>
 
             <button id="verVarios" type="button"
@@ -194,10 +195,6 @@ $discoInicial = null;
                 <i class="fas fa-house text-xl sm:text-2xl"></i>
                 <span class="text-xs sm:text-sm font-semibold mt-1 whitespace-nowrap leading-tight">Menú</span>
             </a>
-            <a href="perfil.php" class="flex flex-col items-center py-3 text-gray-500 hover:text-blue-600 transition-colors">
-                <i class="fas fa-user text-xl sm:text-2xl"></i>
-                <span class="text-xs sm:text-sm font-semibold mt-1 whitespace-nowrap leading-tight">Perfil</span>
-            </a>
             <a href="pagar.php" class="flex flex-col items-center py-3 text-white bg-blue-600 rounded-t-xl -mt-1 shadow-lg transition-colors">
                 <i class="fas fa-money-bill-wave text-xl sm:text-2xl"></i>
                 <span class="text-xs sm:text-sm font-bold mt-1 whitespace-nowrap leading-tight">Pagar</span>
@@ -205,6 +202,10 @@ $discoInicial = null;
             <a href="pagos.php" class="flex flex-col items-center py-3 text-gray-500 hover:text-blue-600 transition-colors">
                 <i class="fas fa-receipt text-xl sm:text-2xl"></i>
                 <span class="text-xs sm:text-sm font-semibold mt-1 whitespace-nowrap leading-tight"><span class="sm:hidden">Pagos</span><span class="hidden sm:inline">Pagos realizados</span></span>
+            </a>
+            <a href="perfil.php" class="flex flex-col items-center py-3 text-gray-500 hover:text-blue-600 transition-colors">
+                <i class="fas fa-user text-xl sm:text-2xl"></i>
+                <span class="text-xs sm:text-sm font-semibold mt-1 whitespace-nowrap leading-tight">Perfil</span>
             </a>
         </div>
     </nav>

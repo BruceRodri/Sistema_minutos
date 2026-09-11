@@ -68,12 +68,11 @@ $fechaHoy = date('d/m/Y');
                     </span>
                 <?php endif; ?>
             </div>
-            <div class="w-14 h-14 rounded-2xl bg-blue-100 text-blue-700 flex items-center justify-center">
+            <a href="perfil.php" class="w-14 h-14 rounded-2xl bg-blue-100 text-blue-700 flex items-center justify-center hover:bg-blue-200 transition-colors" title="Ver mi perfil" aria-label="Ver mi perfil">
                 <i class="fas fa-user text-2xl"></i>
-            </div>
+            </a>
         </div>
 
-        <a href="perfil.php" class="my-4 text-center font-bold text-blue-700">Ver mi perfil</a>
         <!-- Botones principales -->
         <div class="flex-1 flex flex-col justify-center gap-6">
             <?php if ($puedeQr): ?><button id="btnAbrirTurno" class="group bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 border-2 border-blue-300 hover:border-blue-500 text-blue-900 font-bold py-14 px-4 rounded-2xl shadow-md hover:shadow-lg text-2xl transition-all flex flex-col items-center justify-center active:scale-95">

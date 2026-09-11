@@ -16,7 +16,7 @@
                                 <span class="align-top text-4xl lg:text-5xl">$</span><?php echo $card['valorFmt']; ?>
                             </div>
                         </div>
-                        <div class="mt-9 lg:mt-11 flex items-center gap-3 justify-center bg-white/20 rounded-2xl px-4 py-4">
+                        <div class="mt-9 lg:mt-11 flex items-center gap-3 justify-center">
                             <i class="fas fa-route text-2xl"></i>
                             <span class="text-xl lg:text-2xl font-bold truncate"><?php echo htmlspecialchars($card['ruta']); ?></span>
                         </div>
