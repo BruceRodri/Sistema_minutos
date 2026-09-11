@@ -48,6 +48,9 @@ $discoInicial = null;
         <div class="w-full max-w-7xl mx-auto flex items-center justify-between px-10 py-4">
             <span class="font-bold text-gray-800 text-lg"><i class="fas fa-clock text-blue-600 mr-2"></i>Minutos</span>
             <div class="flex gap-2">
+                <a href="dashboard.php" class="px-5 py-2.5 rounded-xl font-semibold text-gray-500 hover:bg-gray-100 hover:text-blue-600 transition-colors">
+                    <i class="fas fa-house mr-2"></i>Menú
+                </a>
                 <a href="perfil.php" class="px-5 py-2.5 rounded-xl font-semibold text-gray-500 hover:bg-gray-100 hover:text-blue-600 transition-colors">
                     <i class="fas fa-user mr-2"></i>Perfil
                 </a>
@@ -93,8 +96,6 @@ $discoInicial = null;
             <h2 class="text-2xl font-bold text-orange-700 mb-4">Completar mis pagos</h2>
             <div id="tarjetasIncompletas" class="grid gap-4 md:grid-cols-2 xl:grid-cols-3"></div>
         </section>
-        <input id="comprobanteRestante" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" class="hidden">
-        <p id="avisoRestante" role="status" class="mb-4 text-lg"></p>
         <!-- ================= VISTA CARRUSEL ================= -->
         <section id="vistaCarousel">
 
@@ -176,20 +177,34 @@ $discoInicial = null;
         </div>
     </div>
 
+    <!-- Visor de comprobantes -->
+    <dialog id="visorRecibo" class="w-[95vw] max-w-3xl rounded-2xl p-4 backdrop:bg-black/60">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="font-bold text-xl">Comprobante de pago</h2>
+            <button id="cerrarRecibo" type="button" class="p-3 rounded-xl bg-gray-100" aria-label="Cerrar comprobante"><i class="fas fa-times"></i></button>
+        </div>
+        <div id="contenidoRecibo" class="overflow-auto max-h-[70vh]"></div>
+        <a id="descargarRecibo" class="block mt-4 rounded-xl bg-blue-600 py-3 text-center text-white font-bold">Descargar comprobante</a>
+    </dialog>
+
     <!-- Barra de navegación inferior (móvil) -->
     <nav class="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
-        <div class="grid grid-cols-3 w-full max-w-xl mx-auto">
+        <div class="grid grid-cols-4 w-full max-w-xl mx-auto">
+            <a href="dashboard.php" class="flex flex-col items-center py-3 text-gray-500 hover:text-blue-600 transition-colors">
+                <i class="fas fa-house text-xl sm:text-2xl"></i>
+                <span class="text-xs sm:text-sm font-semibold mt-1 whitespace-nowrap leading-tight">Menú</span>
+            </a>
             <a href="perfil.php" class="flex flex-col items-center py-3 text-gray-500 hover:text-blue-600 transition-colors">
-                <i class="fas fa-user text-2xl"></i>
-                <span class="text-base font-semibold mt-1">Perfil</span>
+                <i class="fas fa-user text-xl sm:text-2xl"></i>
+                <span class="text-xs sm:text-sm font-semibold mt-1 whitespace-nowrap leading-tight">Perfil</span>
             </a>
             <a href="pagar.php" class="flex flex-col items-center py-3 text-white bg-blue-600 rounded-t-xl -mt-1 shadow-lg transition-colors">
-                <i class="fas fa-money-bill-wave text-2xl"></i>
-                <span class="text-base font-bold mt-1">Pagar</span>
+                <i class="fas fa-money-bill-wave text-xl sm:text-2xl"></i>
+                <span class="text-xs sm:text-sm font-bold mt-1 whitespace-nowrap leading-tight">Pagar</span>
             </a>
             <a href="pagos.php" class="flex flex-col items-center py-3 text-gray-500 hover:text-blue-600 transition-colors">
-                <i class="fas fa-receipt text-2xl"></i>
-                <span class="text-base font-semibold mt-1">Pagos realizados</span>
+                <i class="fas fa-receipt text-xl sm:text-2xl"></i>
+                <span class="text-xs sm:text-sm font-semibold mt-1 whitespace-nowrap leading-tight"><span class="sm:hidden">Pagos</span><span class="hidden sm:inline">Pagos realizados</span></span>
             </a>
         </div>
     </nav>
@@ -197,11 +212,12 @@ $discoInicial = null;
     <script id="datosPagar" type="application/json">
     <?php echo json_encode([
         'pagables' => $pagables,
-        'incompletos' => pagosIncompletosVista($pagoDao, (int)$_SESSION['usuario_id']),
+        'incompletos' => pagosIncompletosVista($pagoDao),
         'discos' => $discos,
         'discoInicial' => $discoInicial
     ], JSON_UNESCAPED_UNICODE); ?>
     </script>
+    <script src="../../Assets/js/tarjeta_pago.js?v=<?php echo hash_file('sha256', __DIR__ . '/../../Assets/js/tarjeta_pago.js'); ?>"></script>
     <script src="../../Assets/js/pagar.js?v=<?php echo hash_file('sha256', __DIR__ . '/../../Assets/js/pagar.js'); ?>"></script>
 <script>
         if ('serviceWorker' in navigator) {

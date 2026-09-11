@@ -25,9 +25,6 @@ function guardarComprobante($usuarioId) {
         }
         return ['status' => 'sin_archivo'];
     }
-    if ($archivo['size'] > 5 * 1024 * 1024) {
-        return ['status' => 'muy_grande'];
-    }
 
     $mime = (new finfo(FILEINFO_MIME_TYPE))->file($archivo['tmp_name']);
     $extensiones = [
@@ -63,7 +60,7 @@ function guardarComprobante($usuarioId) {
 function responderErrorComprobante($estado) {
     $mensajes = [
         'sin_archivo' => 'No se recibió el comprobante.',
-        'muy_grande' => 'El archivo supera el tamaño máximo de 5 MB.',
+        'muy_grande' => 'El archivo es demasiado grande para el servidor.',
         'tipo_invalido' => 'Solo se permiten imágenes JPG, PNG, WEBP y documentos PDF.',
         'error' => 'No se pudo guardar el comprobante.'
     ];

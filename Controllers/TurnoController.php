@@ -22,8 +22,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $accion = $_POST['accion'] ?? '';
 
     if ($accion === 'abrir_turno') {
-        if ($_SESSION['rol'] !== 'conductor') {
-            echo json_encode(['status' => 'error', 'message' => 'Solo los conductores pueden abrir turnos.']);
+        if (!in_array($_SESSION['rol'] ?? '', ['conductor', 'socio'], true)) {
+            echo json_encode(['status' => 'error', 'message' => 'Solo los conductores y socios pueden abrir turnos.']);
             exit;
         }
 

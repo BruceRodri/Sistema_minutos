@@ -37,7 +37,6 @@ $datosPerfil = [
 <body class="min-h-screen bg-gradient-to-b from-blue-50 to-gray-100 text-gray-800">
     <?php include __DIR__ . '/components/cambio_interfaz.php'; ?>
     <main class="mx-auto max-w-2xl px-4 pt-6 pb-32">
-        <a href="dashboard.php" class="inline-flex items-center gap-2 font-bold text-blue-700"><i class="fas fa-arrow-left"></i>Volver al menú</a>
         <header class="my-6 flex items-center gap-4">
             <div class="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-blue-600 text-3xl text-white"><i class="fas fa-user"></i></div>
             <div><h1 class="text-3xl font-bold">Mi perfil</h1><p class="text-gray-600">Tus datos y tu contraseña</p></div>
@@ -55,10 +54,11 @@ $datosPerfil = [
     </main>
     <nav aria-label="Navegación de la app" class="fixed bottom-0 left-0 right-0 border-t border-gray-200 bg-white shadow-lg">
         <div class="mx-auto flex max-w-2xl">
-            <a href="perfil.php" aria-current="page" class="flex flex-1 flex-col items-center rounded-t-xl bg-blue-600 py-3 text-white"><i class="fas fa-user text-2xl"></i><span class="mt-1 font-bold">Perfil</span></a>
+            <a href="dashboard.php" class="flex flex-1 flex-col items-center py-3 text-gray-500"><i class="fas fa-house text-xl sm:text-2xl"></i><span class="mt-1 whitespace-nowrap text-xs sm:text-sm font-semibold leading-tight">Menú</span></a>
+            <a href="perfil.php" aria-current="page" class="flex flex-1 flex-col items-center rounded-t-xl bg-blue-600 py-3 text-white"><i class="fas fa-user text-xl sm:text-2xl"></i><span class="mt-1 whitespace-nowrap text-xs sm:text-sm font-bold leading-tight">Perfil</span></a>
             <?php if ($puedePagos): ?>
-                <a href="pagar.php" class="flex flex-1 flex-col items-center py-3 text-gray-500"><i class="fas fa-money-bill-wave text-2xl"></i><span class="mt-1 font-semibold">Pagar</span></a>
-                <a href="pagos.php" class="flex flex-1 flex-col items-center py-3 text-gray-500"><i class="fas fa-receipt text-2xl"></i><span class="mt-1 font-semibold">Pagos realizados</span></a>
+                <a href="pagar.php" class="flex flex-1 flex-col items-center py-3 text-gray-500"><i class="fas fa-money-bill-wave text-xl sm:text-2xl"></i><span class="mt-1 whitespace-nowrap text-xs sm:text-sm font-semibold leading-tight">Pagar</span></a>
+                <a href="pagos.php" class="flex flex-1 flex-col items-center py-3 text-gray-500"><i class="fas fa-receipt text-xl sm:text-2xl"></i><span class="mt-1 whitespace-nowrap text-xs sm:text-sm font-semibold leading-tight"><span class="sm:hidden">Pagos</span><span class="hidden sm:inline">Pagos realizados</span></span></a>
             <?php endif; ?>
         </div>
     </nav>

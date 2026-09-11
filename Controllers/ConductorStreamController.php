@@ -56,7 +56,7 @@ do {
     }
 
     $snapshot = snapshotConductor($pagoDao);
-    $snapshot['incompletos'] = pagosIncompletosVista($pagoDao, $usuarioId);
+    $snapshot['incompletos'] = pagosIncompletosVista($pagoDao);
     $hash = hash('sha256', json_encode($snapshot, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
 
     if ($hash !== $ultimoHash) {

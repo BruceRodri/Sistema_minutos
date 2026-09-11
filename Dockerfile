@@ -12,8 +12,8 @@ RUN apt-get update && apt-get install -y \
 RUN a2enmod rewrite
 
 # Límites de subida de comprobantes (la app permite hasta 5 MB)
-RUN echo 'upload_max_filesize = 5M' > /usr/local/etc/php/conf.d/zz-uploads.ini \
-    && echo 'post_max_size = 8M' >> /usr/local/etc/php/conf.d/zz-uploads.ini
+RUN echo 'upload_max_filesize = 512M' > /usr/local/etc/php/conf.d/zz-uploads.ini \
+    && echo 'post_max_size = 512M' >> /usr/local/etc/php/conf.d/zz-uploads.ini
 
 # Instalar Composer globalmente
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer

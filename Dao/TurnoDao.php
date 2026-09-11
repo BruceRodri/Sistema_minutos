@@ -73,11 +73,11 @@ class TurnoDao {
                     INNER JOIN rol r ON u.rol_id = r.id
                     INNER JOIN estado_usuario eu ON u.estado_usuario_id = eu.id
                     WHERE u.id = :usuario_id
-                      AND u.codigo_conductor IS NOT NULL
                       AND u.activo = 1
-                      AND r.nombre = 'conductor'
                       AND r.activo = 1
-                      AND eu.activo = 1";
+                      AND eu.activo = 1
+                      AND ((u.codigo_conductor IS NOT NULL AND r.nombre = 'conductor')
+                           OR (u.codigo_socio IS NOT NULL AND r.nombre = 'socio'))";
             $stmt = $this->conexion->prepare($sql);
             $stmt->execute([
                 ':usuario_id' => $usuario_id,

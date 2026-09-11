@@ -91,7 +91,7 @@ function obtenerFiltrosPagosManuales() {
     return normalizarFiltrosPagos($filtros);
 }
 
-function pagosIncompletosVista($dao, $usuarioId) {
-    return array_values(array_filter(pagosParaVista($dao, $usuarioId),
+function pagosIncompletosVista($dao) {
+    return array_values(array_filter(pagosTodosVista($dao),
         static fn($p) => $p['estado'] === 'incompleto'));
 }
