@@ -14,8 +14,7 @@ class ValoresDao {
     public function archivoExiste() {
         clearstatcache(true, self::RUTA_XLSX . '.subido');
         $marca = self::RUTA_XLSX . '.subido';
-        return is_file($marca) && date('Y-m-d', filemtime($marca)) === date('Y-m-d')
-            && date('H:i') < '23:59';
+        return is_file($marca);
     }
 
     public function fechaSubida() {

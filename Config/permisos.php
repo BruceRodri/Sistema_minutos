@@ -1,15 +1,26 @@
 <?php
 
+function basePath(): string {
+    $raiz = dirname(__DIR__);
+    $scriptDir = dirname($_SERVER['SCRIPT_FILENAME']);
+    $rel = ltrim(str_replace('\\', '/', substr($scriptDir, strlen($raiz))), '/');
+    return $rel ? '/' . $rel . '/' : '/';
+}
+
+function ruta(string $relativa): string {
+    return basePath() . ltrim($relativa, '/');
+}
+
 function catalogoModulosSistema(): array {
     return [
-        'app_qr' => ['grupo' => 'APP', 'nombre' => 'QR', 'icono' => 'fa-qrcode', 'ruta' => '/App/conductor/dashboard.php'],
-        'app_pagos' => ['grupo' => 'APP', 'nombre' => 'Pagos', 'icono' => 'fa-money-bill-wave', 'ruta' => '/App/conductor/pagar.php'],
-        'web_dashboard' => ['grupo' => 'WEB', 'nombre' => 'Dashboard', 'icono' => 'fa-chart-line', 'ruta' => '/Web/admin/dashboard.php'],
-        'web_buses' => ['grupo' => 'WEB', 'nombre' => 'Buses', 'icono' => 'fa-bus', 'ruta' => '/Web/admin/buses.php'],
-        'web_turnos' => ['grupo' => 'WEB', 'nombre' => 'Turnos', 'icono' => 'fa-clock', 'ruta' => '/Web/admin/turnos.php'],
-        'web_pagos' => ['grupo' => 'WEB', 'nombre' => 'Pagos', 'icono' => 'fa-file-circle-check', 'ruta' => '/Web/admin/pagos.php'],
-        'web_socios' => ['grupo' => 'WEB', 'nombre' => 'Socios', 'icono' => 'fa-id-card', 'ruta' => '/Web/admin/socios.php'],
-        'web_valores' => ['grupo' => 'WEB', 'nombre' => 'Valores diarios', 'icono' => 'fa-file-excel', 'ruta' => '/Web/admin/valores.php'],
+        'app_qr' => ['grupo' => 'APP', 'nombre' => 'QR', 'icono' => 'fa-qrcode', 'ruta' => ruta('App/conductor/dashboard.php')],
+        'app_pagos' => ['grupo' => 'APP', 'nombre' => 'Pagos', 'icono' => 'fa-money-bill-wave', 'ruta' => ruta('App/conductor/pagar.php')],
+        'web_dashboard' => ['grupo' => 'WEB', 'nombre' => 'Dashboard', 'icono' => 'fa-chart-line', 'ruta' => ruta('Web/admin/dashboard.php')],
+        'web_buses' => ['grupo' => 'WEB', 'nombre' => 'Buses', 'icono' => 'fa-bus', 'ruta' => ruta('Web/admin/buses.php')],
+        'web_turnos' => ['grupo' => 'WEB', 'nombre' => 'Turnos', 'icono' => 'fa-clock', 'ruta' => ruta('Web/admin/turnos.php')],
+        'web_pagos' => ['grupo' => 'WEB', 'nombre' => 'Pagos', 'icono' => 'fa-file-circle-check', 'ruta' => ruta('Web/admin/pagos.php')],
+        'web_socios' => ['grupo' => 'WEB', 'nombre' => 'Socios', 'icono' => 'fa-id-card', 'ruta' => ruta('Web/admin/socios.php')],
+        'web_valores' => ['grupo' => 'WEB', 'nombre' => 'Valores diarios', 'icono' => 'fa-file-excel', 'ruta' => ruta('Web/admin/valores.php')],
     ];
 }
 
