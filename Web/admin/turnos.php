@@ -200,7 +200,7 @@ function formatearDiscoHistorial($disco) {
                             <span class="w-9 h-9 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center mr-3">
                                 <i class="fas fa-id-badge"></i>
                             </span>
-                            Buscar por conductor
+                            Buscar por conductor/socio
                         </label>
                         <input type="search" id="filtroConductor" name="conductor" value="<?php echo htmlspecialchars($filtroConductor); ?>" placeholder="Ej.: 003"
                                class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-center font-mono focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none">
@@ -259,7 +259,7 @@ function formatearDiscoHistorial($disco) {
                     <thead class="bg-gray-50">
                         <tr>
                             <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Disco</th>
-                            <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Conductor</th>
+                            <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Conductor/Socio</th>
                             <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Fecha</th>
                             <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Estado</th>
                             <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Comentario / motivo</th>

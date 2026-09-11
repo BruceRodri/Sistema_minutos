@@ -1,6 +1,6 @@
 <?php if (empty($pagos)): ?>
                             <tr>
-                                <td colspan="9" class="px-6 py-12 text-center text-gray-500">
+                                <td colspan="10" class="px-6 py-12 text-center text-gray-500">
                                     <i class="fas fa-receipt text-3xl mb-3 text-gray-300"></i>
                                     <p>No hay pagos que coincidan con los filtros seleccionados.</p>
                                 </td>
@@ -45,6 +45,18 @@
                                     <?php foreach ($rutas as $ruta): ?>
                                         <p class="text-sm text-gray-600 truncate"><i class="fas fa-route mr-1 text-indigo-400"></i><?php echo htmlspecialchars($ruta); ?></p>
                                     <?php endforeach; ?>
+                                </td>
+                                <td class="px-5 py-4 whitespace-nowrap text-center">
+                                    <?php if ($p['valores_individuales']): ?>
+                                        <?php foreach ($p['valores_individuales'] as $item): ?>
+                                            <p class="text-sm text-gray-700 whitespace-nowrap">
+                                                <span class="text-xs text-gray-400 font-mono"><?php echo htmlspecialchars($item['disco']); ?></span>
+                                                <span class="ml-2 font-semibold">$ <?php echo number_format((float)$item['valor'], 2, '.', ','); ?></span>
+                                            </p>
+                                        <?php endforeach; ?>
+                                    <?php else: ?>
+                                        <span class="text-sm text-gray-400">—</span>
+                                    <?php endif; ?>
                                 </td>
                                 <td class="px-5 py-4 whitespace-nowrap text-center">
                                     <span class="text-base font-extrabold text-gray-800">$ <?php echo number_format((float)$p['monto_total'], 2, '.', ','); ?></span>

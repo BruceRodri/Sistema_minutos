@@ -16,6 +16,55 @@ if (!isset($_SESSION['usuario_id']) || !usuarioPuedeVerModulo($conexion, 'web_so
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $accion = $_POST['accion'] ?? '';
 
+    if ($accion === 'buscar_discos') {
+        $q = trim((string)($_POST['q'] ?? ''));
+        if ($q === '') {
+            echo json_encode(['status' => 'success', 'discos' => []]);
+            exit;
+        }
+        $socioDao = new SocioDao($conexion);
+        echo json_encode(['status' => 'success', 'discos' => $socioDao->buscarDiscosDisponibles($q)]);
+        exit;
+    }
+
+    if ($accion === 'asignar_discos') {
+        $usuario_id = filter_var($_POST['usuario_id'] ?? null, FILTER_VALIDATE_INT);
+        $busIds = array_values(array_unique(array_filter(array_map(
+            'intval',
+            (array)($_POST['bus_ids'] ?? [])
+        ))));
+
+        if (!$usuario_id) {
+            echo json_encode(['status' => 'error', 'message' => 'Seleccione un socio válido.']);
+            exit;
+        }
+
+        if (empty($busIds)) {
+            echo json_encode(['status' => 'error', 'message' => 'Agregue al menos un disco a la lista.']);
+            exit;
+        }
+
+        $socioDao = new SocioDao($conexion);
+        $resultado = $socioDao->asignarDiscos($busIds, $usuario_id);
+
+        if ($resultado['status'] === 'socio_invalido') {
+            echo json_encode(['status' => 'error', 'message' => 'El socio no existe o está deshabilitado.']);
+        } elseif ($resultado['status'] === 'error' && empty($resultado['asignados'])) {
+            echo json_encode(['status' => 'error', 'message' => 'Ninguno de los discos seleccionados pudo asignarse.']);
+        } elseif ($resultado['status'] === 'success') {
+            $total = count($resultado['asignados']);
+            $errores = count($resultado['errores']);
+            $mensaje = $total . ($total === 1 ? ' disco asignado' : ' discos asignados') . ' correctamente.';
+            if ($errores > 0) {
+                $mensaje .= ' ' . $errores . ($errores === 1 ? ' disco no estaba disponible' : ' discos no estaban disponibles') . '.';
+            }
+            echo json_encode(['status' => 'success', 'message' => $mensaje]);
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'No se pudieron asignar los discos.']);
+        }
+        exit;
+    }
+
     if ($accion === 'asignar_disco') {
         $bus_id = filter_var($_POST['bus_id'] ?? null, FILTER_VALIDATE_INT);
         $usuario_id = filter_var($_POST['usuario_id'] ?? null, FILTER_VALIDATE_INT);

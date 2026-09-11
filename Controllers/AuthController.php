@@ -35,7 +35,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $interfazAlterna = $interfazInicial === 'APP' ? 'WEB' : 'APP';
         $redirect = rutaPrimeraInterfaz($permisos, $interfazInicial)
             ?? rutaPrimeraInterfaz($permisos, $interfazAlterna);
-        if ($redirect !== null) $redirect = ltrim($redirect, '/');
+        if ($redirect !== null && !str_starts_with($redirect, '/')) {
+            $redirect = '/' . $redirect;
+        }
 
         if ($redirect === null) {
             echo json_encode([

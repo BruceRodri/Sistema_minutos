@@ -186,29 +186,43 @@ foreach ($sociosConBuses as $fila) {
 
     <!-- Modal Asignar Disco -->
     <div id="modalAgregarDisco" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-6">
-        <div class="bg-white rounded-2xl p-8 w-full max-w-sm shadow-2xl">
+        <div class="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl">
             <div class="mb-6 w-12 h-12 mx-auto rounded-full bg-blue-100 flex items-center justify-center">
                 <i class="fas fa-bus text-blue-600 text-xl"></i>
             </div>
-            <h3 class="text-xl font-bold text-gray-800 text-center mb-1">Agregar Disco</h3>
+            <h3 class="text-xl font-bold text-gray-800 text-center mb-1">Agregar Discos</h3>
             <p id="modalSocioLabel" class="text-sm text-gray-500 text-center mb-6"></p>
 
             <form id="formAgregarDisco">
                 <input type="hidden" id="agregarUsuarioId" name="usuario_id">
-                <div class="mb-6">
-                    <label for="agregarBusId" class="block text-gray-600 text-sm font-bold mb-2">Discos disponibles</label>
-                    <select id="agregarBusId" name="bus_id" class="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all" required>
-                        <option value="">Seleccione un disco...</option>
-                        <?php foreach ($discosDisponibles as $disco): ?>
-                            <option value="<?php echo (int)$disco['id']; ?>">
-                                Disco <?php echo htmlspecialchars($disco['disco']); ?> — <?php echo htmlspecialchars($disco['placa']); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
+                <div class="mb-4">
+                    <label for="buscarDisco" class="block text-gray-600 text-sm font-bold mb-2">Buscar por número de disco o placa</label>
+                    <div class="relative">
+                        <i class="fas fa-search absolute left-3 top-3.5 text-gray-400"></i>
+                        <input id="buscarDisco" type="search" placeholder="Escriba el número de disco..." autocomplete="off"
+                               class="w-full rounded-lg border border-gray-300 bg-white pl-10 pr-3 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none">
+                    </div>
+                    <p id="estadoBusquedaDisco" role="status" class="mt-2 text-xs text-gray-500"></p>
+                    <ul id="sugerenciasDisco" class="max-h-48 overflow-y-auto divide-y divide-gray-100 border border-gray-200 rounded-lg mt-1 hidden" aria-label="Discos encontrados"></ul>
                 </div>
+
+                <div id="tablaDiscosAgregar" class="mb-6 hidden">
+                    <p class="text-sm font-bold text-gray-700 mb-2">Discos a asignar</p>
+                    <table class="min-w-full divide-y divide-gray-200 border border-gray-200 rounded-lg overflow-hidden">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-3 py-2 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Disco</th>
+                                <th class="px-3 py-2 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Placa</th>
+                                <th class="px-3 py-2 w-10"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyDiscosAgregar" class="bg-white divide-y divide-gray-100"></tbody>
+                    </table>
+                </div>
+
                 <div class="flex gap-3">
                     <button type="button" id="btnCancelarAgregarDisco" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2.5 px-4 rounded-lg transition-all">Cancelar</button>
-                    <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-4 rounded-lg transition-all">Asignar</button>
+                    <button type="submit" id="btnAsignarDiscos" disabled class="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold py-2.5 px-4 rounded-lg transition-all">Asignar</button>
                 </div>
             </form>
         </div>

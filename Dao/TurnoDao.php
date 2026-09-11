@@ -291,7 +291,7 @@ class TurnoDao {
                     SELECT CONCAT('turno-', t.id) AS registro_id,
                            t.id, t.fecha, t.hora_apertura, t.hora_cierre,
                            b.id AS bus_id, b.disco,
-                           u.id AS conductor_id, u.codigo_conductor,
+                           u.id AS conductor_id, u.codigo_usuario AS codigo_conductor,
                            CONCAT_WS(' ', u.nombres, u.apellidos) AS nombre_conductor,
                            CASE WHEN t.activo = 0 AND t.cancelado_en IS NOT NULL THEN 'deshabilitado' ELSE 'abierto' END AS estado,
                            CASE WHEN t.activo = 0 AND t.cancelado_en IS NOT NULL THEN t.comentario_cancelacion ELSE NULL END AS motivo,
@@ -305,7 +305,7 @@ class TurnoDao {
                     SELECT CONCAT('intento-', i.id) AS registro_id,
                            i.id, i.fecha, i.hora_intento AS hora_apertura, NULL AS hora_cierre,
                            i.bus_id, COALESCE(b.disco, NULLIF(i.disco_escaneado, ''), '—') AS disco,
-                           u.id AS conductor_id, u.codigo_conductor,
+                           u.id AS conductor_id, u.codigo_usuario AS codigo_conductor,
                            CONCAT_WS(' ', u.nombres, u.apellidos) AS nombre_conductor,
                            'fallido' AS estado, i.motivo, NULL AS rehabilitado_en
                     FROM intento_turno i
@@ -331,7 +331,7 @@ class TurnoDao {
         [$condiciones, $parametros] = $this->construirFiltrosTurnos($disco, $codigoConductor, $fecha, $estado);
         $sql = "SELECT COUNT(*)
                 FROM (
-                    SELECT b.disco, u.codigo_conductor, t.fecha,
+                    SELECT b.disco, u.codigo_usuario AS codigo_conductor, t.fecha,
                            CASE WHEN t.activo = 0 AND t.cancelado_en IS NOT NULL THEN 'deshabilitado' ELSE 'abierto' END AS estado
                     FROM turno t
                     INNER JOIN bus b ON t.bus_id = b.id
@@ -340,7 +340,7 @@ class TurnoDao {
                     UNION ALL
 
                     SELECT COALESCE(b.disco, NULLIF(i.disco_escaneado, ''), '—') AS disco,
-                           u.codigo_conductor, i.fecha, 'fallido' AS estado
+                           u.codigo_usuario AS codigo_conductor, i.fecha, 'fallido' AS estado
                     FROM intento_turno i
                     LEFT JOIN bus b ON i.bus_id = b.id
                     INNER JOIN usuario u ON i.usuario_id = u.id

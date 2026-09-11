@@ -141,6 +141,7 @@ sort($discosPendientes, SORT_NATURAL);
                             <th class="px-5 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Disco</th>
                             <th class="px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Fecha(s) pagada(s)</th>
                             <th class="px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Ruta(s)</th>
+                            <th class="px-5 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Valores individuales</th>
                             <th class="px-5 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Valor Total</th>
                             <th class="px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Nro. Comprobante</th>
                             <th class="px-5 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Comprobante</th>
