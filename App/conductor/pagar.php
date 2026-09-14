@@ -234,6 +234,7 @@ $discoInicial = null;
         'discoInicial' => $discoInicial
     ], JSON_UNESCAPED_UNICODE); ?>
     </script>
+    <script src="../../Assets/js/comprimir_comprobante.js?v=<?php echo hash_file('sha256', __DIR__ . '/../../Assets/js/comprimir_comprobante.js'); ?>"></script>
     <script src="../../Assets/js/tarjeta_pago.js?v=<?php echo hash_file('sha256', __DIR__ . '/../../Assets/js/tarjeta_pago.js'); ?>"></script>
     <script src="../../Assets/js/pagar.js?v=<?php echo hash_file('sha256', __DIR__ . '/../../Assets/js/pagar.js'); ?>"></script>
 <script>

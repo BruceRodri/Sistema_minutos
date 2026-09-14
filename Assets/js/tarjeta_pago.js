@@ -318,13 +318,16 @@ function inicializarSubirRestante(onCompletado) {
     });
 
     input.addEventListener('change', async () => {
-        const archivo = input.files[0];
+        let archivo = input.files[0];
         if (!archivo) return;
         const error = validarArchivoRestante(archivo);
         if (error) {
             mostrarAviso(error, true);
             input.value = '';
             return;
+        }
+        if (typeof window.comprimirComprobante === 'function') {
+            archivo = await window.comprimirComprobante(archivo);
         }
         if (botonEnviar) {
             botonEnviar.disabled = true;

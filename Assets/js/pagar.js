@@ -91,8 +91,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function ejecutarPago() {
-        const archivo = inputComprobante.files[0];
-        if (!archivo) return;
+        const archivoBruto = inputComprobante.files[0];
+        if (!archivoBruto) return;
+        const archivo = typeof window.comprimirComprobante === 'function'
+            ? await window.comprimirComprobante(archivoBruto)
+            : archivoBruto;
         const alerta = flujoActivo === 'card' ? alertaTarjetas : alertaVarios;
         if (alerta) {
             clearTimeout(Number(alerta.dataset.timer) || 0);

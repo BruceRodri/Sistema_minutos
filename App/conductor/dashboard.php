@@ -151,10 +151,27 @@ $fechaHoy = date('d/m/Y');
             const TZ = 'America/Guayaquil';
             const optsHora = { hourCycle: 'h23', hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: TZ };
             const optsFecha = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: TZ };
+            //timezone support check
+            const soportaTZ = (() => {
+                try { new Intl.DateTimeFormat('es-EC', { timeZone: TZ }); return true; }
+                catch (_) { return false; }
+            })();
+            const diasSemana = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+            const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+            const rellenar = n => String(n).padStart(2, '0');
             const actualizar = () => {
                 const ahora = new Date();
-                $hora.textContent = ahora.toLocaleTimeString('es-EC', optsHora);
-                $fecha.textContent = ahora.toLocaleDateString('es-EC', optsFecha);
+                if (soportaTZ) {
+                    try {
+                        $hora.textContent = ahora.toLocaleTimeString('es-EC', optsHora);
+                        $fecha.textContent = ahora.toLocaleDateString('es-EC', optsFecha);
+                        return;
+                    } catch (_) {}
+                }
+                const utc = ahora.getTime() + ahora.getTimezoneOffset() * 60000;
+                const local = new Date(utc - 5 * 3600000);
+                $hora.textContent = rellenar(local.getUTCHours()) + ':' + rellenar(local.getUTCMinutes()) + ':' + rellenar(local.getUTCSeconds());
+                $fecha.textContent = diasSemana[local.getUTCDay()] + ', ' + local.getUTCDate() + ' de ' + meses[local.getUTCMonth()] + ' de ' + local.getUTCFullYear();
             };
             actualizar();
             setInterval(actualizar, 1000);

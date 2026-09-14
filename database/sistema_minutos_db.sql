@@ -3,7 +3,7 @@
 DROP DATABASE IF EXISTS sistema_minutos_db;
 CREATE DATABASE sistema_minutos_db
 CHARACTER SET utf8mb4
-COLLATE utf8mb4_0900_ai_ci;
+COLLATE utf8mb4_unicode_ci;
 
 USE sistema_minutos_db;
 
@@ -15,14 +15,14 @@ CREATE TABLE `estado_usuario` (
   `nombre` varchar(50) NOT NULL,
   `activo` tinyint(1) DEFAULT '1',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `rol` (
   `id` int NOT NULL AUTO_INCREMENT,
   `nombre` varchar(50) NOT NULL,
   `activo` tinyint(1) DEFAULT '1',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `bus` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -31,7 +31,7 @@ CREATE TABLE `bus` (
   `activo` tinyint(1) DEFAULT '1',
   PRIMARY KEY (`id`),
   UNIQUE KEY `placa` (`placa`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `usuario` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -56,7 +56,7 @@ CREATE TABLE `usuario` (
   KEY `estado_usuario_id` (`estado_usuario_id`),
   CONSTRAINT `usuario_ibfk_1` FOREIGN KEY (`rol_id`) REFERENCES `rol` (`id`),
   CONSTRAINT `usuario_ibfk_2` FOREIGN KEY (`estado_usuario_id`) REFERENCES `estado_usuario` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `pago` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -75,7 +75,7 @@ CREATE TABLE `pago` (
   UNIQUE KEY `uq_pago_codigo_ingreso` (`codigo_ingreso`),
   KEY `fk_pago_usuario` (`usuario_id`),
   CONSTRAINT `fk_pago_usuario` FOREIGN KEY (`usuario_id`) REFERENCES `usuario` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `turno` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -106,7 +106,7 @@ CREATE TABLE `turno` (
   CONSTRAINT `fk_turno_pago` FOREIGN KEY (`pago_id`) REFERENCES `pago` (`id`),
   CONSTRAINT `turno_ibfk_1` FOREIGN KEY (`usuario_id`) REFERENCES `usuario` (`id`),
   CONSTRAINT `turno_ibfk_2` FOREIGN KEY (`bus_id`) REFERENCES `bus` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `intento_turno` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -123,7 +123,7 @@ CREATE TABLE `intento_turno` (
   KEY `idx_intento_turno_bus` (`bus_id`,`fecha`),
   CONSTRAINT `fk_intento_turno_bus` FOREIGN KEY (`bus_id`) REFERENCES `bus` (`id`),
   CONSTRAINT `fk_intento_turno_usuario` FOREIGN KEY (`usuario_id`) REFERENCES `usuario` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `obligacion_pago` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -140,7 +140,7 @@ CREATE TABLE `obligacion_pago` (
   KEY `idx_obligacion_pendiente` (`disco`,`pagado`,`activo`),
   KEY `fk_obligacion_pago` (`pago_id`),
   CONSTRAINT `fk_obligacion_pago` FOREIGN KEY (`pago_id`) REFERENCES `pago` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `usuario_bus` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -152,7 +152,7 @@ CREATE TABLE `usuario_bus` (
   KEY `bus_id` (`bus_id`),
   CONSTRAINT `usuario_bus_ibfk_1` FOREIGN KEY (`usuario_id`) REFERENCES `usuario` (`id`),
   CONSTRAINT `usuario_bus_ibfk_2` FOREIGN KEY (`bus_id`) REFERENCES `bus` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `usuario_permiso_modulo` (
   `usuario_id` int NOT NULL,
@@ -161,7 +161,7 @@ CREATE TABLE `usuario_permiso_modulo` (
   `actualizado_en` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`usuario_id`,`modulo`),
   CONSTRAINT `fk_permiso_modulo_usuario` FOREIGN KEY (`usuario_id`) REFERENCES `usuario` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO `estado_usuario` (`id`, `nombre`, `activo`) VALUES ('1', 'habilitado', '1');
 INSERT INTO `estado_usuario` (`id`, `nombre`, `activo`) VALUES ('2', 'deshabilitado', '1');
@@ -317,7 +317,7 @@ CREATE TABLE IF NOT EXISTS frase_pago (
     id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     estado ENUM('incompleto', 'anulado') NOT NULL,
     texto VARCHAR(255) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO frase_pago (id, estado, texto) VALUES
 (1, 'anulado', 'El comprobante no corresponde al disco o a la fecha del pago.'),
