@@ -18,6 +18,7 @@ $filtroPlaca = isset($_GET['placa']) && is_scalar($_GET['placa']) ? trim((string
 $listaBuses = $busDao->obtenerFiltrados($filtroDisco, $filtroPlaca);
 $totalBuses = count($todosLosBuses);
 $totalResultados = count($listaBuses);
+require __DIR__ . '/../../Config/exportar_modulo.php';
 ?>
 <!DOCTYPE html>
 <html lang="es">

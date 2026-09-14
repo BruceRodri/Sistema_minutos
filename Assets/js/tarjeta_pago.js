@@ -238,7 +238,35 @@ function celebrarPago(modal) {
 }
 window.addEventListener('pagehide', detenerConfetiPago);
 
+function mostrarSubidaComprobante() {
+    const modal = document.getElementById('modalExito');
+    if (!modal) return;
+    detenerConfetiPago();
+    modal.dataset.subiendo = '1';
+    modal.setAttribute('aria-busy', 'true');
+    modal.querySelector('h3').textContent = 'Subiendo comprobante…';
+    const icono = modal.querySelector('.fa-check');
+    if (icono) { icono.classList.remove('fa-check'); icono.classList.add('fa-spinner', 'fa-spin'); }
+    document.getElementById('modalExitoMensaje').textContent = 'Espera mientras subimos y registramos tu comprobante.';
+    modal.querySelectorAll('[data-cerrar-exito]').forEach(b => { b.hidden = true; });
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+function finalizarSubidaComprobante() {
+    const modal = document.getElementById('modalExito');
+    if (!modal) return;
+    delete modal.dataset.subiendo;
+    modal.removeAttribute('aria-busy');
+    modal.querySelector('h3').textContent = '¡Pago registrado!';
+    const icono = modal.querySelector('.fa-spinner');
+    if (icono) { icono.classList.remove('fa-spinner', 'fa-spin'); icono.classList.add('fa-check'); }
+    modal.querySelectorAll('[data-cerrar-exito]').forEach(b => { b.hidden = false; });
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+}
+
 function mostrarExito(mensaje) {
+    finalizarSubidaComprobante();
     const modal = document.getElementById('modalExito');
     if (!modal) {
         mostrarAviso(mensaje);
@@ -255,6 +283,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalExito = document.getElementById('modalExito');
     if (!modalExito) return;
     const cerrar = () => {
+        if (modalExito.dataset.subiendo === '1') return;
         detenerConfetiPago();
         modalExito.classList.add('hidden');
         modalExito.classList.remove('flex');
@@ -305,6 +334,7 @@ function inicializarSubirRestante(onCompletado) {
         formData.append('accion', 'adjuntar_comprobante');
         formData.append('pago_id', pagoEnviar);
         formData.append('archivo', archivo);
+        mostrarSubidaComprobante();
         try {
             const response = await fetch('../../Controllers/PagoController.php', { method: 'POST', body: formData });
             const data = await response.json();
@@ -312,11 +342,14 @@ function inicializarSubirRestante(onCompletado) {
                 mostrarExito(data.message || 'Comprobante adjuntado. El pago vuelve a estar en espera.');
                 if (typeof onCompletado === 'function') onCompletado(pagoEnviar);
             } else {
+                finalizarSubidaComprobante();
                 mostrarAviso(data.message || 'No se pudo adjuntar el comprobante.', true);
             }
         } catch (e) {
+            finalizarSubidaComprobante();
             mostrarAviso('Error de conexión con el servidor.', true);
         } finally {
+            if (botonEnviar) { botonEnviar.disabled = false; botonEnviar.innerHTML = '<i class="fas fa-upload mr-2"></i>Subir comprobante'; }
             input.value = '';
             // El SSE actualiza la tarjeta al nuevo estado (en espera) en unos segundos.
             pagoEnviar = null;

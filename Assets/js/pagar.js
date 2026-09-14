@@ -101,6 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
             alerta.classList.remove('hidden');
         }
 
+        mostrarSubidaComprobante();
         let errores = [];
         let completados = 0;
 
@@ -166,6 +167,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        finalizarSubidaComprobante();
         if (completados > 0) {
             const mensaje = idsAPagar.length && idsIncompletosApagar.length
                 ? 'Pago incompleto completado y días agregados en un solo pago.'

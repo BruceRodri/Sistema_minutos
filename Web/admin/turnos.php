@@ -28,8 +28,8 @@ if ($filtroFecha !== '') {
     }
 }
 
-$registrosPorPagina = 20;
-$paginaActual = max(1, (int)($_GET['pagina'] ?? 1));
+$registrosPorPagina = ($_GET['exportar'] ?? '') === '1' ? PHP_INT_MAX : 20;
+$paginaActual = ($_GET['exportar'] ?? '') === '1' ? 1 : max(1, (int)($_GET['pagina'] ?? 1));
 $totalTurnos = $turnoDao->contarTurnos($filtroDisco, $filtroConductor, $filtroFecha, $filtroEstado);
 $totalPaginas = max(1, (int)ceil($totalTurnos / $registrosPorPagina));
 $paginaActual = min($paginaActual, $totalPaginas);
@@ -61,6 +61,7 @@ function formatearDiscoHistorial($disco) {
     $disco = (string)$disco;
     return strlen($disco) > 1 && $disco[0] === '0' ? substr($disco, 1) : $disco;
 }
+require __DIR__ . '/../../Config/exportar_modulo.php';
 ?>
 <!DOCTYPE html>
 <html lang="es">

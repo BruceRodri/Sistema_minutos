@@ -29,6 +29,7 @@ function etiquetaRolUsuario($rol) {
         default => ucfirst($rol)
     };
 }
+require __DIR__ . '/../../Config/exportar_modulo.php';
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -101,7 +102,7 @@ function etiquetaRolUsuario($rol) {
                                         $estaHabilitado = (int)$usuario['activo'] === 1 && $usuario['estado'] === 'habilitado';
                                         $textoBusqueda = implode(' ', [$usuario['cedula'], $usuario['nombres'], $usuario['apellidos'], $usuario['rol'], $codigo]);
                                     ?>
-                                    <tr class="fila-usuario hover:bg-gray-50 transition-colors" data-busqueda="<?php echo htmlspecialchars(mb_strtolower($textoBusqueda)); ?>">
+                                    <tr data-export-id="<?php echo (int)$usuario['id']; ?>" class="fila-usuario hover:bg-gray-50 transition-colors" data-busqueda="<?php echo htmlspecialchars(mb_strtolower($textoBusqueda)); ?>">
                                         <td class="px-5 py-4 whitespace-nowrap text-center text-sm font-mono text-gray-700"><?php echo htmlspecialchars($usuario['cedula']); ?></td>
                                         <td class="px-5 py-4 whitespace-nowrap">
                                             <p class="text-sm font-bold text-gray-800"><?php echo htmlspecialchars($usuario['nombres'] . ' ' . $usuario['apellidos']); ?></p>

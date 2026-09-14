@@ -26,6 +26,7 @@ foreach ($sociosConBuses as $fila) {
         $sociosAgrupados[$fila['usuario_id']]['discos'][] = $fila;
     }
 }
+require __DIR__ . '/../../Config/exportar_modulo.php';
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -86,7 +87,7 @@ foreach ($sociosConBuses as $fila) {
                         </tr>
                         <?php else: ?>
                             <?php foreach ($sociosAgrupados as $socio): ?>
-                            <tr data-busqueda-socio="<?php echo htmlspecialchars($socio['cedula'] . ' ' . $socio['nombres'] . ' ' . $socio['apellidos'], ENT_QUOTES, 'UTF-8'); ?>" class="hover:bg-gray-50 transition-colors align-top">
+                            <tr data-export-id="<?php echo (int)$socio['usuario_id']; ?>" data-busqueda-socio="<?php echo htmlspecialchars($socio['cedula'] . ' ' . $socio['nombres'] . ' ' . $socio['apellidos'], ENT_QUOTES, 'UTF-8'); ?>" class="hover:bg-gray-50 transition-colors align-top">
                                 <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-mono text-gray-700">
                                     <?php echo htmlspecialchars($socio['cedula']); ?>
                                 </td>

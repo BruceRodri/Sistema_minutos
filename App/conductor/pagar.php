@@ -55,7 +55,7 @@ $discoInicial = null;
                     <i class="fas fa-money-bill-wave mr-2"></i>Pagar
                 </a>
                 <a href="pagos.php" class="px-5 py-2.5 rounded-xl font-semibold text-gray-500 hover:bg-gray-100 hover:text-blue-600 transition-colors">
-                    <i class="fas fa-receipt mr-2"></i>Pagos realizados
+                    <i class="fas fa-receipt mr-2"></i>Transacciones
                 </a>
                 <a href="perfil.php" class="px-5 py-2.5 rounded-xl font-semibold text-gray-500 hover:bg-gray-100 hover:text-blue-600 transition-colors">
                     <i class="fas fa-user mr-2"></i>Perfil
@@ -217,7 +217,7 @@ $discoInicial = null;
             </a>
             <a href="pagos.php" class="flex flex-col items-center py-3 text-gray-500 hover:text-blue-600 transition-colors">
                 <i class="fas fa-receipt text-xl sm:text-2xl"></i>
-                <span class="text-xs sm:text-sm font-semibold mt-1 whitespace-nowrap leading-tight"><span class="sm:hidden">Pagos</span><span class="hidden sm:inline">Pagos realizados</span></span>
+                <span class="text-xs sm:text-sm font-semibold mt-1 whitespace-nowrap leading-tight">Transacciones</span>
             </a>
             <a href="perfil.php" class="flex flex-col items-center py-3 text-gray-500 hover:text-blue-600 transition-colors">
                 <i class="fas fa-user text-xl sm:text-2xl"></i>

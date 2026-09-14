@@ -73,6 +73,7 @@ $dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sába
 $tsFecha = strtotime($fechaSeleccionada);
 $nombreAdmin = explode(' ', $_SESSION['nombre'] ?? 'Administrador')[0];
 $esHoy = $fechaSeleccionada === date('Y-m-d');
+require __DIR__ . '/../../Config/exportar_modulo.php';
 ?>
 <!DOCTYPE html>
 <html lang="es">

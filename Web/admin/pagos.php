@@ -23,6 +23,7 @@ $seccionManuales = ($_GET['seccion'] ?? '') === 'manuales';
 $pendientesManual = obtenerPagablesVista($pagoDao);
 $discosPendientes = array_values(array_unique(array_map(static fn($p) => $p['disco'], $pendientesManual)));
 sort($discosPendientes, SORT_NATURAL);
+require __DIR__ . '/../../Config/exportar_modulo.php';
 ?>
 <!DOCTYPE html>
 <html lang="es">

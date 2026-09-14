@@ -50,6 +50,7 @@ $primerRegistro = $totalFilas > 0 ? $offset + 1 : 0;
 $ultimoRegistro = min($offset + $registrosPorPagina, $totalFilas);
 $existeArchivo = $valoresDao->archivoExiste();
 $fechaSubida = $valoresDao->fechaSubida();
+require __DIR__ . '/../../Config/exportar_modulo.php';
 ?>
 <!DOCTYPE html>
 <html lang="es">

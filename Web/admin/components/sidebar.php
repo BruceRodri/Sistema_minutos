@@ -8,7 +8,7 @@ $permisosSidebar = isset($conexion) ? permisosEfectivosUsuario($conexion, (int)(
 $puedeSidebar = static fn($modulo) => in_array($modulo, $permisosSidebar, true);
 $rutaWebSidebar = rutaPrimeraInterfaz($permisosSidebar, 'WEB');
 $rutaAppSidebar = rutaPrimeraInterfaz($permisosSidebar, 'APP');
-if ($rutaAppSidebar && $paginaSidebarActual === 'perfil.php') $rutaAppSidebar = ruta('App/conductor/perfil.php');
+if ($rutaAppSidebar && $paginaSidebarActual === 'perfil.php') $rutaAppSidebar = '../../App/conductor/perfil.php';
 
 $rolesAdmin = ['admin', 'secretaria', 'operativo'];
 ?>
@@ -75,7 +75,7 @@ $rolesAdmin = ['admin', 'secretaria', 'operativo'];
                 <i class="fas fa-file-excel w-6"></i><span>Valores Diarios</span>
             </a><?php endif; ?>
         <?php endif; ?>
-        <a href="<?php echo ruta('Web/admin/perfil.php'); ?>" <?php echo $paginaSidebarActual === 'perfil.php' ? 'aria-current="page"' : ''; ?> class="flex items-center px-4 py-3 rounded-lg <?php echo $paginaSidebarActual === 'perfil.php' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-800 hover:text-white'; ?>"><i class="fas fa-user mr-3"></i>Mi perfil</a>
+        <a href="perfil.php" <?php echo $paginaSidebarActual === 'perfil.php' ? 'aria-current="page"' : ''; ?> class="flex items-center px-4 py-3 rounded-lg <?php echo $paginaSidebarActual === 'perfil.php' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-800 hover:text-white'; ?>"><i class="fas fa-user mr-3"></i>Mi perfil</a>
     </nav>
     
     <div class="p-4 border-t border-gray-800">
@@ -210,20 +210,27 @@ $rolesAdmin = ['admin', 'secretaria', 'operativo'];
     const btnCloseDesktop = document.getElementById('btnCloseDesktop');
     const btnOpenDesktop = document.getElementById('btnOpenDesktop');
     
+    const claveMenu = 'menu-cerrado-' + <?php echo json_encode((string)($_SESSION['usuario_id'] ?? '')); ?>;
+    let menuCerrado = false;
+    try { menuCerrado = localStorage.getItem(claveMenu) === '1'; } catch (_) {}
+    function aplicarMenuEscritorio() {
+        sidebar.classList.toggle('md:hidden', menuCerrado);
+        btnOpenDesktop.classList.toggle('hidden', !menuCerrado);
+        btnOpenDesktop.classList.toggle('md:flex', menuCerrado);
+        btnOpenDesktop.style.display = menuCerrado && window.matchMedia('(min-width: 768px)').matches ? 'flex' : 'none';
+        document.querySelector('main')?.classList.toggle('md:pl-14', menuCerrado);
+    }
     if (btnCloseDesktop && btnOpenDesktop) {
-        btnCloseDesktop.addEventListener('click', () => {
-            sidebar.classList.add('md:hidden');
-            btnOpenDesktop.classList.remove('hidden');
-            btnOpenDesktop.classList.add('md:flex');
-            btnOpenDesktop.style.display = 'flex';
-            document.querySelector('main')?.classList.add('md:pl-14');
-        });
-        
-        btnOpenDesktop.addEventListener('click', () => {
-            sidebar.classList.remove('md:hidden');
-            btnOpenDesktop.style.display = 'none';
-            document.querySelector('main')?.classList.remove('md:pl-14');
-        });
+        const cambiarMenu = cerrado => {
+            menuCerrado = cerrado;
+            try { localStorage.setItem(claveMenu, cerrado ? '1' : '0'); } catch (_) {}
+            aplicarMenuEscritorio();
+        };
+        btnCloseDesktop.addEventListener('click', () => cambiarMenu(true));
+        btnOpenDesktop.addEventListener('click', () => cambiarMenu(false));
+        aplicarMenuEscritorio();
+        document.addEventListener('DOMContentLoaded', aplicarMenuEscritorio);
+        window.addEventListener('resize', aplicarMenuEscritorio);
     }
 
     // Tablas administrativas: tarjetas en móvil y 20 registros por página.
@@ -310,3 +317,5 @@ $rolesAdmin = ['admin', 'secretaria', 'operativo'];
 </script>
 
 <?php require_once __DIR__ . '/../../../Config/aviso_cumpleanos.php'; ?>
+
+<script src="../../Assets/js/exportar_excel.js?v=<?php echo hash_file('sha256', __DIR__ . '/../../../Assets/js/exportar_excel.js'); ?>"></script>

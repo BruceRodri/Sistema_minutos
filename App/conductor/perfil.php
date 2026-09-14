@@ -57,7 +57,7 @@ $datosPerfil = [
             <a href="dashboard.php" class="flex flex-1 flex-col items-center py-3 text-gray-500"><i class="fas fa-house text-xl sm:text-2xl"></i><span class="mt-1 whitespace-nowrap text-xs sm:text-sm font-semibold leading-tight">Menú</span></a>
             <?php if ($puedePagos): ?>
                 <a href="pagar.php" class="flex flex-1 flex-col items-center py-3 text-gray-500"><i class="fas fa-money-bill-wave text-xl sm:text-2xl"></i><span class="mt-1 whitespace-nowrap text-xs sm:text-sm font-semibold leading-tight">Pagar</span></a>
-                <a href="pagos.php" class="flex flex-1 flex-col items-center py-3 text-gray-500"><i class="fas fa-receipt text-xl sm:text-2xl"></i><span class="mt-1 whitespace-nowrap text-xs sm:text-sm font-semibold leading-tight"><span class="sm:hidden">Pagos</span><span class="hidden sm:inline">Pagos realizados</span></span></a>
+                <a href="pagos.php" class="flex flex-1 flex-col items-center py-3 text-gray-500"><i class="fas fa-receipt text-xl sm:text-2xl"></i><span class="mt-1 whitespace-nowrap text-xs sm:text-sm font-semibold leading-tight">Transacciones</span></a>
             <?php endif; ?>
             <a href="perfil.php" aria-current="page" class="flex flex-1 flex-col items-center rounded-t-xl bg-blue-600 py-3 text-white"><i class="fas fa-user text-xl sm:text-2xl"></i><span class="mt-1 whitespace-nowrap text-xs sm:text-sm font-bold leading-tight">Perfil</span></a>
         </div>
