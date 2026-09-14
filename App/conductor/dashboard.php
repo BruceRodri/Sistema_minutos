@@ -73,6 +73,13 @@ $fechaHoy = date('d/m/Y');
             </a>
         </div>
 
+        <!-- Reloj en vivo -->
+        <div class="mt-6 rounded-2xl bg-gradient-to-r from-blue-600 via-blue-700 to-cyan-500 shadow-lg px-5 py-4 text-center border border-blue-400/40">
+            <p class="text-[0.7rem] font-bold uppercase tracking-[0.2em] text-blue-100">Hora actual</p>
+            <time id="relojHora" class="block mt-1 text-5xl font-extrabold tabular-nums text-white drop-shadow-md">--:--:--</time>
+            <p id="relojFecha" class="mt-1 text-sm font-semibold text-blue-100"></p>
+        </div>
+
         <!-- Botones principales -->
         <div class="flex-1 flex flex-col justify-center gap-6">
             <?php if ($puedeQr): ?><button id="btnAbrirTurno" class="group bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 border-2 border-blue-300 hover:border-blue-500 text-blue-900 font-bold py-14 px-4 rounded-2xl shadow-md hover:shadow-lg text-2xl transition-all flex flex-col items-center justify-center active:scale-95">
@@ -80,7 +87,7 @@ $fechaHoy = date('d/m/Y');
                     <i class="fas fa-qrcode text-5xl"></i>
                 </span>
                 ABRIR TURNO
-                <span class="mt-2 text-sm font-normal text-blue-800/80">Escanear código QR del bus</span>
+                <span class="mt-2 text-xl font-bold text-blue-800/85">Escanear código QR del bus</span>
             </button>
 
             <?php endif; ?>
@@ -89,7 +96,7 @@ $fechaHoy = date('d/m/Y');
                     <i class="fas fa-money-bill-wave text-5xl"></i>
                 </span>
                 PAGOS
-                <span class="mt-2 text-sm font-normal text-gray-500">Consultar y registrar pagos</span>
+                <span class="mt-2 text-xl font-bold text-gray-600">Consultar y registrar pagos</span>
             </a><?php endif; ?>
         </div>
     </div>
@@ -136,6 +143,23 @@ $fechaHoy = date('d/m/Y');
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <script src="../../Assets/js/conductor.js?v=<?php echo hash_file('sha256', __DIR__ . '/../../Assets/js/conductor.js'); ?>"></script>
     <?php endif; ?>
+    <script>
+        (function () {
+            const $hora = document.getElementById('relojHora');
+            const $fecha = document.getElementById('relojFecha');
+            if (!$hora) return;
+            const TZ = 'America/Guayaquil';
+            const optsHora = { hourCycle: 'h23', hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: TZ };
+            const optsFecha = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: TZ };
+            const actualizar = () => {
+                const ahora = new Date();
+                $hora.textContent = ahora.toLocaleTimeString('es-EC', optsHora);
+                $fecha.textContent = ahora.toLocaleDateString('es-EC', optsFecha);
+            };
+            actualizar();
+            setInterval(actualizar, 1000);
+        })();
+    </script>
 <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {

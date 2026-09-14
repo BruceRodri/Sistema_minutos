@@ -729,6 +729,17 @@ class PagoDao {
              SELECT fecha, disco, ruta FROM obligacion_pago WHERE pago_id = ?
              ORDER BY fecha"
         );
+        $stmtValores = $this->conexion->prepare(
+            "SELECT t.fecha, b.disco AS disco, t.valor AS valor
+             FROM turno t
+             INNER JOIN bus b ON t.bus_id = b.id
+             WHERE t.pago_id = ?
+             UNION ALL
+             SELECT op.fecha, op.disco AS disco, op.valor AS valor
+             FROM obligacion_pago op
+             WHERE op.pago_id = ?
+             ORDER BY fecha"
+        );
         foreach ($pagos as $i => $pago) {
             $detalle = $this->decodificarDetalle($pago['detalle_pagos'] ?? null);
             if ($detalle === null) {
@@ -746,6 +757,12 @@ class PagoDao {
                 $pagos[$i]['rutas'] = $detalle['rutas'];
             }
             $pagos[$i]['dias'] = count($pagos[$i]['fechas']);
+            $stmtValores->execute([$pago['id'], $pago['id']]);
+            $pagos[$i]['valores_individuales'] = array_map(static fn($fila) => [
+                'fecha' => $fila['fecha'],
+                'disco' => $fila['disco'],
+                'valor' => (float)$fila['valor']
+            ], $stmtValores->fetchAll());
             $comprobantes = self::normalizarComprobantes($pago['comprobante'] ?? null);
             if (($pago['estado'] ?? '') === 'anulado') $comprobantes = [];
             $pagos[$i]['comprobantes'] = $comprobantes;
