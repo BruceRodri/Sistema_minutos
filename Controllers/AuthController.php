@@ -35,8 +35,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $interfazAlterna = $interfazInicial === 'APP' ? 'WEB' : 'APP';
         $redirect = rutaPrimeraInterfaz($permisos, $interfazInicial)
             ?? rutaPrimeraInterfaz($permisos, $interfazAlterna);
-        if ($redirect !== null && !str_starts_with($redirect, '/')) {
-            $redirect = '/' . $redirect;
+        if ($redirect !== null) {
+            $base = basePath();
+            if ($base !== '/' && str_starts_with($redirect, $base)) {
+                $redirect = substr($redirect, strlen($base));
+            }
+            $redirect = ltrim($redirect, '/');
         }
 
         if ($redirect === null) {
