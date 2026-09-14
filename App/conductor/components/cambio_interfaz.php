@@ -10,4 +10,7 @@ if ($rutaWebCambioInterfaz && basename($_SERVER['PHP_SELF']) === 'perfil.php') $
 </a>
 <?php endif; ?>
 
-<?php require_once __DIR__ . '/../../../Config/aviso_cumpleanos.php'; ?>
+<?php
+$cumpleanosEnApp = true;
+require_once __DIR__ . '/../../../Config/aviso_cumpleanos.php';
+?>

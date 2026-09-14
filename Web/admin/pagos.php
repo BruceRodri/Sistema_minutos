@@ -10,6 +10,8 @@ require_once '../../Config/conexion.php';
 require_once '../../Config/permisos.php';
 exigirPermisoModulo($conexion, 'web_pagos', 'dashboard.php');
 require_once '../../Dao/PagoDao.php';
+require_once '../../Dao/FrasePagoDao.php';
+$frasesPago = (new FrasePagoDao($conexion))->obtenerTodas();
 require_once '../../Config/vistas_pagos.php';
 
 $filtros = obtenerFiltrosPagosAdmin();
@@ -398,12 +400,19 @@ sort($discosPendientes, SORT_NATURAL);
     <!-- Modal: Desaprobar -->
     <div id="modalDesaprobar" class="hidden fixed inset-0 z-[70] items-center justify-center p-4">
         <div class="absolute inset-0 bg-black/60"></div>
-        <div class="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-8">
+        <div class="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-5 sm:p-8 max-h-[90dvh] overflow-y-auto">
             <div class="w-20 h-20 mx-auto rounded-full bg-red-100 flex items-center justify-center mb-5">
                 <i class="fas fa-xmark text-red-600 text-4xl"></i>
             </div>
-            <h3 class="text-2xl font-extrabold text-gray-800 mb-3 text-center">Rechazar pago</h3>
-            <p class="text-gray-600 mb-4">Indique el motivo del rechazo:</p>
+            <h3 class="text-2xl font-extrabold text-gray-800 mb-3 text-center">Anular pago</h3>
+            <p class="text-gray-600 mb-4">Indique el motivo de la anulación:</p>
+            <div class="mb-3 flex flex-col gap-2" role="group" aria-label="Mensajes rápidos">
+                <p class="text-xs font-bold text-gray-500">Mensajes rápidos · puedes editar el texto</p>
+                <?php foreach ($frasesPago as $frase): ?>
+                    <?php if ($frase['estado'] !== 'anulado') continue; ?>
+                    <button type="button" data-mensaje-rapido="motivoRechazo" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-left text-sm text-red-800 hover:bg-red-100 focus:ring-2 focus:ring-red-300"><?php echo htmlspecialchars($frase['texto'], ENT_QUOTES, 'UTF-8'); ?></button>
+                <?php endforeach; ?>
+            </div>
             <textarea id="motivoRechazo" rows="4" maxlength="255" required
                       placeholder="Ej.: el comprobante no coincide con el número de disco"
                       class="w-full rounded-xl border-2 border-gray-300 focus:border-red-500 focus:ring-2 focus:ring-red-200 outline-none px-4 py-3 text-base resize-none"></textarea>
@@ -414,7 +423,7 @@ sort($discosPendientes, SORT_NATURAL);
                     Cancelar
                 </button>
                 <button id="confirmarDesaprobar" type="button" class="py-3 rounded-xl font-bold text-white bg-red-600 hover:bg-red-700 transition-colors">
-                    <i class="fas fa-xmark mr-1.5"></i>Rechazar
+                    <i class="fas fa-xmark mr-1.5"></i>Anular
                 </button>
             </div>
         </div>
@@ -423,12 +432,19 @@ sort($discosPendientes, SORT_NATURAL);
     <!-- Modal: Incompleto -->
     <div id="modalIncompleto" class="hidden fixed inset-0 z-[70] items-center justify-center p-4">
         <div class="absolute inset-0 bg-black/60"></div>
-        <div class="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-8">
+        <div class="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-5 sm:p-8 max-h-[90dvh] overflow-y-auto">
             <div class="w-20 h-20 mx-auto rounded-full bg-amber-100 flex items-center justify-center mb-5">
                 <i class="fas fa-triangle-exclamation text-amber-600 text-4xl"></i>
             </div>
             <h3 class="text-2xl font-extrabold text-gray-800 mb-3 text-center">Marcar como incompleto</h3>
             <p class="text-gray-600 mb-4">Indique la cantidad faltante que el conductor debe adjuntar:</p>
+            <div class="mb-3 flex flex-col gap-2" role="group" aria-label="Mensajes rápidos">
+                <p class="text-xs font-bold text-gray-500">Mensajes rápidos · puedes editar el texto</p>
+                <?php foreach ($frasesPago as $frase): ?>
+                    <?php if ($frase['estado'] !== 'incompleto') continue; ?>
+                    <button type="button" data-mensaje-rapido="motivoIncompleto" class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-left text-sm text-amber-800 hover:bg-amber-100 focus:ring-2 focus:ring-amber-300"><?php echo htmlspecialchars($frase['texto'], ENT_QUOTES, 'UTF-8'); ?></button>
+                <?php endforeach; ?>
+            </div>
             <textarea id="motivoIncompleto" rows="4" maxlength="255" required
                       placeholder="Ej.: Faltan $3.00. Adjunte el comprobante del valor restante."
                       class="w-full rounded-xl border-2 border-gray-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none px-4 py-3 text-base resize-none"></textarea>

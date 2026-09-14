@@ -10,6 +10,7 @@ require_once '../../Config/conexion.php';
 require_once '../../Config/permisos.php';
 exigirPermisoModulo($conexion, 'web_dashboard', '../../index.php');
 require_once '../../Dao/ValoresDao.php';
+require_once '../../Dao/PagoDao.php';
 
 function contar($conexion, $sql, $parametros = []) {
     $stmt = $conexion->prepare($sql);
@@ -17,14 +18,7 @@ function contar($conexion, $sql, $parametros = []) {
     return (int)$stmt->fetchColumn();
 }
 
-function sumar($conexion, $sql, $parametros = []) {
-    $stmt = $conexion->prepare($sql);
-    $stmt->execute($parametros);
-    $valor = $stmt->fetchColumn();
-    return $valor === null ? 0.0 : (float)$valor;
-}
-
-$fechaSeleccionada = trim((string)($_GET['fecha'] ?? ''));
+$fechaSeleccionada = trim((string)(is_scalar($_GET['fecha'] ?? '') ? ($_GET['fecha'] ?? '') : ''));
 $fechaValida = DateTime::createFromFormat('!Y-m-d', $fechaSeleccionada);
 if (!$fechaValida || $fechaValida->format('Y-m-d') !== $fechaSeleccionada) {
     $fechaSeleccionada = date('Y-m-d');
@@ -32,44 +26,48 @@ if (!$fechaValida || $fechaValida->format('Y-m-d') !== $fechaSeleccionada) {
 
 // ---- Conteos globales ----
 $totalSocios = contar($conexion, "SELECT COUNT(*) FROM usuario u INNER JOIN rol r ON u.rol_id = r.id WHERE r.nombre = 'socio'");
-$totalConductores = contar($conexion, "SELECT COUNT(*) FROM usuario u INNER JOIN rol r ON u.rol_id = r.id WHERE r.nombre = 'conductor'");
+$totalConductores = contar($conexion, "SELECT COUNT(*) FROM usuario u INNER JOIN rol r ON u.rol_id = r.id WHERE r.nombre = 'conductor' AND u.activo = 1");
 $totalUsuarios = contar($conexion, "SELECT COUNT(*) FROM usuario");
 
 $totalBuses = contar($conexion, "SELECT COUNT(*) FROM bus");
 $busesActivos = contar($conexion, "SELECT COUNT(*) FROM bus WHERE activo = 1");
-$sociosConBuses = contar($conexion, "SELECT COUNT(DISTINCT usuario_id) FROM usuario_bus WHERE activo = 1");
-$busesAsignados = contar($conexion, "SELECT COUNT(*) FROM usuario_bus WHERE activo = 1");
+$sociosConBuses = contar($conexion, "SELECT COUNT(DISTINCT ub.usuario_id) FROM usuario_bus ub INNER JOIN usuario u ON u.id = ub.usuario_id INNER JOIN rol r ON r.id = u.rol_id INNER JOIN bus b ON b.id = ub.bus_id WHERE ub.activo = 1 AND u.activo = 1 AND b.activo = 1 AND r.nombre = 'socio'");
+$busesAsignados = contar($conexion, "SELECT COUNT(DISTINCT ub.bus_id) FROM usuario_bus ub INNER JOIN bus b ON b.id = ub.bus_id INNER JOIN usuario u ON u.id = ub.usuario_id WHERE ub.activo = 1 AND b.activo = 1 AND u.activo = 1");
 
 // ---- Turnos (según la fecha seleccionada) ----
-$turnosFecha = contar($conexion, "SELECT COUNT(*) FROM turno t INNER JOIN bus b ON t.bus_id = b.id WHERE t.fecha = :fecha", [':fecha' => $fechaSeleccionada]);
-$turnosAbiertos = contar($conexion, "SELECT COUNT(*) FROM turno WHERE fecha = :fecha AND activo = 1", [':fecha' => $fechaSeleccionada]);
-$turnosPendientes = contar($conexion, "SELECT COUNT(DISTINCT t.id)
-    FROM turno t
-    INNER JOIN bus b ON t.bus_id = b.id
-    INNER JOIN obligacion_pago o
-        ON CAST(b.disco AS UNSIGNED) = CAST(o.disco AS UNSIGNED)
-       AND o.pagado = 0 AND o.pago_id IS NULL AND o.activo = 1 AND o.valor > 0
-    WHERE t.fecha = :fecha", [':fecha' => $fechaSeleccionada]);
 $turnosHistorial = contar($conexion, "SELECT COUNT(*) FROM turno WHERE fecha = :fecha", [':fecha' => $fechaSeleccionada]);
 
-// ---- Pagos (según la fecha seleccionada) ----
-$conteos = ['en_espera' => 0, 'aprobado' => 0, 'anulado' => 0];
-$stmtConteos = $conexion->prepare("SELECT estado, COUNT(*) AS cantidad FROM pago WHERE activo = 1 AND fecha_pago = :fecha GROUP BY estado");
-$stmtConteos->execute([':fecha' => $fechaSeleccionada]);
-foreach ($stmtConteos as $fila) {
-    $conteos[$fila['estado']] = (int)$fila['cantidad'];
+// Los estados corresponden exactamente a la tabla principal de Pagos sin filtros.
+$pagoDao = new PagoDao($conexion);
+$conteos = ['en_espera' => 0, 'aprobado' => 0, 'anulado' => 0, 'incompleto' => 0];
+foreach ($pagoDao->obtenerPagosParaAdmin() as $pago) {
+    $conteos[$pago['estado']]++;
 }
 
-$pagosFecha = contar($conexion, "SELECT COUNT(*) FROM pago WHERE fecha_pago = :fecha AND activo = 1", [':fecha' => $fechaSeleccionada]);
-$montoPagosFecha = sumar($conexion, "SELECT SUM(monto_total) FROM pago WHERE fecha_pago = :fecha AND activo = 1", [':fecha' => $fechaSeleccionada]);
+// La tarjeta de pagos del día conserva su resumen por fecha (app y manuales).
+$stmtPagosFecha = $conexion->prepare("SELECT COUNT(*) AS cantidad,
+    COALESCE(SUM(CASE WHEN estado = 'aprobado' THEN monto_total ELSE 0 END), 0) AS monto_aprobado
+    FROM pago WHERE activo = 1 AND fecha_pago = :fecha");
+$stmtPagosFecha->execute([':fecha' => $fechaSeleccionada]);
+$resumenPagosFecha = $stmtPagosFecha->fetch();
+$pagosFecha = (int)$resumenPagosFecha['cantidad'];
+$montoAprobadoFecha = (float)$resumenPagosFecha['monto_aprobado'];
 
-// ---- Valores diarios (según la fecha seleccionada) ----
+// Disponibilidad del archivo para el aviso de carga.
 $valoresDao = new ValoresDao($conexion);
 $valoresSubido = $valoresDao->archivoExiste();
-$valoresFecha = $valoresDao->fechaSubida();
-$valoresFilasFecha = $valoresSubido
-    ? count($valoresDao->obtenerFilasFiltradas('', $fechaSeleccionada, '', ''))
-    : 0;
+$hashDashboard = hash('sha256', json_encode([
+    $fechaSeleccionada, date('Y-m-d'), $totalSocios, $totalConductores, $totalUsuarios,
+    $totalBuses, $busesActivos, $sociosConBuses, $busesAsignados,
+    $turnosHistorial,
+    $conteos, $pagosFecha, $montoAprobadoFecha, $valoresSubido,
+]));
+header('Cache-Control: no-store');
+if (($_GET['consulta'] ?? '') === '1') {
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['hash' => $hashDashboard]);
+    exit;
+}
 
 $dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 $tsFecha = strtotime($fechaSeleccionada);
@@ -145,15 +143,16 @@ $esHoy = $fechaSeleccionada === date('Y-m-d');
             <div class="mb-6 bg-amber-50 border-2 border-amber-300 text-amber-800 rounded-2xl p-5 flex items-start gap-4">
                 <i class="fas fa-triangle-exclamation text-3xl mt-1"></i>
                 <div>
-                    <p class="text-lg font-bold">Hoy no se ha subido el archivo Excel</p>
+                    <p class="text-lg font-bold">No hay un archivo Excel habilitado</p>
                     <p class="text-base">Sube el archivo del día (DISCO, FECHA, VALOR, RUTA). Los valores de cargas anteriores se conservan en la base de datos.</p>
                     <a href="valores.php" class="mt-2 inline-block font-bold text-blue-700 underline hover:text-blue-900">Ir a Valores Diarios</a>
                 </div>
             </div>
             <?php endif; ?>
 
-            <h2 class="text-lg font-bold text-gray-700 mb-3">Estado de pagos · <?php echo date('d/m/Y', $tsFecha); ?></h2>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            <h2 class="text-lg font-bold text-gray-700 mb-1">Estado de pagos</h2>
+            <p class="text-sm text-gray-500 mb-3">Totales de la tabla principal del módulo de pagos, sin filtros de fecha. Los pagos manuales se consultan por separado.</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 <div class="bg-white rounded-xl border border-amber-200 shadow-sm p-5 flex items-center gap-4">
                     <span class="w-12 h-12 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
                         <i class="fas fa-clock text-2xl"></i>
@@ -181,12 +180,21 @@ $esHoy = $fechaSeleccionada === date('Y-m-d');
                         <p class="text-sm font-semibold text-gray-500">Anulados</p>
                     </div>
                 </div>
+                <div class="bg-white rounded-xl border border-orange-200 shadow-sm p-5 flex items-center gap-4">
+                    <span class="w-12 h-12 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center shrink-0">
+                        <i class="fas fa-exclamation-circle text-2xl"></i>
+                    </span>
+                    <div>
+                        <p class="text-3xl font-bold text-orange-600"><?php echo $conteos['incompleto']; ?></p>
+                        <p class="text-sm font-semibold text-gray-500">Incompletos</p>
+                    </div>
+                </div>
             </div>
 
             <!-- Tarjetas principales -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4">
 
-                <a href="socios.php" class="order-2 lg:col-span-3 group bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-3xl p-5 min-h-64 shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all">
+                <a href="socios.php" class="order-2 lg:col-span-4 group bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-3xl p-5 min-h-64 shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all">
                     <div class="flex items-center justify-between">
                         <i class="fas fa-id-card text-white/40 text-5xl"></i>
                         <span class="bg-white/20 text-white text-sm font-bold px-3 py-1 rounded-full">SOCIOS</span>
@@ -196,7 +204,7 @@ $esHoy = $fechaSeleccionada === date('Y-m-d');
                     <p class="text-white/70 text-sm mt-3"><i class="fas fa-link mr-1"></i><?php echo $sociosConBuses; ?> con buses asignados</p>
                 </a>
 
-                <a href="usuarios.php" class="order-2 lg:col-span-3 group bg-gradient-to-br from-purple-500 to-purple-700 rounded-3xl p-5 min-h-64 shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all">
+                <a href="usuarios.php" class="order-2 lg:col-span-4 group bg-gradient-to-br from-purple-500 to-purple-700 rounded-3xl p-5 min-h-64 shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all">
                     <div class="flex items-center justify-between">
                         <i class="fas fa-user-tie text-white/40 text-5xl"></i>
                         <span class="bg-white/20 text-white text-sm font-bold px-3 py-1 rounded-full">CONDUCTORES</span>
@@ -206,7 +214,7 @@ $esHoy = $fechaSeleccionada === date('Y-m-d');
                     <p class="text-white/70 text-sm mt-3"><i class="fas fa-users mr-1"></i><?php echo $totalUsuarios; ?> usuarios en total</p>
                 </a>
 
-                <a href="buses.php" class="order-2 lg:col-span-3 group bg-gradient-to-br from-blue-500 to-blue-700 rounded-3xl p-5 min-h-64 shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all">
+                <a href="buses.php" class="order-2 lg:col-span-4 group bg-gradient-to-br from-blue-500 to-blue-700 rounded-3xl p-5 min-h-64 shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all">
                     <div class="flex items-center justify-between">
                         <i class="fas fa-bus text-white/40 text-5xl"></i>
                         <span class="bg-white/20 text-white text-sm font-bold px-3 py-1 rounded-full">DISCOS</span>
@@ -216,17 +224,7 @@ $esHoy = $fechaSeleccionada === date('Y-m-d');
                     <p class="text-white/70 text-sm mt-3"><i class="fas fa-check-circle mr-1"></i><?php echo $busesActivos; ?> activos · <i class="fas fa-link mr-1"></i><?php echo $busesAsignados; ?> asignados</p>
                 </a>
 
-                <a href="turnos.php" class="order-2 lg:col-span-3 group bg-gradient-to-br from-cyan-500 to-cyan-700 rounded-3xl p-5 min-h-64 shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all">
-                    <div class="flex items-center justify-between">
-                        <i class="fas fa-clock text-white/40 text-5xl"></i>
-                        <span class="bg-white/20 text-white text-sm font-bold px-3 py-1 rounded-full">TURNOS</span>
-                    </div>
-                    <p class="text-5xl xl:text-4xl font-extrabold text-white mt-6"><?php echo $turnosFecha; ?></p>
-                    <p class="text-white/80 text-base mt-1">turnos del día</p>
-                    <p class="text-white/70 text-sm mt-3"><i class="fas fa-circle-notch mr-1"></i><?php echo $turnosAbiertos; ?> abiertos · <i class="fas fa-hourglass-half mr-1"></i><?php echo $turnosPendientes; ?> por pagar</p>
-                </a>
-
-                <div class="order-1 lg:col-span-4 bg-gradient-to-br from-white to-cyan-50 rounded-3xl p-5 shadow-sm border border-cyan-200 hover:shadow-lg transition-all">
+                <div class="order-1 lg:col-span-6 bg-gradient-to-br from-white to-cyan-50 rounded-3xl p-5 shadow-sm border border-cyan-200 hover:shadow-lg transition-all">
                     <div class="flex items-center justify-between mb-3">
                         <p class="font-bold text-gray-700 text-lg">Historial de turnos</p>
                         <i class="fas fa-list-check text-cyan-600 text-3xl"></i>
@@ -235,28 +233,15 @@ $esHoy = $fechaSeleccionada === date('Y-m-d');
                     <p class="text-gray-500 text-base mt-1">turnos del <?php echo date('d/m/Y', $tsFecha); ?></p>
                 </div>
 
-                <div class="order-1 lg:col-span-4 bg-gradient-to-br from-white to-green-50 rounded-3xl p-5 shadow-sm border border-green-200 hover:shadow-lg transition-all">
+                <div class="order-1 lg:col-span-6 bg-gradient-to-br from-white to-green-50 rounded-3xl p-5 shadow-sm border border-green-200 hover:shadow-lg transition-all">
                     <div class="flex items-center justify-between mb-3">
                         <p class="font-bold text-gray-700 text-lg">Pagos del día</p>
                         <i class="fas fa-money-bill-wave text-green-600 text-3xl"></i>
                     </div>
                     <p class="text-5xl xl:text-4xl font-extrabold text-green-700"><?php echo $pagosFecha; ?></p>
-                    <p class="text-gray-500 text-base mt-1">por $ <?php echo number_format($montoPagosFecha, 2, '.', ','); ?></p>
+                    <p class="text-gray-500 text-base mt-1">Aprobado: $ <?php echo number_format($montoAprobadoFecha, 2, '.', ','); ?></p>
                 </div>
 
-                <div class="order-1 lg:col-span-4 bg-gradient-to-br from-white to-emerald-50 rounded-3xl p-5 shadow-sm border border-emerald-200 hover:shadow-lg transition-all">
-                    <div class="flex items-center justify-between mb-3">
-                        <p class="font-bold text-gray-700 text-lg">Valores diarios</p>
-                        <i class="fas fa-file-excel text-emerald-600 text-3xl"></i>
-                    </div>
-                    <?php if ($valoresSubido): ?>
-                        <p class="text-4xl font-extrabold text-emerald-700"><?php echo $valoresFilasFecha; ?></p>
-                        <p class="text-gray-500 text-base mt-1">filas del <?php echo date('d/m/Y', $tsFecha); ?> · subido <?php echo $valoresFecha; ?></p>
-                    <?php else: ?>
-                        <p class="text-4xl font-extrabold text-amber-600">No subido</p>
-                        <p class="text-gray-500 text-base mt-1">Sube el Excel para habilitar los turnos.</p>
-                    <?php endif; ?>
-                </div>
             </div>
         </div>
     </main>
@@ -288,15 +273,23 @@ $esHoy = $fechaSeleccionada === date('Y-m-d');
         }
     </script>
 <script>
-    // Actualizar el aviso también si el dashboard permanece abierto al cierre del día.
-    setInterval(async () => {
-        if (document.hidden) return;
+    // Revisar todas las cifras al cambiar los datos, conservando el filtro de fecha.
+    let consultandoDashboard = false;
+    async function actualizarDashboard() {
+        if (document.hidden || consultandoDashboard || document.querySelector('.flatpickr-calendar.open')) return;
+        consultandoDashboard = true;
         try {
-            const respuesta = await fetch('../../Controllers/ValoresStreamController.php?consulta=1', {cache: 'no-store'});
+            const url = new URL(window.location.href);
+            url.searchParams.set('consulta', '1');
+            const respuesta = await fetch(url, {cache: 'no-store'});
+            if (!respuesta.ok) return;
             const datos = await respuesta.json();
-            if (typeof datos.archivo_existe === 'boolean' && datos.archivo_existe !== <?php echo json_encode($valoresSubido); ?>) location.reload();
-        } catch (_) {}
-    }, 15000);
+            if (typeof datos.hash === 'string' && datos.hash !== <?php echo json_encode($hashDashboard); ?>) location.reload();
+        } catch (error) { console.error('No se pudo actualizar el dashboard.', error); }
+        finally { consultandoDashboard = false; }
+    }
+    setInterval(actualizarDashboard, 15000);
+    document.addEventListener('visibilitychange', actualizarDashboard);
 </script>
 </body>
 </html>

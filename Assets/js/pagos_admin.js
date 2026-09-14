@@ -246,6 +246,18 @@ document.addEventListener('DOMContentLoaded', () => {
     inicializarCodigos();
 
     document.addEventListener('click', async (evento) => {
+        const mensajeRapido = evento.target.closest('[data-mensaje-rapido]');
+        if (mensajeRapido) {
+            const campo = document.getElementById(mensajeRapido.dataset.mensajeRapido);
+            if (!campo) return;
+            campo.value = mensajeRapido.textContent.trim().slice(0, campo.maxLength);
+            campo.dispatchEvent(new Event('input', { bubbles: true }));
+            const error = campo === motivoRechazo ? errorDesaprobar : errorIncompleto;
+            if (error) error.classList.add('hidden');
+            campo.focus();
+            return;
+        }
+
         const editar = evento.target.closest('[data-editar-estado]');
         if (editar) {
             editar.nextElementSibling.classList.toggle('hidden');

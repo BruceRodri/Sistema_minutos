@@ -715,7 +715,11 @@ class PagoDao {
             $sql .= " AND p.estado = :estado";
             $parametros[':estado'] = $estado;
         }
-        $sql .= " ORDER BY p.fecha_pago DESC, p.id DESC";
+        // Primero los pagos que requieren revisión; los anulados tienen acciones bloqueadas.
+        $sql .= " ORDER BY CASE
+                    WHEN p.estado IN ('en_espera', 'incompleto') THEN 0
+                    WHEN p.estado = 'aprobado' THEN 1
+                    ELSE 2 END, p.fecha_pago DESC, p.id DESC";
 
         $stmt = $this->conexion->prepare($sql);
         $stmt->execute($parametros);

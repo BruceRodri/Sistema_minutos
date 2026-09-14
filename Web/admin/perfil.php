@@ -60,6 +60,9 @@ $datosPerfil = [
                     <?php include __DIR__ . '/../../App/conductor/components/clave_perfil.php'; ?>
                 </div>
             </div>
+            <?php if (in_array($usuario['rol'], ['admin', 'secretaria'], true)): ?>
+                <?php include __DIR__ . '/components/frases_perfil.php'; ?>
+            <?php endif; ?>
         </div>
     </main>
 </body>

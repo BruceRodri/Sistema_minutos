@@ -189,6 +189,55 @@ function mostrarAviso(mensaje, esError) {
     setTimeout(() => aviso.remove(), 4500);
 }
 
+let capaConfetiPago = null;
+let temporizadorConfetiPago = null;
+function detenerConfetiPago() {
+    clearTimeout(temporizadorConfetiPago);
+    capaConfetiPago?.remove();
+    capaConfetiPago = null;
+}
+function celebrarPago(modal) {
+    detenerConfetiPago();
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !Element.prototype.animate) return;
+    const capa = document.createElement('div');
+    capa.setAttribute('aria-hidden', 'true');
+    capa.style.cssText = 'position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:10';
+    const colores = ['#22c55e', '#2563eb', '#fbbf24', '#f472b6', '#a78bfa', '#38bdf8'];
+    const ancho = window.innerWidth;
+    const alto = window.innerHeight;
+    const radio = Math.min(600, Math.max(250, Math.hypot(ancho, alto) * 0.45));
+    for (let i = 0; i < 96; i++) {
+        const pieza = document.createElement('span');
+        // Distribuir la explosión en un círculo completo desde el centro de la ventana.
+        const angulo = (i / 96) * Math.PI * 2 + (Math.random() - 0.5) * 0.08;
+        const distancia = radio * (0.45 + Math.random() * 0.55);
+        const giro = Math.random() * 360;
+        const rotacion = (Math.random() - 0.5) * 1080;
+        pieza.style.cssText = `position:absolute;top:50%;left:50%;margin:-6px 0 0 -4px;width:8px;height:13px;background:${colores[i % colores.length]};border-radius:${i % 3 === 0 ? '50%' : '2px'}`;
+        capa.appendChild(pieza);
+        const fotogramas = Array.from({ length: 21 }, (_, paso) => {
+            const t = paso / 20;
+            const expansion = 1 - Math.pow(1 - t, 3);
+            const x = Math.cos(angulo) * distancia * expansion;
+            const y = Math.sin(angulo) * distancia * expansion + 240 * t * t;
+            return {
+                offset: t,
+                transform: `translate(${x}px, ${y}px) rotate(${giro + rotacion * t}deg)`,
+                opacity: t < 0.65 ? 1 : (1 - t) / 0.35
+            };
+        });
+        pieza.animate(fotogramas, {
+            duration: 1800 + Math.random() * 700,
+            easing: 'linear',
+            fill: 'both'
+        });
+    }
+    modal.appendChild(capa);
+    capaConfetiPago = capa;
+    temporizadorConfetiPago = setTimeout(detenerConfetiPago, 2600);
+}
+window.addEventListener('pagehide', detenerConfetiPago);
+
 function mostrarExito(mensaje) {
     const modal = document.getElementById('modalExito');
     if (!modal) {
@@ -199,12 +248,14 @@ function mostrarExito(mensaje) {
     if (texto) texto.textContent = mensaje;
     modal.classList.remove('hidden');
     modal.classList.add('flex');
+    celebrarPago(modal);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     const modalExito = document.getElementById('modalExito');
     if (!modalExito) return;
     const cerrar = () => {
+        detenerConfetiPago();
         modalExito.classList.add('hidden');
         modalExito.classList.remove('flex');
     };
