@@ -60,6 +60,12 @@ document.addEventListener('DOMContentLoaded', () => {
         elemento.dataset.timer = setTimeout(() => { elemento.classList.add('hidden'); }, 5000);
     }
 
+    function ocultarAlerta(elemento) {
+        if (!elemento) return;
+        clearTimeout(Number(elemento.dataset.timer) || 0);
+        elemento.classList.add('hidden');
+    }
+
     function validarArchivo(archivo) {
         const tipoPermitido = archivo.type.startsWith('image/') || archivo.type === 'application/pdf';
         if (!tipoPermitido) return 'Solo se permiten imágenes y documentos PDF.';
@@ -166,11 +172,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 : (idsAPagar.length
                     ? 'Pago registrado correctamente.'
                     : 'Comprobante adjuntado. El pago vuelve a estar en espera.');
-            mostrarAlerta(alerta, 'success', mensaje);
+            ocultarAlerta(alerta);
+            mostrarExito(mensaje);
             if (idsIncompletosApagar.length) window.renderizarPendientes(ultimosPendientes);
             if (window.marcarCambioPendiente) window.marcarCambioPendiente(8000);
         } else if (errores.length) {
-            mostrarAlerta(alerta, 'error', errores[0]);
+            ocultarAlerta(alerta);
+            mostrarAviso(errores[0], true);
         }
 
         inputComprobante.value = '';
@@ -618,7 +626,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const seleccionados = [...document.querySelectorAll('.checkGlob')]
                 .filter((c) => !c.closest('.checkGlobFila').classList.contains('hidden') && c.checked);
             if (!seleccionados.length) {
-                mostrarAlerta(alertaVarios, 'error', 'Selecciona al menos un día para pagar.');
+                mostrarAviso('Selecciona al menos un día para pagar.', true);
                 return;
             }
             const idsObligacion = seleccionados.filter((c) => c.dataset.tipo !== 'inc').map((c) => c.value);
@@ -700,7 +708,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!archivo) return;
             const error = validarArchivo(archivo);
             if (error) {
-                mostrarAlerta(flujoActivo === 'card' ? alertaTarjetas : alertaVarios, 'error', error);
+                mostrarAviso(error, true);
                 inputComprobante.value = '';
                 flujoActivo = null;
                 idsAPagar = [];

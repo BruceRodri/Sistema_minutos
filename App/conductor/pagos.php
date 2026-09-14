@@ -96,6 +96,22 @@ $discosTodos = $pagoDao->obtenerTodosDiscos();
         <a id="descargarRecibo" class="block mt-4 rounded-xl bg-blue-600 py-3 text-center text-white font-bold">Descargar comprobante</a>
     </dialog>
 
+    <!-- Modal de éxito -->
+    <div id="modalExito" class="hidden fixed inset-0 z-50 items-center justify-center p-4">
+        <div class="modalExitoFondo absolute inset-0 bg-black/60"></div>
+        <div class="relative bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 lg:p-10 text-center">
+            <div class="w-20 h-20 lg:w-24 lg:h-24 mx-auto rounded-full bg-green-100 flex items-center justify-center mb-5">
+                <i class="fas fa-check text-green-500 text-4xl lg:text-5xl"></i>
+            </div>
+            <h3 class="text-3xl lg:text-4xl font-extrabold text-gray-800 mb-4">¡Pago registrado!</h3>
+            <p id="modalExitoMensaje" class="text-gray-700 text-2xl lg:text-3xl font-medium mb-8">El pago se realizó correctamente.</p>
+            <button data-cerrar-exito type="button"
+                class="w-full py-4 lg:py-5 rounded-xl font-bold text-xl lg:text-2xl text-white bg-green-600 hover:bg-green-700 transition-colors">
+                <i class="fas fa-check mr-1.5"></i>Entendido
+            </button>
+        </div>
+    </div>
+
     <!-- Barra de navegación inferior (móvil) -->
     <nav class="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
         <div class="grid grid-cols-4 w-full max-w-xl mx-auto">

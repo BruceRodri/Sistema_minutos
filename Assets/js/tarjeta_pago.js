@@ -189,6 +189,31 @@ function mostrarAviso(mensaje, esError) {
     setTimeout(() => aviso.remove(), 4500);
 }
 
+function mostrarExito(mensaje) {
+    const modal = document.getElementById('modalExito');
+    if (!modal) {
+        mostrarAviso(mensaje);
+        return;
+    }
+    const texto = document.getElementById('modalExitoMensaje');
+    if (texto) texto.textContent = mensaje;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const modalExito = document.getElementById('modalExito');
+    if (!modalExito) return;
+    const cerrar = () => {
+        modalExito.classList.add('hidden');
+        modalExito.classList.remove('flex');
+    };
+    modalExito.querySelectorAll('[data-cerrar-exito]').forEach((boton) => boton.addEventListener('click', cerrar));
+    modalExito.addEventListener('click', (evento) => {
+        if (evento.target.classList.contains('modalExitoFondo')) cerrar();
+    });
+});
+
 function validarArchivoRestante(archivo) {
     const tipos = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
     if (!tipos.includes(archivo.type)) return 'Solo se permiten imágenes JPG, PNG, WEBP y documentos PDF.';
@@ -233,7 +258,7 @@ function inicializarSubirRestante(onCompletado) {
             const response = await fetch('../../Controllers/PagoController.php', { method: 'POST', body: formData });
             const data = await response.json();
             if (data.status === 'success') {
-                mostrarAviso(data.message || 'Comprobante adjuntado. El pago vuelve a estar en espera.');
+                mostrarExito(data.message || 'Comprobante adjuntado. El pago vuelve a estar en espera.');
                 if (typeof onCompletado === 'function') onCompletado(pagoEnviar);
             } else {
                 mostrarAviso(data.message || 'No se pudo adjuntar el comprobante.', true);

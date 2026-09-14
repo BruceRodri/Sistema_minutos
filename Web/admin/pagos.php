@@ -134,7 +134,7 @@ sort($discosPendientes, SORT_NATURAL);
             </form>
 
             <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200 w-full min-w-[1350px]">
+                <table class="min-w-full divide-y divide-gray-200 w-full min-w-[1350px] tabla-zebra">
                     <thead class="bg-gray-50">
                         <tr>
                             <th class="px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Conductor</th>
@@ -277,7 +277,7 @@ sort($discosPendientes, SORT_NATURAL);
             </form>
 
             <div class="mt-5 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-md overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200 min-w-[1150px]">
+                <table class="min-w-full divide-y divide-gray-200 min-w-[1150px] tabla-zebra">
                     <thead class="bg-gray-50">
                         <tr>
                             <th class="px-5 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Disco</th>

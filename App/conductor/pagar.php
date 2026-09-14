@@ -178,6 +178,22 @@ $discoInicial = null;
         </div>
     </div>
 
+    <!-- Modal de éxito -->
+    <div id="modalExito" class="hidden fixed inset-0 z-50 items-center justify-center p-4">
+        <div class="modalExitoFondo absolute inset-0 bg-black/60"></div>
+        <div class="relative bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 lg:p-10 text-center">
+            <div class="w-20 h-20 lg:w-24 lg:h-24 mx-auto rounded-full bg-green-100 flex items-center justify-center mb-5">
+                <i class="fas fa-check text-green-500 text-4xl lg:text-5xl"></i>
+            </div>
+            <h3 class="text-3xl lg:text-4xl font-extrabold text-gray-800 mb-4">¡Pago registrado!</h3>
+            <p id="modalExitoMensaje" class="text-gray-700 text-2xl lg:text-3xl font-medium mb-8">El pago se realizó correctamente.</p>
+            <button data-cerrar-exito type="button"
+                class="w-full py-4 lg:py-5 rounded-xl font-bold text-xl lg:text-2xl text-white bg-green-600 hover:bg-green-700 transition-colors">
+                <i class="fas fa-check mr-1.5"></i>Entendido
+            </button>
+        </div>
+    </div>
+
     <!-- Visor de comprobantes -->
     <dialog id="visorRecibo" class="w-[95vw] max-w-3xl rounded-2xl p-4 backdrop:bg-black/60">
         <div class="flex items-center justify-between mb-4">

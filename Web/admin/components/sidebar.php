@@ -28,8 +28,8 @@ $rolesAdmin = ['admin', 'secretaria', 'operativo'];
 <div id="mobileOverlay" class="hidden md:hidden fixed inset-0 bg-black bg-opacity-50 z-[50] transition-opacity"></div>
 
 <!-- Botón flotante Escritorio -->
-<button id="btnOpenDesktop" class="hidden fixed top-4 left-4 z-50 items-center justify-center w-10 h-10 bg-gray-900 text-white rounded shadow-lg hover:bg-gray-800 transition-colors" style="display: none;">
-    <i class="fas fa-bars"></i>
+<button id="btnOpenDesktop" class="hidden fixed top-0 left-0 z-50 items-center justify-center w-14 h-16 bg-gray-900 text-white border-r border-gray-800 hover:bg-gray-800 transition-colors" style="display: none;">
+    <i class="fas fa-bars text-xl"></i>
 </button>
 
 <!-- Barra lateral -->
@@ -100,6 +100,8 @@ $rolesAdmin = ['admin', 'secretaria', 'operativo'];
 
 <style>
     .pagination-hidden { display: none !important; }
+    table.tabla-zebra tbody tr.admin-zebra-0 { background-color: #ffffff; }
+    table.tabla-zebra tbody tr.admin-zebra-1 { background-color: #f8fafc; }
     @media (max-width: 767px) {
         body > main {
             height: calc(100vh - 5rem);
@@ -151,6 +153,8 @@ $rolesAdmin = ['admin', 'secretaria', 'operativo'];
             background: #fff;
             box-shadow: 0 5px 16px rgba(15, 23, 42, .08);
         }
+        table.admin-responsive-table tbody tr:not(.hidden):not(.pagination-hidden).admin-zebra-0 { background: #ffffff; }
+        table.admin-responsive-table tbody tr:not(.hidden):not(.pagination-hidden).admin-zebra-1 { background: #f8fafc; }
         table.admin-responsive-table tbody tr.hidden,
         table.admin-responsive-table tbody tr.pagination-hidden { display: none !important; }
         table.admin-responsive-table tbody td:not([colspan]) {
@@ -212,11 +216,13 @@ $rolesAdmin = ['admin', 'secretaria', 'operativo'];
             btnOpenDesktop.classList.remove('hidden');
             btnOpenDesktop.classList.add('md:flex');
             btnOpenDesktop.style.display = 'flex';
+            document.querySelector('main')?.classList.add('md:pl-14');
         });
         
         btnOpenDesktop.addEventListener('click', () => {
             sidebar.classList.remove('md:hidden');
             btnOpenDesktop.style.display = 'none';
+            document.querySelector('main')?.classList.remove('md:pl-14');
         });
     }
 
@@ -254,6 +260,13 @@ $rolesAdmin = ['admin', 'secretaria', 'operativo'];
                 filas.forEach((fila) => fila.classList.add('pagination-hidden'));
                 filtradas.slice((pagina - 1) * limite, pagina * limite)
                     .forEach((fila) => fila.classList.remove('pagination-hidden'));
+
+                if (tabla.classList.contains('tabla-zebra')) {
+                    filtradas.forEach((fila, indice) => {
+                        fila.classList.toggle('admin-zebra-1', indice % 2 === 1);
+                        fila.classList.toggle('admin-zebra-0', indice % 2 === 0);
+                    });
+                }
 
                 if (filtradas.length <= limite) {
                     barra.classList.add('hidden');
