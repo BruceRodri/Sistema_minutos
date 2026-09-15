@@ -35,13 +35,27 @@ switch ($moduloExportacion) {
         break;
     case 'pagos':
         $manual = ($_GET['seccion_exp'] ?? '') === 'manuales';
-        $cabecera = ['ID','Conductor','Código','Discos','Fechas de obligaciones','Rutas','Total','Fecha de registro','Estado','Números de comprobantes','Motivo'];
         $datos = [];
-        foreach (($manual ? $pagosManuales : $pagos) as $p) $datos[] = [(int)$p['id'],trim(($p['nombres'] ?? '').' '.($p['apellidos'] ?? '')),$p['codigo_conductor'] ?? '',implode(' / ', $p['discos'] ?? []),implode(' / ', $p['fechas'] ?? []),implode(' / ', $p['rutas'] ?? []),(float)$p['monto_total'],$p['fecha_pago'],$estadoExcel($p['estado']),$p['nro_comprobante'] ?? '',$p['motivo_rechazo'] ?? ''];
         if ($manual) {
             $moduloExportacion = 'pagos-manuales';
             $cabecera = ['Código de ingreso','Discos','Fechas de obligaciones','Rutas','Total','Fecha de registro','Estado','Motivo'];
-            $datos = array_map(static fn($p) => [$p['codigo_ingreso'],implode(' / ', $p['discos']),implode(' / ', $p['fechas']),implode(' / ', $p['rutas']),(float)$p['monto_total'],$p['fecha_pago'],$estadoExcel($p['estado']),$p['motivo_rechazo'] ?? ''], $pagosManuales);
+            foreach ($pagosManuales as $p) {
+                $fechas = $p['fechas'] ?? [];
+                if (empty($fechas)) $fechas = [''];
+                foreach ($fechas as $fecha) {
+                    $datos[] = [$p['codigo_ingreso'],implode(' / ', $p['discos']),$fecha,implode(' / ', $p['rutas']),(float)$p['monto_total'],$p['fecha_pago'],$estadoExcel($p['estado']),$p['motivo_rechazo'] ?? ''];
+                }
+            }
+        } else {
+            $cabecera = ['Conductor','Código','Discos','Fechas de obligaciones','Rutas','Total','Fecha de registro','Estado','Números de comprobantes','Motivo'];
+            foreach ($pagos as $p) {
+                $fechas = $p['fechas'] ?? [];
+                if (empty($fechas)) $fechas = [''];
+                foreach ($fechas as $fecha) {
+                    $conductor = trim(($p['nombres'] ?? '').' '.($p['apellidos'] ?? ''));
+                    $datos[] = [$conductor,$p['codigo_conductor'] ?? '',implode(' / ', $p['discos'] ?? []),$fecha,implode(' / ', $p['rutas'] ?? []),(float)$p['monto_total'],$p['fecha_pago'],$estadoExcel($p['estado']),$p['nro_comprobante'] ?? '',$p['motivo_rechazo'] ?? ''];
+                }
+            }
         }
         break;
     case 'dashboard':

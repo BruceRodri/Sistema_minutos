@@ -54,7 +54,7 @@ $fechaHoy = date('d/m/Y');
 <body class="bg-gradient-to-br from-slate-100 via-blue-50 to-cyan-100 text-gray-800 min-h-screen">
     <?php include __DIR__ . '/components/cambio_interfaz.php'; ?>
 
-    <div class="flex flex-col min-h-screen max-w-md mx-auto p-4 md:py-6">
+    <div class="flex flex-col min-h-screen max-w-md mx-auto p-4 md:py-6 gap-6">
 
         <!-- Encabezado -->
         <div class="flex items-center justify-between bg-white border border-gray-200 rounded-2xl shadow-sm p-5">
@@ -74,14 +74,14 @@ $fechaHoy = date('d/m/Y');
         </div>
 
         <!-- Reloj en vivo -->
-        <div class="mt-6 rounded-2xl bg-gradient-to-r from-blue-600 via-blue-700 to-cyan-500 shadow-lg px-5 py-4 text-center border border-blue-400/40">
+        <div class="rounded-2xl bg-gradient-to-r from-blue-600 via-blue-700 to-cyan-500 shadow-lg px-5 py-4 text-center border border-blue-400/40">
             <p class="text-[0.7rem] font-bold uppercase tracking-[0.2em] text-blue-100">Hora actual</p>
             <time id="relojHora" class="block mt-1 text-5xl font-extrabold tabular-nums text-white drop-shadow-md">--:--:--</time>
             <p id="relojFecha" class="mt-1 text-sm font-semibold text-blue-100"></p>
         </div>
 
         <!-- Botones principales -->
-        <div class="flex-1 flex flex-col justify-center gap-6">
+        <div class="flex flex-col gap-6">
             <?php if ($puedeQr): ?><button id="btnAbrirTurno" class="group bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 border-2 border-blue-300 hover:border-blue-500 text-blue-900 font-bold py-14 px-4 rounded-2xl shadow-md hover:shadow-lg text-2xl transition-all flex flex-col items-center justify-center active:scale-95">
                 <span class="w-20 h-20 mb-5 rounded-2xl bg-blue-600 group-hover:bg-blue-700 text-white flex items-center justify-center shadow-lg transition-colors">
                     <i class="fas fa-qrcode text-5xl"></i>
