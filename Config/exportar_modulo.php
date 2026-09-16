@@ -38,22 +38,34 @@ switch ($moduloExportacion) {
         $datos = [];
         if ($manual) {
             $moduloExportacion = 'pagos-manuales';
-            $cabecera = ['Código de ingreso','Discos','Fechas de obligaciones','Rutas','Total','Fecha de registro','Estado','Motivo'];
+            $cabecera = ['Código de ingreso','Discos','Fechas de obligaciones','Rutas','Valor del día','Fecha de registro','Estado','Motivo'];
             foreach ($pagosManuales as $p) {
                 $fechas = $p['fechas'] ?? [];
                 if (empty($fechas)) $fechas = [''];
+                $valoresDia = [];
+                foreach ($p['valores_individuales'] ?? [] as $v) {
+                    $f = (string)($v['fecha'] ?? '');
+                    $valoresDia[$f] = round(($valoresDia[$f] ?? 0) + (float)($v['valor'] ?? 0), 2);
+                }
                 foreach ($fechas as $fecha) {
-                    $datos[] = [$p['codigo_ingreso'],implode(' / ', $p['discos']),$fecha,implode(' / ', $p['rutas']),(float)$p['monto_total'],$p['fecha_pago'],$estadoExcel($p['estado']),$p['motivo_rechazo'] ?? ''];
+                    $valor = isset($valoresDia[$fecha]) ? $valoresDia[$fecha] : round((float)$p['monto_total'], 2);
+                    $datos[] = [$p['codigo_ingreso'],implode(' / ', $p['discos']),$fecha,implode(' / ', $p['rutas']),(float)$valor,$p['fecha_pago'],$estadoExcel($p['estado']),$p['motivo_rechazo'] ?? ''];
                 }
             }
         } else {
-            $cabecera = ['Conductor','Código','Discos','Fechas de obligaciones','Rutas','Total','Fecha de registro','Estado','Números de comprobantes','Motivo'];
+            $cabecera = ['Conductor','Código','Discos','Fechas de obligaciones','Rutas','Valor del día','Fecha de registro','Estado','Números de comprobantes','Motivo'];
             foreach ($pagos as $p) {
                 $fechas = $p['fechas'] ?? [];
                 if (empty($fechas)) $fechas = [''];
+                $valoresDia = [];
+                foreach ($p['valores_individuales'] ?? [] as $v) {
+                    $f = (string)($v['fecha'] ?? '');
+                    $valoresDia[$f] = round(($valoresDia[$f] ?? 0) + (float)($v['valor'] ?? 0), 2);
+                }
                 foreach ($fechas as $fecha) {
                     $conductor = trim(($p['nombres'] ?? '').' '.($p['apellidos'] ?? ''));
-                    $datos[] = [$conductor,$p['codigo_conductor'] ?? '',implode(' / ', $p['discos'] ?? []),$fecha,implode(' / ', $p['rutas'] ?? []),(float)$p['monto_total'],$p['fecha_pago'],$estadoExcel($p['estado']),$p['nro_comprobante'] ?? '',$p['motivo_rechazo'] ?? ''];
+                    $valor = isset($valoresDia[$fecha]) ? $valoresDia[$fecha] : round((float)$p['monto_total'], 2);
+                    $datos[] = [$conductor,$p['codigo_conductor'] ?? '',implode(' / ', $p['discos'] ?? []),$fecha,implode(' / ', $p['rutas'] ?? []),(float)$valor,$p['fecha_pago'],$estadoExcel($p['estado']),$p['nro_comprobante'] ?? '',$p['motivo_rechazo'] ?? ''];
                 }
             }
         }
