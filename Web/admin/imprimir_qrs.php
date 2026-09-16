@@ -56,6 +56,7 @@ $buses = (new BusDao($conexion))->obtenerTodos();
         </article>
         <?php endforeach; ?>
     </main>
-    <script src="../../Assets/js/imprimir_qrs.js"></script>
+    <script src="../../Assets/js/qr_logo.js?v=<?php echo hash_file('sha256', __DIR__ . '/../../Assets/js/qr_logo.js'); ?>"></script>
+    <script src="../../Assets/js/imprimir_qrs.js?v=<?php echo hash_file('sha256', __DIR__ . '/../../Assets/js/imprimir_qrs.js'); ?>"></script>
 </body>
 </html>

@@ -235,6 +235,7 @@ require __DIR__ . '/../../Config/exportar_modulo.php';
         </div>
     </div>
 
+    <script src="../../Assets/js/qr_logo.js?v=<?php echo hash_file('sha256', __DIR__ . '/../../Assets/js/qr_logo.js'); ?>"></script>
     <script src="../../Assets/js/buses.js?v=<?php echo hash_file('sha256', __DIR__ . '/../../Assets/js/buses.js'); ?>"></script>
 <script>
         if ('serviceWorker' in navigator) {

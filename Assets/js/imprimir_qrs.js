@@ -2,6 +2,7 @@
     const boton = document.getElementById('imprimir');
     const mensaje = document.getElementById('mensaje');
     const codigos = [...document.querySelectorAll('.qr')];
+    const logoQr = '../../Assets/images/logo-ejecuttrans.png';
     if (!codigos.length) return;
 
     try {
@@ -16,6 +17,12 @@
             // Una imagen fija evita que la conversión interna de QRCode altere la impresión.
             const canvas = contenedor.querySelector('canvas');
             if (!canvas) throw new Error('No se pudo generar un código QR.');
+            try {
+                await window.QRConLogo.aplicar(canvas, logoQr);
+            } catch (errorLogo) {
+                // El QR sigue disponible aun si el recurso visual no carga.
+                console.error('No se pudo agregar el logo al QR:', errorLogo);
+            }
             const imagen = new Image();
             imagen.alt = 'QR del disco ' + contenedor.dataset.disco;
             imagen.src = canvas.toDataURL('image/png');

@@ -192,6 +192,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (qrModal) {
         let discoQrActual = '';
         let placaQrActual = '';
+        const logoQr = '../../Assets/images/logo-ejecuttrans.png';
         const btnDescargarQR = document.getElementById('btnDescargarQR');
 
         const cargarImagenQr = (imagen) => new Promise((resolve, reject) => {
@@ -262,7 +263,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         document.querySelectorAll('.btnVerQR').forEach((btn) => {
-            btn.addEventListener('click', () => {
+            btn.addEventListener('click', async () => {
                 const disco = btn.dataset.disco;
                 const placa = btn.dataset.placa || 'Sin placa';
                 const contenedor = document.getElementById('qrCodigo');
@@ -281,6 +282,30 @@ document.addEventListener('DOMContentLoaded', () => {
                     height: 200,
                     correctLevel: QRCode.CorrectLevel.H
                 });
+
+                const canvasQr = contenedor.querySelector('canvas');
+                if (canvasQr) {
+                    try {
+                        await window.QRConLogo.aplicar(canvasQr, logoQr);
+                    } catch (errorLogo) {
+                        // La lectura del QR tiene prioridad si el logo no estuviera disponible.
+                        console.error('No se pudo agregar el logo al QR:', errorLogo);
+                    }
+
+                    try {
+                        // Se usa una imagen independiente porque QRCode.js puede ocultar
+                        // su canvas interno despues de terminar la conversion automatica.
+                        const imagenQr = new Image();
+                        imagenQr.alt = 'QR del disco ' + disco;
+                        imagenQr.src = canvasQr.toDataURL('image/png');
+                        await cargarImagenQr(imagenQr);
+                        contenedor.replaceChildren(imagenQr);
+                    } catch (errorImagen) {
+                        canvasQr.style.display = 'block';
+                        contenedor.replaceChildren(canvasQr);
+                        console.error('No se pudo estabilizar la vista del QR:', errorImagen);
+                    }
+                }
 
                 qrModal.classList.remove('hidden');
             });
