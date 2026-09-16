@@ -36,36 +36,73 @@ switch ($moduloExportacion) {
     case 'pagos':
         $manual = ($_GET['seccion_exp'] ?? '') === 'manuales';
         $datos = [];
+        $listaNros = static function ($valor): array {
+            $valor = trim((string)$valor);
+            if ($valor === '') return [''];
+            $decodificado = json_decode($valor, true);
+            $nros = is_array($decodificado)
+                ? array_map('strval', $decodificado)
+                : preg_split('/\s*\|\s*/', $valor);
+            $nros = array_values(array_filter(array_map('trim', $nros), static fn($c) => $c !== ''));
+            return $nros ?: [''];
+        };
         if ($manual) {
             $moduloExportacion = 'pagos-manuales';
-            $cabecera = ['Código de ingreso','Discos','Fechas de obligaciones','Rutas','Valor del día','Fecha de registro','Estado','Motivo'];
+            $cabecera = ['Código de ingreso','Disco','Fecha de obligación','Ruta','Valor del día','Fecha de registro','Estado','Motivo'];
             foreach ($pagosManuales as $p) {
-                $fechas = $p['fechas'] ?? [];
-                if (empty($fechas)) $fechas = [''];
                 $valoresDia = [];
                 foreach ($p['valores_individuales'] ?? [] as $v) {
                     $f = (string)($v['fecha'] ?? '');
                     $valoresDia[$f] = round(($valoresDia[$f] ?? 0) + (float)($v['valor'] ?? 0), 2);
                 }
-                foreach ($fechas as $fecha) {
+                $filasDetalle = $p['detalle_filas'] ?? [];
+                if (empty($filasDetalle)) $filasDetalle = [['fecha' => '', 'disco' => '', 'ruta' => '']];
+                foreach ($filasDetalle as $fila) {
+                    $fecha = (string)($fila['fecha'] ?? '');
                     $valor = isset($valoresDia[$fecha]) ? $valoresDia[$fecha] : round((float)$p['monto_total'], 2);
-                    $datos[] = [$p['codigo_ingreso'],implode(' / ', $p['discos']),$fecha,implode(' / ', $p['rutas']),(float)$valor,$p['fecha_pago'],$estadoExcel($p['estado']),$p['motivo_rechazo'] ?? ''];
+                    $datos[] = [
+                        $p['codigo_ingreso'],
+                        (string)($fila['disco'] ?? ''),
+                        $fecha,
+                        (string)($fila['ruta'] ?? ''),
+                        (float)$valor,
+                        $p['fecha_pago'],
+                        $estadoExcel($p['estado']),
+                        $p['motivo_rechazo'] ?? ''
+                    ];
                 }
             }
         } else {
-            $cabecera = ['Conductor','Código','Discos','Fechas de obligaciones','Rutas','Valor del día','Fecha de registro','Estado','Números de comprobantes','Motivo'];
+            $cabecera = ['Conductor','Código','Disco','Fecha de obligación','Ruta','Valor del día','Fecha de registro','Estado','N.º de comprobante','Motivo'];
             foreach ($pagos as $p) {
-                $fechas = $p['fechas'] ?? [];
-                if (empty($fechas)) $fechas = [''];
                 $valoresDia = [];
                 foreach ($p['valores_individuales'] ?? [] as $v) {
                     $f = (string)($v['fecha'] ?? '');
                     $valoresDia[$f] = round(($valoresDia[$f] ?? 0) + (float)($v['valor'] ?? 0), 2);
                 }
-                foreach ($fechas as $fecha) {
-                    $conductor = trim(($p['nombres'] ?? '').' '.($p['apellidos'] ?? ''));
+                $nros = $listaNros($p['nro_comprobante'] ?? '');
+                $filasDetalle = $p['detalle_filas'] ?? [];
+                if (empty($filasDetalle)) $filasDetalle = [['fecha' => '', 'disco' => '', 'ruta' => '']];
+                $cantidadNros = count($nros);
+                $cantidadFilas = count($filasDetalle);
+                $conductor = trim(($p['nombres'] ?? '').' '.($p['apellidos'] ?? ''));
+                foreach ($filasDetalle as $i => $fila) {
+                    $fecha = (string)($fila['fecha'] ?? '');
                     $valor = isset($valoresDia[$fecha]) ? $valoresDia[$fecha] : round((float)$p['monto_total'], 2);
-                    $datos[] = [$conductor,$p['codigo_conductor'] ?? '',implode(' / ', $p['discos'] ?? []),$fecha,implode(' / ', $p['rutas'] ?? []),(float)$valor,$p['fecha_pago'],$estadoExcel($p['estado']),$p['nro_comprobante'] ?? '',$p['motivo_rechazo'] ?? ''];
+                    $indiceNro = $cantidadNros === 1 ? 0 : (int)floor($i * $cantidadNros / $cantidadFilas);
+                    $nro = $nros[$indiceNro] ?? '';
+                    $datos[] = [
+                        $conductor,
+                        $p['codigo_conductor'] ?? '',
+                        (string)($fila['disco'] ?? ''),
+                        $fecha,
+                        (string)($fila['ruta'] ?? ''),
+                        (float)$valor,
+                        $p['fecha_pago'],
+                        $estadoExcel($p['estado']),
+                        $nro,
+                        $p['motivo_rechazo'] ?? ''
+                    ];
                 }
             }
         }

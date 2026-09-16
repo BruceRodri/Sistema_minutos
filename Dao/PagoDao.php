@@ -557,10 +557,20 @@ class PagoDao {
                     static fn($fila) => trim((string)($fila['ruta'] ?? '')),
                     $filas
                 )), static fn($ruta) => $ruta !== ''));
+                $pagos[$i]['detalle_filas'] = array_map(static fn($fila) => [
+                    'fecha' => $fila['fecha'],
+                    'disco' => $fila['disco'],
+                    'ruta' => $fila['ruta'] ?? null
+                ], $filas);
             } else {
                 $pagos[$i]['fechas'] = $detalle['fechas'];
                 $pagos[$i]['discos'] = $detalle['discos'];
                 $pagos[$i]['rutas'] = $detalle['rutas'];
+                $pagos[$i]['detalle_filas'] = array_map(static fn($fila) => [
+                    'fecha' => $fila['fecha'] ?? null,
+                    'disco' => $fila['disco'] ?? null,
+                    'ruta' => $fila['ruta'] ?? null
+                ], json_decode($pago['detalle_pagos'] ?? '', true) ?: []);
             }
             $pagos[$i]['dias'] = count($pagos[$i]['fechas']);
             $stmtValores->execute([$pago['id'], $pago['id']]);
@@ -772,10 +782,20 @@ class PagoDao {
                     static fn($fila) => trim((string)($fila['ruta'] ?? '')),
                     $filas
                 )), static fn($ruta) => $ruta !== ''));
+                $pagos[$i]['detalle_filas'] = array_map(static fn($fila) => [
+                    'fecha' => $fila['fecha'],
+                    'disco' => $fila['disco'],
+                    'ruta' => $fila['ruta'] ?? null
+                ], $filas);
             } else {
                 $pagos[$i]['fechas'] = $detalle['fechas'];
                 $pagos[$i]['discos'] = $detalle['discos'];
                 $pagos[$i]['rutas'] = $detalle['rutas'];
+                $pagos[$i]['detalle_filas'] = array_map(static fn($fila) => [
+                    'fecha' => $fila['fecha'] ?? null,
+                    'disco' => $fila['disco'] ?? null,
+                    'ruta' => $fila['ruta'] ?? null
+                ], json_decode($pago['detalle_pagos'] ?? '', true) ?: []);
             }
             $pagos[$i]['dias'] = count($pagos[$i]['fechas']);
             $stmtValores->execute([$pago['id'], $pago['id']]);
