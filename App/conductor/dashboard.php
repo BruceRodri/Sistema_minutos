@@ -59,7 +59,6 @@ $fechaHoy = date('d/m/Y');
         <!-- Encabezado -->
         <div class="flex items-center justify-between bg-white border border-gray-200 rounded-2xl shadow-sm p-5">
             <div>
-                <p class="text-sm text-gray-500 mb-1">Bienvenido</p>
                 <h1 class="text-xl font-bold text-gray-900">Hola, <?php echo htmlspecialchars($nombreCorto); ?></h1>
                 <p class="text-sm text-gray-500 mt-1"><?php echo $fechaHoy; ?></p>
                 <?php if ($codigoConductor): ?>

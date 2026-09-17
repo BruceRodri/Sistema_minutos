@@ -39,7 +39,7 @@ require __DIR__ . '/../../Config/exportar_modulo.php';
     <?php include 'components/sidebar.php'; ?>
 
     <main class="flex-1 flex flex-col overflow-y-auto mt-16 md:mt-0 w-full">
-        <header class="min-h-16 py-3 gap-3 flex-wrap bg-white shadow-sm flex items-center px-4 md:px-8 justify-between border-b border-gray-200">
+        <header class="shrink-0 min-h-16 py-3 gap-3 flex-wrap bg-white shadow-sm flex items-center px-4 md:px-8 justify-between border-b border-gray-200">
             <div>
                 <h2 class="text-xl md:text-2xl font-bold text-gray-800 text-transparent bg-clip-text bg-gradient-to-r from-blue-700 to-gray-800">
                     Buses
@@ -47,6 +47,9 @@ require __DIR__ . '/../../Config/exportar_modulo.php';
                 <p class="text-xs text-gray-500">Gestión de discos: QR, edición, estado y eliminación</p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
+            <button id="btnSeleccionarBusesQR" type="button" class="bg-white hover:bg-blue-50 text-blue-700 border border-blue-200 px-5 py-2 rounded-lg transition-all text-sm font-bold flex items-center">
+                <i class="fas fa-print mr-2"></i> Selección de Buses
+            </button>
             <a href="imprimir_qrs.php" target="_blank" rel="noopener" class="bg-white hover:bg-blue-50 text-blue-700 border border-blue-200 px-5 py-2 rounded-lg transition-all text-sm font-bold flex items-center">
                 <i class="fas fa-print mr-2"></i> Imprimir todos los QR
             </a>
@@ -158,6 +161,31 @@ require __DIR__ . '/../../Config/exportar_modulo.php';
         </div>
     </main>
 
+    <div id="modalSeleccionarBusesQR" class="fixed inset-0 z-[70] hidden items-center justify-center bg-gray-900/60 p-4" role="dialog" aria-modal="true" aria-labelledby="tituloSeleccionarBusesQR">
+        <div class="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div class="flex items-center justify-between bg-blue-800 px-5 py-4 text-white">
+                <h3 id="tituloSeleccionarBusesQR" class="text-lg font-bold">Seleccionar buses para imprimir QR</h3>
+                <button id="btnCerrarSeleccionBusesQR" type="button" class="rounded-lg px-3 py-2 hover:bg-blue-700" aria-label="Cerrar selección">✕</button>
+            </div>
+            <div class="overflow-y-auto p-5">
+                <label for="buscarBusQR" class="mb-2 block text-sm font-bold text-gray-700">Buscar por disco o placa</label>
+                <input id="buscarBusQR" type="search" autocomplete="off" placeholder="Escriba el disco o la placa…" class="w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:ring-2 focus:ring-blue-500">
+                <p id="estadoBusquedaBusesQR" role="status" class="my-2 text-sm text-gray-500"></p>
+                <div id="resultadosBusesQR" class="max-h-48 overflow-y-auto rounded-lg border border-gray-200"></div>
+                <h4 class="mb-3 mt-5 font-bold text-gray-800">Buses seleccionados (<span id="cantidadBusesQR">0</span>)</h4>
+                <div class="overflow-x-auto rounded-lg border border-gray-200">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-gray-50 text-gray-600"><tr><th scope="col" class="p-3">Disco</th><th scope="col" class="p-3">Placa</th><th scope="col" class="p-3">Acción</th></tr></thead>
+                        <tbody id="tablaBusesQR" class="divide-y divide-gray-200"></tbody>
+                    </table>
+                </div>
+                <p id="estadoImpresionBusesQR" role="status" class="mt-3 text-sm text-gray-600"></p>
+                <button id="btnImprimirBusesQR" type="button" disabled class="mt-4 w-full rounded-lg bg-blue-600 px-4 py-3 font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"><i class="fas fa-print mr-2"></i>Imprimir QR seleccionados (PDF)</button>
+            </div>
+        </div>
+    </div>
+    <script id="datosBusesQR" type="application/json"><?php echo json_encode(array_map(static fn($bus) => ['id' => (string)$bus['id'], 'disco' => (string)$bus['disco'], 'placa' => (string)($bus['placa'] ?: 'Sin placa')], $todosLosBuses), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE); ?></script>
+
     <div id="modalCrearBus" class="fixed inset-0 z-50 hidden items-center justify-center bg-gray-900/60 p-4" role="dialog" aria-modal="true" aria-labelledby="tituloCrearBus">
         <div class="flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
             <div class="flex items-start justify-between bg-gradient-to-r from-blue-700 to-blue-900 px-5 py-4 text-white md:px-6">
@@ -237,6 +265,8 @@ require __DIR__ . '/../../Config/exportar_modulo.php';
 
     <script src="../../Assets/js/qr_logo.js?v=<?php echo hash_file('sha256', __DIR__ . '/../../Assets/js/qr_logo.js'); ?>"></script>
     <script src="../../Assets/js/buses.js?v=<?php echo hash_file('sha256', __DIR__ . '/../../Assets/js/buses.js'); ?>"></script>
+    <script src="../../Assets/js/vendor/jspdf.umd.min.js"></script>
+    <script src="../../Assets/js/seleccionar_buses_qr.js?v=<?php echo hash_file('sha256', __DIR__ . '/../../Assets/js/seleccionar_buses_qr.js'); ?>"></script>
 <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
