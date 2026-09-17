@@ -245,6 +245,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     inicializarCodigos();
 
+    const pagoEnlace = new URLSearchParams(window.location.search).get('ver_pago');
+    if (pagoEnlace && /^\d+$/.test(pagoEnlace)) {
+        const filaEnlace = document.getElementById('pago-' + pagoEnlace);
+        if (filaEnlace) {
+            filaEnlace.scrollIntoView({block:'center', inline:'nearest'});
+            filaEnlace.querySelector('dialog.acciones-pago')?.showModal();
+        }
+    }
+
     let filaExcedente = null;
     const modalExcedente = document.getElementById('modalExcedente');
     const formExcedente = document.getElementById('formExcedente');
@@ -353,6 +362,7 @@ document.addEventListener('DOMContentLoaded', () => {
             resolverDiferencia.disabled = true;
             try {
                 const data = await enviarAccion({ accion: 'resolver_diferencia', pago_id: resolverDiferencia.dataset.resolverDiferencia, saldo_favor: saldo, nota, csrf_token:document.getElementById('csrfSaldoAdmin').value });
+                if (data.status === 'success') { window.location.reload(); return; }
                 if (estado) {
                     estado.textContent = data.message;
                     estado.className = 'mt-1 text-xs font-bold ' + (data.status === 'success' ? 'text-green-700' : 'text-red-600');

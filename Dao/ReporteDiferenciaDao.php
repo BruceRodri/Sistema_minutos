@@ -62,14 +62,21 @@ class ReporteDiferenciaDao {
         foreach ($stmt->fetchAll() as $fila) $reportes[(int)$fila['pago_id']] = $fila;
         foreach ($pagos as &$pago) {
             $pago['reporte_diferencia'] = $reportes[(int)$pago['id']] ?? null;
-            $q = $this->conexion->prepare('SELECT u.monto, r.pago_id AS origen FROM uso_saldo_pago u JOIN reporte_diferencia_pago r ON r.id=u.reporte_id WHERE u.pago_id=? AND u.devuelto=0');
+            $q = $this->conexion->prepare('SELECT u.monto, r.pago_id AS origen, r.creado_en AS fecha_excedente, p.fecha_pago, p.nro_comprobante, p.detalle_pagos FROM uso_saldo_pago u JOIN reporte_diferencia_pago r ON r.id=u.reporte_id JOIN pago p ON p.id=r.pago_id WHERE u.pago_id=? AND u.devuelto=0');
             $q->execute([$pago['id']]);
             $pago['usos_saldo'] = $q->fetchAll();
             $pago['comprobantes_saldo'] = $pago['estado'] !== 'anulado'
                 ? $this->obtenerComprobantesSaldo((int)$pago['id']) : [];
-            $q = $this->conexion->prepare('SELECT u.monto, u.pago_id FROM uso_saldo_pago u JOIN reporte_diferencia_pago r ON r.id=u.reporte_id WHERE r.pago_id=? AND u.devuelto=0');
+            $q = $this->conexion->prepare('SELECT u.monto, u.pago_id, p.fecha_pago, p.detalle_pagos FROM uso_saldo_pago u JOIN reporte_diferencia_pago r ON r.id=u.reporte_id JOIN pago p ON p.id=u.pago_id WHERE r.pago_id=? AND u.devuelto=0');
             $q->execute([$pago['id']]);
             $pago['destinos_saldo'] = $q->fetchAll();
+            if ($pago['reporte_diferencia']) {
+                // El saldo disponible disminuye al consumirlo; reconstruir el crédito confirmado
+                // con sus usos para no confundirlo con el total de un pago agrupado.
+                $pago['reporte_diferencia']['excedente_generado'] =
+                    (float)$pago['reporte_diferencia']['saldo_favor'] +
+                    array_sum(array_column($pago['destinos_saldo'], 'monto'));
+            }
         }
         unset($pago);
         return $pagos;

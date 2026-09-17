@@ -18,7 +18,7 @@
                                     return htmlspecialchars('../../Controllers/ComprobanteController.php?pago_id=' . (int)$p['id'] . '&archivo=' . rawurlencode($indice), ENT_QUOTES, 'UTF-8');
                                 };
                             ?>
-                            <tr class="hover:bg-gray-50 transition-colors">
+                            <tr id="pago-<?php echo (int)$p['id']; ?>" class="hover:bg-gray-50 transition-colors">
                                 <td class="px-5 py-4 whitespace-nowrap">
                                     <p class="text-sm font-bold text-gray-800"><?php echo htmlspecialchars($conductor); ?></p>
                                     <p class="text-xs text-gray-500 font-mono">Código: <?php echo htmlspecialchars($p['codigo_conductor'] ?: '—'); ?></p>
@@ -60,7 +60,46 @@
                                 </td>
                                 <td class="px-5 py-4 whitespace-nowrap text-center">
                                     <span class="text-base font-extrabold text-gray-800">$ <?php echo number_format((float)$p['monto_total'], 2, '.', ','); ?></span>
-                                    <?php if (!empty($p['usos_saldo'])): ?><p class="mt-2 text-xs font-bold text-green-700">Pagado con saldo a favor<br><span class="text-sm">Saldo utilizado: $ <?php echo number_format(array_sum(array_column($p['usos_saldo'], 'monto')), 2, '.', ','); ?></span></p><?php endif; ?>
+                                    <?php if (($p['reporte_diferencia']['estado'] ?? '') === 'confirmado'): ?>
+                                        <div class="mt-2 rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-xs font-bold text-teal-800">
+                                            <p><i class="fas fa-wallet mr-1" aria-hidden="true"></i>Este pago generó saldo a favor</p>
+                                            <p class="mt-1">Excedente registrado: $ <?php echo number_format($p['reporte_diferencia']['excedente_generado'], 2, '.', ','); ?></p>
+                                            <p>Saldo disponible: $ <?php echo number_format($p['reporte_diferencia']['saldo_favor'], 2, '.', ','); ?></p>
+                                        </div>
+                                    <?php endif; ?>
+                                    <?php if (!empty($p['usos_saldo'])): ?>
+                                        <div class="mx-auto mt-2 w-64 max-w-full whitespace-normal rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-white px-3 py-3 text-left shadow-sm">
+                                            <p class="text-xs font-extrabold text-blue-800"><i class="fas fa-circle-check mr-1" aria-hidden="true"></i>Pagado con saldo a favor</p>
+                                            <p class="mt-1 text-sm font-extrabold text-blue-900">Saldo utilizado: $ <?php echo number_format(array_sum(array_column($p['usos_saldo'], 'monto')), 2, '.', ','); ?></p>
+                                            <div class="mt-2 space-y-2 border-t border-blue-100 pt-2">
+                                                <?php foreach ($p['usos_saldo'] as $origenSaldo):
+                                                    $numeroOrigen = trim((string)($origenSaldo['nro_comprobante'] ?? ''));
+                                                    $numerosOrigen = json_decode($numeroOrigen, true);
+                                                    if (is_array($numerosOrigen)) $numeroOrigen = implode(' · ', array_map('strval', $numerosOrigen));
+                                                    $detalleOrigenSaldo = json_decode($origenSaldo['detalle_pagos'] ?? '', true);
+                                                    $fechasOrigenSaldo = is_array($detalleOrigenSaldo)
+                                                        ? array_values(array_unique(array_filter(array_map(static fn($fila) => $fila['fecha'] ?? null, $detalleOrigenSaldo))))
+                                                        : [];
+                                                    sort($fechasOrigenSaldo);
+                                                    $fechaOrigen = implode(' · ', array_map(static fn($fecha) => date('d/m/Y', strtotime($fecha)), $fechasOrigenSaldo));
+                                                    if ($fechaOrigen === '' && !empty($origenSaldo['fecha_pago'])) {
+                                                        $fechaOrigen = date('d/m/Y', strtotime($origenSaldo['fecha_pago']));
+                                                    }
+                                                ?>
+                                                    <div class="text-xs leading-relaxed text-blue-800">
+                                                        <p class="font-bold"><?php echo (int)$origenSaldo['origen'] === (int)$p['id'] ? 'Origen: excedente de este mismo pago' : 'Origen del saldo'; ?></p>
+                                                        <?php if ($numeroOrigen !== ''): ?>
+                                                            <p class="break-words">Comprobante: <span class="font-semibold"><?php echo htmlspecialchars($numeroOrigen, ENT_QUOTES, 'UTF-8'); ?></span></p>
+                                                        <?php else: ?>
+                                                            <p class="text-blue-600">Sin número de comprobante registrado</p>
+                                                        <?php endif; ?>
+                                                        <?php if ($fechaOrigen !== ''): ?><p>Fecha pagada: <?php echo htmlspecialchars($fechaOrigen, ENT_QUOTES, 'UTF-8'); ?></p><?php endif; ?>
+                                                        <?php if (count($p['usos_saldo']) > 1): ?><p class="font-semibold">Aporte de este origen: $ <?php echo number_format($origenSaldo['monto'], 2, '.', ','); ?></p><?php endif; ?>
+                                                    </div>
+                                                <?php endforeach; ?>
+                                            </div>
+                                        </div>
+                                    <?php endif; ?>
                                 </td>
                                 <td class="px-5 py-4 min-w-72">
                                     <div class="flex flex-col gap-1.5 mt-2 <?php echo $esAnulado ? 'opacity-50 pointer-events-none' : ''; ?>"
@@ -155,36 +194,76 @@
                                         <?php endforeach; ?>
                                     </template>
                                     
-                                    <dialog class="acciones-pago w-[92vw] max-w-md max-h-[85vh] overflow-y-auto rounded-2xl p-5 backdrop:bg-black/60">
-                                    <button type="button" data-cerrar-acciones class="float-right rounded-lg px-3 py-2" aria-label="Cerrar acciones">✕</button>
-                                    <h3 class="mb-4 text-xl font-bold">Detalle del saldo</h3>
-                                    <div class="flex flex-col gap-2">
-                                        <?php foreach ($p['usos_saldo'] ?? [] as $uso): ?>
-                                            <p class="rounded-lg bg-green-50 p-3 text-sm font-bold text-green-800">Pago con saldo a favor: $ <?php echo number_format($uso['monto'],2); ?>.</p>
-                                        <?php endforeach; ?>
-                                        <?php if (!empty($p['usos_saldo'])): ?>
-                                            <p class="text-sm font-bold">Diferencia depositada: $ <?php echo number_format(max(0, $p['monto_total'] - array_sum(array_column($p['usos_saldo'],'monto'))),2); ?></p>
-                                        <?php endif; ?>
-                                        <?php foreach ($p['destinos_saldo'] ?? [] as $uso): ?>
-                                            <p class="rounded-lg bg-blue-50 p-3 text-sm">Saldo aplicado al pago #<?php echo (int)$uso['pago_id']; ?>: $ <?php echo number_format($uso['monto'],2); ?></p>
-                                        <?php endforeach; ?>
-                                        <?php if (!$esAnulado && empty($p['reporte_diferencia']) && in_array($_SESSION['rol'] ?? '', ['admin','secretaria'], true)): ?>
-                                            <button type="button" data-registrar-excedente="<?php echo (int)$p['id']; ?>" hidden style="display:none" class="rounded-lg bg-amber-500 p-3 font-bold text-white">Registrar excedente</button>
-                                        <?php endif; ?>
-                                        <?php if (!empty($p['reporte_diferencia'])):
-                                            $reporte = $p['reporte_diferencia']; ?>
-                                            <div class="min-w-0 rounded-xl border border-amber-300 bg-amber-50 p-3" data-panel-diferencia="<?php echo (int)$p['id']; ?>">
-                                                <p class="text-xs font-extrabold uppercase tracking-wide text-amber-800"><i class="fas fa-scale-unbalanced mr-1"></i>Diferencia reportada</p>
-                                                <p class="mt-1 text-sm text-amber-900">Debía pagar <strong>$ <?php echo number_format((float)$p['monto_total'], 2, '.', ','); ?></strong> y reportó <strong>$ <?php echo number_format((float)$reporte['monto_depositado'], 2, '.', ','); ?></strong>.</p>
-                                                <label class="mt-2 block text-xs font-bold text-gray-700">Saldo a favor confirmado
-                                                    <input data-saldo-diferencia type="number" min="0" step="0.01" value="<?php echo number_format((float)$reporte['saldo_favor'], 2, '.', ''); ?>" class="mt-1 w-full rounded-lg border border-amber-300 bg-white px-2 py-1.5">
-                                                </label>
-                                                <label class="mt-2 block text-xs font-bold text-gray-700">Nota para el usuario
-                                                    <textarea data-nota-diferencia maxlength="255" rows="2" class="mt-1 w-full resize-none rounded-lg border border-amber-300 bg-white px-2 py-1.5"><?php echo htmlspecialchars($reporte['nota_admin'] ?? ''); ?></textarea>
-                                                </label>
-                                                <button type="button" data-resolver-diferencia="<?php echo (int)$p['id']; ?>" class="mt-2 w-full rounded-lg bg-amber-600 px-3 py-2 text-xs font-bold text-white hover:bg-amber-700"><i class="fas fa-floppy-disk mr-1"></i>Guardar revisión</button>
-                                                <p data-estado-diferencia class="mt-1 text-xs font-bold <?php echo $reporte['estado'] === 'confirmado' ? 'text-green-700' : ($reporte['estado'] === 'rechazado' ? 'text-gray-600' : 'text-amber-700'); ?>"><?php echo $reporte['estado'] === 'confirmado' ? 'Saldo confirmado' : ($reporte['estado'] === 'rechazado' ? 'Reporte sin saldo' : 'Pendiente de revisión'); ?></p>
+                                    <dialog class="acciones-pago w-[94vw] max-w-xl max-h-[88vh] overflow-y-auto rounded-3xl border border-gray-100 bg-white p-5 text-left shadow-2xl backdrop:bg-slate-950/60 sm:p-7">
+                                        <div class="mb-5 flex items-center justify-between gap-3">
+                                            <div class="flex items-center gap-3">
+                                                <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-teal-100 text-xl text-teal-700"><i class="fas fa-wallet"></i></span>
+                                                <div><h3 class="text-xl font-extrabold text-gray-800">Detalle del saldo</h3><p class="text-sm text-gray-500">Origen y uso del saldo a favor</p></div>
                                             </div>
+                                            <button type="button" data-cerrar-acciones class="h-10 w-10 shrink-0 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200" aria-label="Cerrar detalle">✕</button>
+                                        </div>
+                                        <div class="flex flex-col gap-4">
+                                        <?php if (!empty($p['reporte_diferencia'])):
+                                            $reporte = $p['reporte_diferencia'];
+                                            $confirmado = $reporte['estado'] === 'confirmado'; ?>
+                                            <section class="rounded-2xl border border-teal-200 bg-gradient-to-br from-teal-50 to-white p-4 sm:p-5" data-panel-diferencia="<?php echo (int)$p['id']; ?>">
+                                                <p class="text-xs font-extrabold uppercase tracking-wide text-teal-700"><?php echo $confirmado ? 'Excedente registrado' : 'Revisión de diferencia'; ?></p>
+                                                <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                                    <div><p class="text-sm text-gray-600">Saldo generado</p><p class="text-2xl font-extrabold text-teal-800">$ <?php echo number_format($confirmado ? $reporte['excedente_generado'] : 0, 2); ?></p></div>
+                                                    <div class="rounded-xl bg-white p-3 shadow-sm"><p class="text-sm font-semibold text-gray-600">Saldo disponible</p><p class="text-2xl font-extrabold text-teal-800">$ <?php echo number_format($confirmado ? $reporte['saldo_favor'] : 0, 2); ?></p></div>
+                                                </div>
+                                                <p class="mt-3 text-sm text-gray-600">Depósito registrado: <strong>$ <?php echo number_format($reporte['monto_depositado'], 2); ?></strong></p>
+                                                <div class="mt-4 rounded-xl border border-teal-100 bg-white p-3">
+                                                    <p class="text-xs font-bold uppercase tracking-wide text-gray-500">Nota de secretaría</p>
+                                                    <p class="mt-1 whitespace-pre-wrap break-words text-sm text-gray-700"><?php echo htmlspecialchars($reporte['nota_admin'] ?: 'Sin nota registrada.', ENT_QUOTES, 'UTF-8'); ?></p>
+                                                </div>
+                                                <p data-estado-diferencia role="status" class="mt-3 text-sm font-bold text-teal-700"><i class="fas fa-circle-info mr-1"></i><?php echo $confirmado ? ((float)$reporte['saldo_favor'] > 0 ? 'Saldo confirmado y disponible' : 'Saldo utilizado por completo') : ($reporte['estado'] === 'pendiente' ? 'Pendiente de revisión' : 'Revisión sin saldo a favor'); ?></p>
+                                                <?php if (empty($p['destinos_saldo']) && !$esAnulado && in_array($_SESSION['rol'] ?? '', ['admin','secretaria'], true)): ?>
+                                                    <details class="mt-4 border-t border-teal-200 pt-3">
+                                                        <summary class="cursor-pointer text-sm font-bold text-teal-800"><i class="fas fa-pen mr-2"></i>Editar revisión</summary>
+                                                        <label class="mt-3 block text-sm font-bold text-gray-700">Saldo a favor confirmado
+                                                            <input data-saldo-diferencia type="number" min="0" step="0.01" value="<?php echo number_format($reporte['saldo_favor'], 2, '.', ''); ?>" class="mt-1 w-full rounded-xl border border-gray-300 bg-white p-3">
+                                                        </label>
+                                                        <label class="mt-3 block text-sm font-bold text-gray-700">Nota para el usuario
+                                                            <textarea data-nota-diferencia maxlength="255" rows="3" class="mt-1 w-full rounded-xl border border-gray-300 bg-white p-3"><?php echo htmlspecialchars($reporte['nota_admin'] ?? '', ENT_QUOTES, 'UTF-8'); ?></textarea>
+                                                        </label>
+                                                        <button type="button" data-resolver-diferencia="<?php echo (int)$p['id']; ?>" class="mt-3 w-full rounded-xl bg-teal-600 px-4 py-3 font-bold text-white hover:bg-teal-700 disabled:opacity-50">Guardar revisión</button>
+                                                    </details>
+                                                <?php endif; ?>
+                                            </section>
+                                        <?php endif; ?>
+
+                                        <?php foreach (['usos_saldo' => 'Origen del saldo utilizado', 'destinos_saldo' => 'Dónde se utilizó este saldo'] as $grupoSaldo => $tituloSaldo):
+                                            if (empty($p[$grupoSaldo])) continue; ?>
+                                            <section class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                                                <h4 class="mb-3 text-sm font-extrabold text-gray-700"><?php echo $tituloSaldo; ?></h4>
+                                                <div class="space-y-3">
+                                                <?php foreach ($p[$grupoSaldo] as $movimiento):
+                                                    $idRelacionado = (int)($grupoSaldo === 'usos_saldo' ? $movimiento['origen'] : $movimiento['pago_id']);
+                                                    $mismoPago = $idRelacionado === (int)$p['id'];
+                                                    $detalleRelacionado = json_decode($movimiento['detalle_pagos'] ?? '', true);
+                                                    $discosRelacionados = is_array($detalleRelacionado) ? array_values(array_unique(array_filter(array_column($detalleRelacionado, 'disco')))) : [];
+                                                    ?>
+                                                    <article class="rounded-xl border border-gray-100 bg-white p-3 shadow-sm">
+                                                        <div class="flex flex-wrap items-center justify-between gap-2">
+                                                            <p class="text-sm font-bold text-gray-800"><?php echo $mismoPago ? 'Aplicado en este mismo pago' : ($grupoSaldo === 'usos_saldo' ? 'Pago que generó el saldo' : 'Pago realizado con este saldo'); ?></p>
+                                                            <span class="rounded-lg bg-blue-50 px-3 py-1 text-base font-extrabold text-blue-800">$ <?php echo number_format($movimiento['monto'], 2); ?></span>
+                                                        </div>
+                                                        <p class="mt-2 text-sm text-gray-500"><i class="far fa-calendar mr-1"></i>Fecha del pago: <?php echo date('d/m/Y', strtotime($movimiento['fecha_pago'])); ?></p>
+                                                        <?php if ($discosRelacionados): ?><p class="mt-1 break-words text-sm text-gray-600">Disco: <?php echo htmlspecialchars(implode(' · ', $discosRelacionados), ENT_QUOTES, 'UTF-8'); ?></p><?php endif; ?>
+                                                        <?php if (!$mismoPago): ?>
+                                                            <a href="pagos.php?ver_pago=<?php echo $idRelacionado; ?>#pago-<?php echo $idRelacionado; ?>" class="mt-3 inline-flex items-center gap-2 text-sm font-bold text-blue-700 hover:underline"><i class="fas fa-arrow-up-right-from-square"></i>Ver pago</a>
+                                                        <?php endif; ?>
+                                                    </article>
+                                                <?php endforeach; ?>
+                                                </div>
+                                            </section>
+                                        <?php endforeach; ?>
+                                        <?php if (empty($p['reporte_diferencia']) && empty($p['usos_saldo']) && empty($p['destinos_saldo'])): ?>
+                                            <p class="rounded-2xl bg-gray-50 p-5 text-center text-gray-500">Este pago no tiene movimientos de saldo a favor.</p>
+                                        <?php endif; ?>
+                                        <?php if (!$esAnulado && empty($p['reporte_diferencia']) && in_array($_SESSION['rol'] ?? '', ['admin','secretaria'], true)): ?>
+                                            <button type="button" data-registrar-excedente="<?php echo (int)$p['id']; ?>" hidden style="display:none">Registrar excedente</button>
                                         <?php endif; ?>
                                         <?php if ($esEspera): ?>
                                             <div class="flex gap-2 flex-wrap">
