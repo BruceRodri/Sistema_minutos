@@ -7,6 +7,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const listaDiscos = document.getElementById('listaDiscos');
     const grilla = document.getElementById('grillaPagos');
     const sinResultados = document.getElementById('sinResultados');
+    const fechaDesde = document.getElementById('fechaDesdePagos');
+    const fechaHasta = document.getElementById('fechaHastaPagos');
+    const fechaDesdeTexto = document.getElementById('fechaDesdeTexto');
+    const fechaHastaTexto = document.getElementById('fechaHastaTexto');
+    const errorFechas = document.getElementById('errorFechasPagos');
 
     if (!inputDisco || !grilla) return;
 
@@ -45,20 +50,63 @@ document.addEventListener('DOMContentLoaded', () => {
         return b === '' || d.startsWith(b) || d === b;
     }
 
+    function fechaCortaDesdeIso(valor) {
+        if (!valor) return '';
+        const [anio, mes, dia] = valor.split('-');
+        return `${dia}/${mes}/${anio.slice(-2)}`;
+    }
+
+    function fechaActualIso() {
+        const hoy = new Date();
+        return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
+    }
+
+    function rangoFechasValido() {
+        const desdeIso = fechaDesde?.value || '';
+        const hastaIso = fechaHasta?.value || '';
+        const hoyIso = fechaActualIso();
+        let mensaje = '';
+        if ((desdeIso && desdeIso > hoyIso) || (hastaIso && hastaIso > hoyIso)) {
+            mensaje = 'Solo puedes filtrar hasta la fecha actual.';
+        } else if (desdeIso && hastaIso && desdeIso > hastaIso) {
+            mensaje = 'La fecha "Desde" no puede ser posterior a la fecha "Hasta".';
+        }
+        const valido = mensaje === '';
+        if (errorFechas) {
+            errorFechas.textContent = mensaje;
+            errorFechas.classList.toggle('hidden', valido);
+        }
+        return valido;
+    }
+
     function aplicarFiltro() {
         const bruto = inputDisco.value;
-        if (normalizarDiscoBruto(bruto) === '') {
-            tarjetas.forEach((c) => c.classList.add('hidden'));
+        const sinDisco = normalizarDiscoBruto(bruto) === '';
+        const fechasValidas = rangoFechasValido();
+        if (sinDisco || !fechasValidas) {
+            tarjetas.forEach((c) => {
+                c.classList.add('hidden');
+            });
             if (sinResultados) {
-                sinResultados.textContent = 'Selecciona un disco para consultar los pagos.';
+                sinResultados.textContent = sinDisco
+                    ? 'Selecciona un disco para consultar los pagos.'
+                    : 'Corrige el rango de fechas para consultar los pagos.';
                 sinResultados.classList.remove('hidden');
             }
             return;
         }
         let visibles = 0;
+        const desdeIso = fechaDesde?.value || '';
+        const hastaIso = fechaHasta?.value || '';
         tarjetas.forEach((c) => {
             const discosTarjeta = (c.dataset.discos || '').split(/\s+/).filter(Boolean);
-            const coincide = discosTarjeta.some((disco) => discoCoincide(disco, bruto));
+            const fechasTarjeta = (c.dataset.fechas || '').split(/\s+/).filter(Boolean);
+            const coincideDisco = discosTarjeta.some((disco) => discoCoincide(disco, bruto));
+            const coincideFecha = fechasTarjeta.some((fecha) =>
+                (!desdeIso || fecha >= desdeIso) &&
+                (!hastaIso || fecha <= hastaIso)
+            );
+            const coincide = coincideDisco && coincideFecha;
             c.classList.toggle('hidden', !coincide);
             if (coincide) visibles++;
         });
@@ -139,7 +187,20 @@ document.addEventListener('DOMContentLoaded', () => {
     inputDisco.addEventListener('blur', () => setTimeout(() => listaDiscos && listaDiscos.classList.add('hidden'), 200));
 
     if (limpiarDisco) limpiarDisco.addEventListener('click', limpiarSeleccion);
-
+    [[fechaDesde, fechaDesdeTexto], [fechaHasta, fechaHastaTexto]].forEach(([input, texto]) => {
+        if (input) input.max = fechaActualIso();
+        input?.addEventListener('change', () => {
+            const fechaMaxima = fechaActualIso();
+            const fechaCorregida = input.value > fechaMaxima;
+            if (fechaCorregida) input.value = fechaMaxima;
+            if (texto) texto.value = fechaCortaDesdeIso(input.value);
+            aplicarFiltro();
+            if (fechaCorregida && errorFechas) {
+                errorFechas.textContent = 'No se permiten fechas posteriores a hoy. Se seleccionó la fecha actual.';
+                errorFechas.classList.remove('hidden');
+            }
+        });
+    });
     // Todo el recuadro del disco abre la lista (no solo el input).
     const contenedorDisco = inputDisco.closest('.relative');
     if (contenedorDisco) {

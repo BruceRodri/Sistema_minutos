@@ -111,7 +111,7 @@ function tarjetaPago(pago) {
         : '';
 
     return `
-            <div class="cardPago bg-white rounded-3xl p-6 lg:p-7 shadow-sm border-2 ${bordeTarjeta}" data-discos="${esc(discos.join(' '))}">
+            <div class="cardPago bg-white rounded-3xl p-6 lg:p-7 shadow-sm border-2 ${bordeTarjeta}" data-discos="${esc(discos.join(' '))}" data-fechas="${esc(fechas.join(' '))}">
                 <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
                     ${encabezado}
                     <span class="${etiquetaClase} text-sm sm:text-lg font-bold px-3 sm:px-4 py-1.5 rounded-full flex items-center gap-2 shrink-0 whitespace-nowrap">

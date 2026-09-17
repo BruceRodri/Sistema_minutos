@@ -81,6 +81,29 @@ $discosTodos = $pagoDao->obtenerTodosDiscos();
         <div class="mt-4 lg:mt-6">
             <h2 class="text-center text-2xl lg:text-3xl font-bold text-gray-600 mb-6 lg:mb-8">Pagos realizados</h2>
 
+            <section class="mb-6 rounded-2xl border border-blue-100 bg-white p-4 shadow-sm" aria-label="Filtros y descarga de comprobantes">
+                <p class="mb-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-base font-bold text-blue-800">
+                    <i class="fas fa-circle-info mr-2" aria-hidden="true"></i>Filtra las fechas que deseas ver en los pagos.
+                </p>
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <label class="text-sm font-bold text-gray-600">Desde
+                        <span class="relative mt-1 block">
+                            <input id="fechaDesdeTexto" type="text" readonly tabindex="-1" placeholder="dd/mm/aa" aria-hidden="true" class="w-full rounded-xl border border-gray-300 bg-gray-50 py-2.5 pl-3 pr-11 font-medium">
+                            <i class="fas fa-calendar-days pointer-events-none absolute inset-y-0 right-3 flex items-center text-blue-600" aria-hidden="true"></i>
+                            <input id="fechaDesdePagos" type="date" max="<?php echo date('Y-m-d'); ?>" aria-label="Seleccionar fecha desde" class="absolute inset-0 h-full w-full cursor-pointer opacity-0">
+                        </span>
+                    </label>
+                    <label class="text-sm font-bold text-gray-600">Hasta
+                        <span class="relative mt-1 block">
+                            <input id="fechaHastaTexto" type="text" readonly tabindex="-1" placeholder="dd/mm/aa" aria-hidden="true" class="w-full rounded-xl border border-gray-300 bg-gray-50 py-2.5 pl-3 pr-11 font-medium">
+                            <i class="fas fa-calendar-days pointer-events-none absolute inset-y-0 right-3 flex items-center text-blue-600" aria-hidden="true"></i>
+                            <input id="fechaHastaPagos" type="date" max="<?php echo date('Y-m-d'); ?>" aria-label="Seleccionar fecha hasta" class="absolute inset-0 h-full w-full cursor-pointer opacity-0">
+                        </span>
+                    </label>
+                </div>
+                <p id="errorFechasPagos" class="hidden mt-2 text-sm font-semibold text-red-600" role="alert"></p>
+            </section>
+
             <div id="grillaPagos" class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6"></div>
 
             <p id="sinResultados" class="hidden mt-6 text-center text-xl lg:text-2xl text-blue-700 italic">Selecciona un disco para ver tu historial.</p>
