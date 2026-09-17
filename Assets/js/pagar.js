@@ -25,6 +25,30 @@ document.addEventListener('DOMContentLoaded', () => {
     let flujoActivo = null;   // 'card' | 'multi'
     let idsAPagar = [];
     let idsIncompletosApagar = [];
+    let saldoDisponible = Number(datos.saldo || 0);
+    let usarSaldo = false;
+    let enviandoSaldo = false;
+    async function ejecutarConSaldo() {
+        if (enviandoSaldo) return;
+        enviandoSaldo = true;
+        const body = new FormData();
+        body.append('accion', 'pagar_saldo');
+        body.append('csrf_token', datos.csrf_saldo);
+        idsAPagar.forEach(id => body.append('obligaciones_ids[]', id));
+        if (inputComprobante.files[0]) body.append('archivo', inputComprobante.files[0]);
+        try {
+            const respuesta = await fetch(urlControlador, {method:'POST',body});
+            const resultado = await respuesta.json();
+            if (resultado.status !== 'success') throw new Error(resultado.message);
+            saldoDisponible = Number(resultado.saldo);
+            document.getElementById('valorSaldoPagar').textContent = saldoDisponible.toFixed(2);
+            document.getElementById('saldoDisponiblePagar').classList.toggle('hidden', saldoDisponible <= 0);
+            quitarPagados(idsAPagar);
+            mostrarExito(resultado.message);
+            idsAPagar = [];
+        } catch (e) { mostrarAviso(e.message || 'No se pudo realizar el pago.', true); }
+        finally { enviandoSaldo = false; usarSaldo = false; inputComprobante.value = ''; }
+    }
 
     // ---------- Utilidades ----------
     function soloNumeros(e) {
@@ -91,6 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function ejecutarPago() {
+        if (usarSaldo) { await ejecutarConSaldo(); return; }
         const archivoBruto = inputComprobante.files[0];
         if (!archivoBruto) return;
         const archivo = typeof window.comprimirComprobante === 'function'
@@ -150,7 +175,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        if (idsAPagar.length) {
+        if (idsAPagar.length && !idsIncompletosApagar.length) {
             const formData = new FormData();
             formData.append('accion', 'pagar_varios');
             idsAPagar.forEach((id) => formData.append('obligaciones_ids[]', id));
@@ -685,11 +710,29 @@ document.addEventListener('DOMContentLoaded', () => {
             idsAPagar = ids;
             idsIncompletosApagar = idsInc;
             [alertaTarjetas, alertaVarios].forEach((a) => { if (a) a.classList.add('hidden'); });
-            inputComprobante.click();
+            usarSaldo = false;
+            inputComprobante.value = '';
+            if (saldoDisponible > 0 && idsAPagar.length && !idsInc.length) {
+                const total = ultimosPendientes.filter(p => idsAPagar.map(String).includes(String(p.id))).reduce((s,p) => s + Number(p.valor),0);
+                document.getElementById('resumenSaldoFavor').textContent = '$ ' + saldoDisponible.toFixed(2);
+                document.getElementById('resumenTotalPagar').textContent = '$ ' + total.toFixed(2);
+                document.getElementById('resumenSaldoDepositar').textContent = '$ ' + Math.max(0,total-saldoDisponible).toFixed(2);
+                document.getElementById('elegirSaldo').showModal();
+            } else inputComprobante.click();
         });
     }
 
     // ---------- Tarjeta del carrusel: incompleto sube restante, pendiente paga ----------
+    const elegirSaldo = document.getElementById('elegirSaldo');
+    document.getElementById('cancelarUsoSaldo').onclick = () => elegirSaldo.close();
+    document.getElementById('usarSaldoNo').onclick = () => { elegirSaldo.close(); usarSaldo = false; inputComprobante.click(); };
+    document.getElementById('usarSaldoSi').onclick = () => {
+        elegirSaldo.close();
+        usarSaldo = true;
+        const total = ultimosPendientes.filter(p => idsAPagar.map(String).includes(String(p.id))).reduce((s,p) => s + Number(p.valor),0);
+        if (Math.round(total*100) <= Math.round(saldoDisponible*100)) ejecutarConSaldo();
+        else inputComprobante.click();
+    };
     if (carrusel) {
         carrusel.addEventListener('click', (evento) => {
             const card = evento.target.closest('.cardPagar');
@@ -739,6 +782,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (datos.hash && datos.hash === ultimoHash) return;
             ultimoHash = datos.hash || null;
             if (Array.isArray(datos.discos)) discos = datos.discos;
+            if (typeof datos.saldo === 'number' && !enviandoSaldo) {
+                saldoDisponible = datos.saldo;
+                document.getElementById('valorSaldoPagar').textContent = saldoDisponible.toFixed(2);
+                document.getElementById('saldoDisponiblePagar').classList.toggle('hidden', saldoDisponible <= 0);
+            }
             incompletos = datos.incompletos || [];
             window.renderizarPendientes(datos.pendientes);
         } catch (error) {

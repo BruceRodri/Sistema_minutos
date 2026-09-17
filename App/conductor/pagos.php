@@ -11,13 +11,16 @@ require_once '../../Config/permisos.php';
 exigirPermisoModulo($conexion, 'app_pagos', usuarioPuedeVerModulo($conexion, 'app_qr') ? 'dashboard.php' : '../../index.php');
 $puedeQr = usuarioPuedeVerModulo($conexion, 'app_qr');
 require_once '../../Dao/PagoDao.php';
+require_once '../../Dao/ReporteDiferenciaDao.php';
 require_once '../../Config/vistas_pagos.php';
 
 $nombreCorto = explode(' ', $_SESSION['nombre'] ?? 'Conductor')[0];
 
 $pagoDao = new PagoDao($conexion);
-$pagosParaVista = pagosTodosVista($pagoDao);
+$reporteDiferenciaDao = new ReporteDiferenciaDao($conexion);
+$pagosParaVista = $reporteDiferenciaDao->decorarPagosUsuario(pagosTodosVista($pagoDao), (int)$_SESSION['usuario_id']);
 $discosTodos = $pagoDao->obtenerTodosDiscos();
+$_SESSION['csrf_reporte_diferencia'] ??= bin2hex(random_bytes(32));
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -118,6 +121,7 @@ $discosTodos = $pagoDao->obtenerTodosDiscos();
         <div id="contenidoRecibo" class="overflow-auto max-h-[70vh]"></div>
         <a id="descargarRecibo" class="block mt-4 rounded-xl bg-blue-600 py-3 text-center text-white font-bold">Descargar comprobante</a>
     </dialog>
+
 
     <!-- Modal de éxito -->
     <div id="modalExito" class="hidden fixed inset-0 z-50 items-center justify-center p-4">

@@ -64,7 +64,7 @@ class PagoDao {
     }
 
     private function obtenerPagos($usuarioId = null) {
-        $sql = "SELECT p.id, p.monto_total AS monto, p.fecha_pago, p.comprobante, p.estado,
+        $sql = "SELECT p.id, p.usuario_id, p.monto_total AS monto, p.fecha_pago, p.comprobante, p.estado,
                        p.motivo_rechazo, p.detalle_pagos
                 FROM pago p
                 WHERE p.activo = 1";

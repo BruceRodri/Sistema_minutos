@@ -86,9 +86,17 @@ function tarjetaPago(pago) {
     let comprobanteHtml = '';
     if (estado !== 'anulado' && comprobantes.length) {
         const botones = comprobantes.map((ruta, i) =>
-            `<button type="button" data-ver-recibo="${esc(rutaRecibo(pago, i))}" class="w-full rounded-xl bg-blue-50 text-blue-700 border border-blue-200 py-3 px-4 text-lg font-bold"><i class="fas fa-eye mr-2"></i>${comprobantes.length > 1 ? 'Ver comprobante ' + (i + 1) : 'Ver comprobante'}</button>`
+            `<button type="button" data-ver-recibo="${esc(rutaRecibo(pago, i))}" class="w-full rounded-xl bg-blue-50 text-blue-700 border border-blue-200 py-3 px-4 text-lg font-bold"><i class="fas fa-eye mr-2"></i>${pago.comprobantes_saldo?.length ? 'Comprobante de la diferencia' + (comprobantes.length > 1 ? ' ' + (i + 1) : '') : (comprobantes.length > 1 ? 'Ver comprobante ' + (i + 1) : 'Ver comprobante')}</button>`
         ).join('');
         comprobanteHtml = `<div class="mt-4 flex flex-col gap-2">${botones}</div>`;
+    }
+
+    if (estado !== 'anulado' && Array.isArray(pago.comprobantes_saldo) && pago.comprobantes_saldo.length) {
+        const respaldos = pago.comprobantes_saldo.map((respaldo, i) => {
+            const url = '../../Controllers/ComprobanteController.php?pago_id=' + encodeURIComponent(respaldo.pago_id) + '&archivo=' + encodeURIComponent(respaldo.archivo);
+            return `<button type="button" data-ver-recibo="${esc(url)}" class="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-lg font-bold text-emerald-800"><i class="fas fa-receipt mr-2"></i>Comprobante del saldo${pago.comprobantes_saldo.length > 1 ? ' ' + (i + 1) : ''}</button>`;
+        }).join('');
+        comprobanteHtml += `<div class="mt-3 flex flex-col gap-2 border-t border-gray-100 pt-3"><p class="text-sm font-bold text-emerald-700">Origen del saldo a favor</p>${respaldos}</div>`;
     }
 
     let motivoHtml = '';
@@ -110,6 +118,18 @@ function tarjetaPago(pago) {
         ? `<button type="button" data-subir-restante="${pago.id}" class="mt-3 w-full rounded-xl bg-amber-400 text-white border border-amber-500 py-3 px-4 text-lg font-bold hover:bg-orange-500 transition-colors"><i class="fas fa-upload mr-2"></i>Subir valor restante</button>`
         : '';
 
+    let diferenciaHtml = '';
+    if (pago.es_propio && pago.reporte_diferencia) {
+        const reporte = pago.reporte_diferencia;
+        const confirmado = reporte.estado === 'confirmado';
+        const rechazado = reporte.estado === 'rechazado';
+        diferenciaHtml = `<div class="mt-3 rounded-xl border ${confirmado ? 'border-green-200 bg-green-50 text-green-800' : (rechazado ? 'border-gray-200 bg-gray-50 text-gray-700' : 'border-amber-200 bg-amber-50 text-amber-800')} p-4">
+            <p class="font-extrabold"><i class="fas ${confirmado ? 'fa-circle-check' : (rechazado ? 'fa-circle-xmark' : 'fa-clock')} mr-1"></i>${confirmado ? 'Saldo a favor: $ ' + Number(reporte.saldo_favor || 0).toFixed(2) : (rechazado ? 'Reporte revisado' : 'Diferencia pendiente de revisión')}</p>
+            <p class="mt-1 text-sm">Valor reportado: $ ${Number(reporte.monto_depositado || 0).toFixed(2)}</p>
+            ${reporte.nota_admin ? `<p class="mt-2 text-sm font-semibold">${esc(reporte.nota_admin)}</p>` : ''}
+        </div>`;
+    }
+
     return `
             <div class="cardPago bg-white rounded-3xl p-6 lg:p-7 shadow-sm border-2 ${bordeTarjeta}" data-discos="${esc(discos.join(' '))}" data-fechas="${esc(fechas.join(' '))}">
                 <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
@@ -130,6 +150,7 @@ function tarjetaPago(pago) {
                 ${comprobanteHtml}
                 ${motivoHtml}
                 ${subirRestanteHtml}
+                ${diferenciaHtml}
             </div>`;
 }
 

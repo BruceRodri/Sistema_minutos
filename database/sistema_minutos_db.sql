@@ -77,6 +77,25 @@ CREATE TABLE `pago` (
   CONSTRAINT `fk_pago_usuario` FOREIGN KEY (`usuario_id`) REFERENCES `usuario` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE `reporte_diferencia_pago` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `pago_id` int NOT NULL,
+  `usuario_id` int NOT NULL,
+  `monto_depositado` decimal(10,2) NOT NULL,
+  `saldo_favor` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `estado` enum('pendiente','confirmado','rechazado') NOT NULL DEFAULT 'pendiente',
+  `nota_admin` varchar(255) DEFAULT NULL,
+  `revisado_por` int DEFAULT NULL,
+  `creado_en` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `actualizado_en` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_reporte_diferencia_pago` (`pago_id`),
+  KEY `idx_reporte_diferencia_usuario` (`usuario_id`,`estado`),
+  CONSTRAINT `fk_reporte_diferencia_pago` FOREIGN KEY (`pago_id`) REFERENCES `pago` (`id`),
+  CONSTRAINT `fk_reporte_diferencia_usuario` FOREIGN KEY (`usuario_id`) REFERENCES `usuario` (`id`),
+  CONSTRAINT `fk_reporte_diferencia_revisor` FOREIGN KEY (`revisado_por`) REFERENCES `usuario` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE `turno` (
   `id` int NOT NULL AUTO_INCREMENT,
   `usuario_id` int NOT NULL,

@@ -15,6 +15,7 @@ if ($usuarioId <= 0 || !usuarioPuedeVerModulo($conexion, 'app_pagos')) {
 session_write_close();
 
 require_once __DIR__ . '/../Dao/PagoDao.php';
+require_once __DIR__ . '/../Dao/ReporteDiferenciaDao.php';
 require_once __DIR__ . '/../Config/vistas_pagos.php';
 
 @set_time_limit(30);
@@ -34,6 +35,7 @@ while (ob_get_level() > 0) {
 }
 
 $pagoDao = new PagoDao($conexion);
+$reporteDiferenciaDao = new ReporteDiferenciaDao($conexion);
 
 function sseEmitir(array $datos): void {
     echo 'id: ' . time() . "\n";
@@ -56,7 +58,9 @@ do {
     }
 
     $snapshot = snapshotConductor($pagoDao);
-    $snapshot['incompletos'] = pagosIncompletosVista($pagoDao);
+    $snapshot['incompletos'] = $reporteDiferenciaDao->decorarPagosUsuario(pagosIncompletosVista($pagoDao), $usuarioId);
+    $snapshot['pagos'] = $reporteDiferenciaDao->decorarPagosUsuario($snapshot['pagos'], $usuarioId);
+    $snapshot['saldo'] = $reporteDiferenciaDao->resumenUsuario($usuarioId)['saldo'];
     $hash = hash('sha256', json_encode($snapshot, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
 
     if ($hash !== $ultimoHash) {
@@ -67,6 +71,7 @@ do {
             'pendientes' => $snapshot['pendientes'],
             'incompletos' => $snapshot['incompletos'],
             'pagos' => $snapshot['pagos'],
+            'saldo' => $snapshot['saldo'],
             'discos' => $pagoDao->obtenerTodosDiscos(),
         ]);
     } else {

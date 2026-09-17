@@ -18,6 +18,10 @@ $dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sába
 require_once '../../Config/vistas_pagos.php';
 
 $pagoDao = new PagoDao($conexion);
+require_once '../../Dao/SaldoPagoDao.php';
+new SaldoPagoDao($conexion);
+$saldoDisponible = (new ReporteDiferenciaDao($conexion))->resumenUsuario((int)$_SESSION['usuario_id'])['saldo'];
+$_SESSION['csrf_saldo'] ??= bin2hex(random_bytes(32));
 $pagables = obtenerPagablesVista($pagoDao);
 $discos = $pagoDao->obtenerTodosDiscos();
 
@@ -68,13 +72,17 @@ $discoInicial = null;
 
         <!-- Encabezado -->
         <header class="lg:mt-8 mb-6 lg:mb-12 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div class="flex items-center gap-3">
+            <div class="flex min-w-0 flex-wrap items-center gap-3">
                 <div class="w-12 h-12 lg:w-16 lg:h-16 rounded-full bg-blue-600 text-white flex items-center justify-center text-xl lg:text-2xl font-extrabold shadow-lg">
                     <?php echo htmlspecialchars(mb_strtoupper(mb_substr($nombreCorto, 0, 1))); ?>
                 </div>
                 <div>
                     <p class="text-lg lg:text-2xl text-gray-500">Hola,</p>
                     <h1 class="text-3xl lg:text-5xl font-bold text-gray-800 truncate"><?php echo htmlspecialchars($nombreCorto); ?></h1>
+                </div>
+                <div id="saldoDisponiblePagar" class="<?php echo $saldoDisponible > 0 ? '' : 'hidden'; ?> rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white px-4 py-3 shadow-sm" role="status">
+                    <p class="text-xs font-bold uppercase tracking-wide text-emerald-700"><i class="fas fa-wallet mr-1"></i>Saldo a favor</p>
+                    <p class="mt-1 text-2xl font-extrabold text-emerald-800">$ <span id="valorSaldoPagar"><?php echo number_format($saldoDisponible, 2, '.', ''); ?></span></p>
                 </div>
             </div>
 
@@ -125,6 +133,21 @@ $discoInicial = null;
             <div id="alertaTarjetas" class="hidden mt-6 p-5 rounded-2xl text-center"></div>
         </section>
 
+        <dialog id="elegirSaldo" class="w-[92vw] max-w-md rounded-3xl p-6 text-center shadow-2xl backdrop:bg-slate-950/60 sm:p-8">
+            <span class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-2xl text-emerald-700"><i class="fas fa-wallet"></i></span>
+            <h2 class="text-2xl font-extrabold text-gray-800">¿Deseas usar tu saldo a favor?</h2>
+            <p class="mt-3 text-lg font-bold leading-relaxed text-gray-600">Puedes aplicarlo a este pago o guardarlo para después.</p>
+            <dl id="resumenUsoSaldo" class="my-6 space-y-3 rounded-2xl border border-gray-100 bg-gray-50 p-4 text-left">
+                <div class="flex justify-between gap-3"><dt class="text-gray-600">Saldo a favor</dt><dd id="resumenSaldoFavor" class="font-bold text-emerald-700"></dd></div>
+                <div class="flex justify-between gap-3"><dt class="text-gray-600">Total a pagar</dt><dd id="resumenTotalPagar" class="font-bold text-gray-800"></dd></div>
+                <div class="flex justify-between gap-3 border-t border-gray-200 pt-3"><dt class="font-bold text-gray-700">Saldo a depositar</dt><dd id="resumenSaldoDepositar" class="text-xl font-extrabold text-blue-700"></dd></div>
+            </dl>
+            <div class="mx-auto grid max-w-sm grid-cols-1 gap-3 sm:grid-cols-2">
+                <button id="usarSaldoSi" type="button" class="min-h-12 rounded-xl bg-emerald-600 px-3 py-3 font-bold text-white shadow-sm hover:bg-emerald-700">Sí, usar saldo</button>
+                <button id="usarSaldoNo" type="button" class="min-h-12 rounded-xl border border-gray-200 bg-white px-3 py-3 font-bold text-gray-700 hover:bg-gray-50">No, pagar completo</button>
+            </div>
+            <button id="cancelarUsoSaldo" type="button" class="mx-auto mt-3 block rounded-xl px-6 py-2 text-sm font-semibold text-gray-500 hover:bg-gray-50">Cancelar</button>
+        </dialog>
         <!-- ================= VISTA PAGO MULTIPLE ================= -->
         <section id="vistaMulti" class="hidden">
 
@@ -229,6 +252,8 @@ $discoInicial = null;
     <script id="datosPagar" type="application/json">
     <?php echo json_encode([
         'pagables' => $pagables,
+        'saldo' => $saldoDisponible,
+        'csrf_saldo' => $_SESSION['csrf_saldo'],
         'incompletos' => pagosIncompletosVista($pagoDao),
         'discos' => $discos,
         'discoInicial' => $discoInicial

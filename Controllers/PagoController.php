@@ -74,6 +74,25 @@ $accion = $_POST['accion'] ?? '';
 $pagoDao = new PagoDao($conexion);
 $obligacionesIds = [];
 
+if ($accion === 'pagar_saldo') {
+    require_once __DIR__ . '/../Dao/SaldoPagoDao.php';
+    $token = $_POST['csrf_token'] ?? '';
+    if (!is_string($token) || !hash_equals($_SESSION['csrf_saldo'] ?? '', $token) || empty($_SESSION['csrf_saldo'])) {
+        http_response_code(403);
+        echo json_encode(['status'=>'error','message'=>'Actualiza la página e intenta nuevamente.']);
+        exit;
+    }
+    $archivo = null;
+    if (isset($_FILES['archivo']) && $_FILES['archivo']['error'] !== UPLOAD_ERR_NO_FILE) {
+        $archivo = guardarComprobante($_SESSION['usuario_id']);
+        if ($archivo['status'] !== 'success') { responderErrorComprobante($archivo['status']); exit; }
+    }
+    $resultado = (new SaldoPagoDao($conexion))->pagar((int)$_SESSION['usuario_id'], (array)($_POST['obligaciones_ids'] ?? []), $archivo['ruta_relativa'] ?? null);
+    if ($resultado['status'] !== 'success' && $archivo) unlink($archivo['ruta_absoluta']);
+    echo json_encode($resultado);
+    exit;
+}
+
 if ($accion === 'listar_discos') {
     $q = isset($_POST['q']) ? preg_replace('/\D+/', '', (string)$_POST['q']) : '';
     echo json_encode([
@@ -122,6 +141,15 @@ if ($accion === 'adjuntar_comprobante') {
 }
 
 if ($accion === 'completar_y_pagar') {
+    require_once __DIR__ . '/../Dao/SaldoPagoDao.php';
+    new SaldoPagoDao($conexion);
+    foreach ((array)($_POST['pago_ids'] ?? []) as $idSaldo) {
+        $q = $conexion->prepare('SELECT 1 FROM uso_saldo_pago WHERE pago_id=? LIMIT 1');
+        $q->execute([(int)$idSaldo]);
+        if ($q->fetchColumn()) {
+            echo json_encode(['status'=>'error','message'=>'Completa el pago con saldo por separado antes de agregar otros días.']); exit;
+        }
+    }
     $pagoIds = array_values(array_unique(array_filter(array_map(
         'intval',
         (array)($_POST['pago_ids'] ?? [])

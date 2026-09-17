@@ -20,6 +20,7 @@ function mapearPagoParaVista($p) {
     $fechasPagos = !empty($p['fechas']) ? $p['fechas'] : [$p['fecha_pago']];
     return [
         'id' => (int)$p['id'],
+        'usuario_id' => (int)($p['usuario_id'] ?? 0),
         'estado' => $p['estado'] ?? 'aprobado',
         'motivo_rechazo' => (string)($p['motivo_rechazo'] ?? ''),
         'comprobante' => (string)($p['comprobante'] ?? ''),

@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const tablaPagos = document.getElementById('tablaPagos');
     let actualizacionPendiente = null;
     const aplicarActualizacion = () => {
-        if (!actualizacionPendiente || document.querySelector('[data-pago][data-editando]') ||
+        if (!actualizacionPendiente || document.querySelector('[data-menu-acciones][aria-expanded="true"]') || document.querySelector('.acciones-pago[open], #modalExcedente[open]') || document.querySelector('[data-pago][data-editando]') ||
             [modalAprobar, modalDesaprobar, modalIncompleto, modalAlertaComprobante].some((modal) => modal && !modal.classList.contains('hidden'))) return;
         tablaPagos.innerHTML = actualizacionPendiente.html;
         tablaPagos.dataset.hash = actualizacionPendiente.hash;
@@ -245,7 +245,124 @@ document.addEventListener('DOMContentLoaded', () => {
 
     inicializarCodigos();
 
+    let filaExcedente = null;
+    const modalExcedente = document.getElementById('modalExcedente');
+    const formExcedente = document.getElementById('formExcedente');
+    document.getElementById('cancelarExcedente').onclick = () => modalExcedente.close();
+    const menuAcciones = document.createElement('div');
+    menuAcciones.id = 'menuOpcionesPago';
+    menuAcciones.setAttribute('role', 'menu');
+    menuAcciones.setAttribute('aria-label', 'Acciones del pago');
+    menuAcciones.className = 'fixed z-[90] w-60 space-y-1 overflow-y-auto rounded-2xl border border-gray-200 bg-white p-2 shadow-2xl';
+    menuAcciones.hidden = true;
+    document.body.appendChild(menuAcciones);
+    let origenMenu = null;
+    function cerrarMenuAcciones(devolverFoco = false) {
+        const origen = origenMenu;
+        menuAcciones.hidden = true;
+        origen?.setAttribute('aria-expanded', 'false');
+        origenMenu = null;
+        if (devolverFoco) origen?.focus();
+    }
+    tablaPagos.addEventListener('click', evento => {
+        const boton = evento.target.closest('[data-menu-acciones]');
+        if (!boton) return;
+        const yaAbierto = origenMenu === boton;
+        cerrarMenuAcciones();
+        if (yaAbierto) return;
+        origenMenu = boton;
+        boton.setAttribute('aria-expanded','true');
+        boton.setAttribute('aria-controls',menuAcciones.id);
+        menuAcciones.replaceChildren(boton.parentElement.querySelector('template').content.cloneNode(true));
+        menuAcciones.hidden = false;
+        menuAcciones.style.maxHeight = Math.max(100, window.innerHeight - 16) + 'px';
+        const rect = boton.getBoundingClientRect();
+        const altura = menuAcciones.offsetHeight;
+        menuAcciones.style.left = Math.max(8, Math.min(rect.right - menuAcciones.offsetWidth, window.innerWidth - menuAcciones.offsetWidth - 8)) + 'px';
+        menuAcciones.style.top = Math.max(8, rect.bottom + altura + 8 <= window.innerHeight ? rect.bottom + 4 : rect.top - altura - 4) + 'px';
+        menuAcciones.querySelector('button')?.focus();
+    });
+    document.addEventListener('click', evento => {
+        if (!menuAcciones.contains(evento.target) && !evento.target.closest('[data-menu-acciones]')) cerrarMenuAcciones();
+    });
+    window.addEventListener('resize', () => cerrarMenuAcciones());
+    document.addEventListener('scroll', evento => {
+        if (!menuAcciones.contains(evento.target)) cerrarMenuAcciones();
+    }, true);
+    menuAcciones.addEventListener('keydown', evento => {
+        const botones = [...menuAcciones.querySelectorAll('button')];
+        const i = botones.indexOf(document.activeElement);
+        if (evento.key === 'Escape') { evento.preventDefault(); cerrarMenuAcciones(true); }
+        else if (evento.key === 'Tab') cerrarMenuAcciones(true);
+        else if (['ArrowDown','ArrowUp','Home','End'].includes(evento.key)) {
+            evento.preventDefault();
+            const siguiente = evento.key === 'Home' ? 0 : evento.key === 'End' ? botones.length - 1 : (i + (evento.key === 'ArrowDown' ? 1 : -1) + botones.length) % botones.length;
+            botones[siguiente]?.focus();
+        }
+    });
+    menuAcciones.addEventListener('click', evento => {
+        const opcion = evento.target.closest('[data-ejecutar-accion]');
+        if (!opcion || !origenMenu) return;
+        const accion = opcion.dataset.ejecutarAccion;
+        const fila = origenMenu.closest('tr');
+        cerrarMenuAcciones(true);
+        if (accion === 'detalle') fila.querySelector('dialog').showModal();
+        else if (['aprobar','incompleto','desaprobar','espera','registrar-excedente'].includes(accion)) {
+            const boton = fila.querySelector('[data-' + accion + ']');
+            if (boton) boton.click();
+        }
+    });
+    formExcedente.addEventListener('submit', async evento => {
+        evento.preventDefault();
+        if (!filaExcedente) return;
+        const boton = formExcedente.querySelector('[type="submit"]');
+        boton.disabled = true;
+        const body = new FormData(formExcedente);
+        body.append('accion', 'registrar_excedente');
+        body.append('pago_id', filaExcedente.querySelector('[data-pago]').dataset.pago);
+        body.append('csrf_token', document.getElementById('csrfSaldoAdmin').value);
+        filaExcedente.querySelectorAll('[data-pago] input').forEach(input => body.append('codigos[]',input.value.trim()));
+        try {
+            const respuesta = await fetch(URL_CONTROLADOR, {method:'POST',body});
+            const data = await respuesta.json();
+            if (data.status === 'success') window.location.reload();
+            else document.getElementById('errorExcedente').textContent = data.message;
+        } catch (_) { document.getElementById('errorExcedente').textContent = 'No se pudo guardar. Intenta nuevamente.'; }
+        finally { boton.disabled = false; }
+    });
+
     document.addEventListener('click', async (evento) => {
+        if (evento.target.closest('[data-cerrar-acciones]')) { evento.target.closest('dialog').close(); return; }
+        const excedente = evento.target.closest('[data-registrar-excedente]');
+        if (excedente) {
+            filaExcedente = excedente.closest('tr');
+            formExcedente.reset();
+            document.getElementById('errorExcedente').textContent = '';
+            modalExcedente.showModal();
+            return;
+        }
+        if (evento.target.closest('[data-aprobar],[data-incompleto],[data-desaprobar],[data-espera]')) {
+            evento.target.closest('dialog')?.close();
+        }
+        const resolverDiferencia = evento.target.closest('[data-resolver-diferencia]');
+        if (resolverDiferencia) {
+            const panel = resolverDiferencia.closest('[data-panel-diferencia]');
+            const estado = panel?.querySelector('[data-estado-diferencia]');
+            const saldo = panel?.querySelector('[data-saldo-diferencia]')?.value;
+            const nota = panel?.querySelector('[data-nota-diferencia]')?.value.trim();
+            resolverDiferencia.disabled = true;
+            try {
+                const data = await enviarAccion({ accion: 'resolver_diferencia', pago_id: resolverDiferencia.dataset.resolverDiferencia, saldo_favor: saldo, nota, csrf_token:document.getElementById('csrfSaldoAdmin').value });
+                if (estado) {
+                    estado.textContent = data.message;
+                    estado.className = 'mt-1 text-xs font-bold ' + (data.status === 'success' ? 'text-green-700' : 'text-red-600');
+                }
+            } catch (_) {
+                if (estado) { estado.textContent = 'No se pudo guardar la revisión.'; estado.className = 'mt-1 text-xs font-bold text-red-600'; }
+            } finally { resolverDiferencia.disabled = false; }
+            return;
+        }
+
         const mensajeRapido = evento.target.closest('[data-mensaje-rapido]');
         if (mensajeRapido) {
             const campo = document.getElementById(mensajeRapido.dataset.mensajeRapido);

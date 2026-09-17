@@ -10,6 +10,7 @@ require_once '../../Config/conexion.php';
 require_once '../../Config/permisos.php';
 exigirPermisoModulo($conexion, 'web_pagos', 'dashboard.php');
 require_once '../../Dao/PagoDao.php';
+require_once '../../Dao/ReporteDiferenciaDao.php';
 require_once '../../Dao/FrasePagoDao.php';
 $frasesPago = (new FrasePagoDao($conexion))->obtenerTodas();
 require_once '../../Config/vistas_pagos.php';
@@ -18,6 +19,9 @@ $filtros = obtenerFiltrosPagosAdmin();
 $filtrosManuales = obtenerFiltrosPagosManuales();
 $pagoDao = new PagoDao($conexion);
 $pagos = $pagoDao->obtenerPagosParaAdmin($filtros);
+$reporteDiferenciaDao = new ReporteDiferenciaDao($conexion);
+$pagos = $reporteDiferenciaDao->decorarPagosAdmin($pagos);
+$_SESSION['csrf_saldo'] ??= bin2hex(random_bytes(32));
 $pagosManuales = $pagoDao->obtenerPagosManuales($filtrosManuales);
 $seccionManuales = ($_GET['seccion'] ?? '') === 'manuales';
 $pendientesManual = obtenerPagablesVista($pagoDao);
@@ -149,7 +153,7 @@ require __DIR__ . '/../../Config/exportar_modulo.php';
                             <th class="px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Nro. Comprobante</th>
                             <th class="px-5 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Comprobante</th>
                             <th class="px-5 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Estado</th>
-                            <th class="px-5 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Acciones</th>
+                            <th class="px-5 py-3 text-center"><span class="sr-only">Opciones del pago</span></th>
                         </tr>
                     </thead>
                     <tbody id="tablaPagos" data-hash="<?php echo hash('sha256', json_encode($pagos)); ?>" class="bg-white divide-y divide-gray-200">
@@ -483,6 +487,26 @@ require __DIR__ . '/../../Config/exportar_modulo.php';
         'discos' => $discosPendientes
     ], JSON_UNESCAPED_UNICODE); ?>
     </script>
+    <dialog id="modalExcedente" class="w-[92vw] max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl p-0 shadow-2xl backdrop:bg-slate-950/60">
+        <form id="formExcedente" class="p-6 sm:p-8">
+            <div class="mb-5 flex items-center gap-3">
+                <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-xl text-emerald-700"><i class="fas fa-wallet"></i></span>
+                <div><h2 class="text-xl font-extrabold text-gray-800">Registrar excedente</h2><p class="text-sm text-gray-500">El pago quedará aprobado al guardar.</p></div>
+            </div>
+            <label class="block text-sm font-bold text-gray-700">Valor excedente
+                <div class="relative mt-2"><span class="absolute left-4 top-3 text-xl font-bold text-emerald-700">$</span><input name="saldo_favor" type="number" required min="0.01" max="9999999.99" step="0.01" inputmode="decimal" placeholder="0.00" class="w-full rounded-xl border border-gray-300 bg-gray-50 py-3 pl-10 pr-4 text-xl font-bold focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"></div>
+            </label>
+            <label class="mt-5 block text-sm font-bold text-gray-700">Comentario
+                <textarea name="nota" required maxlength="255" rows="3" placeholder="Describe el motivo del excedente y la verificación realizada." class="mt-2 w-full resize-y rounded-xl border border-gray-300 bg-gray-50 p-3 font-normal focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"></textarea>
+            </label>
+            <p id="errorExcedente" role="alert" class="mt-3 text-sm font-semibold text-red-600"></p>
+            <div class="mt-6 grid grid-cols-2 gap-3">
+                <button id="cancelarExcedente" type="button" class="min-h-12 rounded-xl border border-gray-200 px-3 py-3 font-bold text-gray-600 hover:bg-gray-50">Cancelar</button>
+                <button type="submit" class="min-h-12 rounded-xl bg-emerald-600 px-3 py-3 font-bold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50">Guardar y aprobar</button>
+            </div>
+        </form>
+    </dialog>
+    <input type="hidden" id="csrfSaldoAdmin" value="<?php echo htmlspecialchars($_SESSION['csrf_saldo'], ENT_QUOTES); ?>">
     <script src="../../Assets/js/pagos_admin.js?v=<?php echo hash_file('sha256', __DIR__ . '/../../Assets/js/pagos_admin.js'); ?>"></script>
     <script>
         (() => {
