@@ -66,7 +66,10 @@ class SaldoPagoDao {
     }
 
     private function agruparEnOrigen(int $uid, int $pagoId, array $obligaciones, int $total): int {
-        $q = $this->db->prepare("SELECT detalle_pagos FROM pago WHERE id=? AND usuario_id=? AND activo=1 AND estado='aprobado' FOR UPDATE");
+        $q = $this->db->prepare("SELECT detalle_pagos, comprobante, nro_comprobante
+            FROM pago
+            WHERE id=? AND usuario_id=? AND activo=1 AND estado='aprobado'
+            FOR UPDATE");
         $q->execute([$pagoId, $uid]);
         $origen = $q->fetch();
         if (!$origen) throw new RuntimeException('El pago que originó el saldo ya no está disponible para agrupar.');
@@ -82,10 +85,27 @@ class SaldoPagoDao {
             $detalle = array_merge($detalle, $q->fetchAll(PDO::FETCH_ASSOC));
         }
         foreach ($obligaciones as $o) {
-            $detalle[] = ['obligacion_id'=>(int)$o['id'], 'fecha'=>$o['fecha'], 'disco'=>$o['disco'], 'ruta'=>$o['ruta']];
+            $detalle[] = [
+                'obligacion_id'=>(int)$o['id'],
+                'fecha'=>$o['fecha'],
+                'disco'=>$o['disco'],
+                'ruta'=>$o['ruta'],
+                'cubierto_con_saldo'=>true,
+                'saldo_origen_pago_id'=>$pagoId
+            ];
         }
-        $q = $this->db->prepare('UPDATE pago SET monto_total=monto_total+?, detalle_pagos=? WHERE id=?');
-        $q->execute([$total / 100, json_encode($detalle, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR), $pagoId]);
+        // Se conserva explícitamente el comprobante y su número porque los nuevos
+        // días se pagaron con el excedente acreditado en este mismo depósito.
+        $q = $this->db->prepare('UPDATE pago
+            SET monto_total=monto_total+?, detalle_pagos=?, comprobante=?, nro_comprobante=?
+            WHERE id=?');
+        $q->execute([
+            $total / 100,
+            json_encode($detalle, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
+            $origen['comprobante'],
+            $origen['nro_comprobante'],
+            $pagoId
+        ]);
         $q = $this->db->prepare('UPDATE obligacion_pago SET pagado=1, pago_id=? WHERE id=? AND pago_id IS NULL AND pagado=0');
         foreach ($obligaciones as $o) {
             $q->execute([$pagoId, $o['id']]);
