@@ -74,7 +74,7 @@ $fechaHoy = date('d/m/Y');
         <div class="rounded-2xl bg-gradient-to-r from-blue-600 via-blue-700 to-cyan-500 shadow-lg px-5 py-4 text-center border border-blue-400/40">
             <a href="https://time.is/Atacames" id="time_is_link" rel="nofollow"
                class="block text-sm font-bold uppercase tracking-[0.15em] text-blue-100 hover:text-white">
-                Hora local en Atacames
+                Hora local
             </a>
             <span id="Atacames_z139" class="mt-1 block text-4xl font-extrabold tabular-nums text-white drop-shadow-md sm:text-5xl">--:--:--</span>
         </div>
