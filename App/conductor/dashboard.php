@@ -71,12 +71,12 @@ $fechaHoy = date('d/m/Y');
                 <i class="fas fa-user text-2xl"></i>
             </a>
         </div>
-
-        <!-- Reloj en vivo -->
         <div class="rounded-2xl bg-gradient-to-r from-blue-600 via-blue-700 to-cyan-500 shadow-lg px-5 py-4 text-center border border-blue-400/40">
-            <p class="text-[0.7rem] font-bold uppercase tracking-[0.2em] text-blue-100">Hora actual</p>
-            <time id="relojHora" class="block mt-1 text-5xl font-extrabold tabular-nums text-white drop-shadow-md">--:--:--</time>
-            <p id="relojFecha" class="mt-1 text-sm font-semibold text-blue-100"></p>
+            <a href="https://time.is/Atacames" id="time_is_link" rel="nofollow"
+               class="block text-sm font-bold uppercase tracking-[0.15em] text-blue-100 hover:text-white">
+                Hora local en Atacames
+            </a>
+            <span id="Atacames_z139" class="mt-1 block text-4xl font-extrabold tabular-nums text-white drop-shadow-md sm:text-5xl">--:--:--</span>
         </div>
 
         <!-- Botones principales -->
@@ -142,39 +142,9 @@ $fechaHoy = date('d/m/Y');
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <script src="../../Assets/js/conductor.js?v=<?php echo hash_file('sha256', __DIR__ . '/../../Assets/js/conductor.js'); ?>"></script>
     <?php endif; ?>
+    <script src="https://widget.time.is/t.js"></script>
     <script>
-        (function () {
-            const $hora = document.getElementById('relojHora');
-            const $fecha = document.getElementById('relojFecha');
-            if (!$hora) return;
-            const TZ = 'America/Guayaquil';
-            const optsHora = { hourCycle: 'h23', hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: TZ };
-            const optsFecha = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: TZ };
-            //timezone support check
-            const soportaTZ = (() => {
-                try { new Intl.DateTimeFormat('es-EC', { timeZone: TZ }); return true; }
-                catch (_) { return false; }
-            })();
-            const diasSemana = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
-            const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-            const rellenar = n => String(n).padStart(2, '0');
-            const actualizar = () => {
-                const ahora = new Date();
-                if (soportaTZ) {
-                    try {
-                        $hora.textContent = ahora.toLocaleTimeString('es-EC', optsHora);
-                        $fecha.textContent = ahora.toLocaleDateString('es-EC', optsFecha);
-                        return;
-                    } catch (_) {}
-                }
-                const utc = ahora.getTime() + ahora.getTimezoneOffset() * 60000;
-                const local = new Date(utc - 5 * 3600000);
-                $hora.textContent = rellenar(local.getUTCHours()) + ':' + rellenar(local.getUTCMinutes()) + ':' + rellenar(local.getUTCSeconds());
-                $fecha.textContent = diasSemana[local.getUTCDay()] + ', ' + local.getUTCDate() + ' de ' + meses[local.getUTCMonth()] + ' de ' + local.getUTCFullYear();
-            };
-            actualizar();
-            setInterval(actualizar, 1000);
-        })();
+        time_is_widget.init({Atacames_z139:{}});
     </script>
 <script>
         if ('serviceWorker' in navigator) {

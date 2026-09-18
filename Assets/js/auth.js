@@ -5,6 +5,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const alertaError = document.getElementById('alertaError');
     const btnSubmit = document.getElementById('btnSubmit');
     const inputCedula = document.getElementById('cedula');
+    const inputPassword = document.getElementById('password');
+    const togglePassword = document.getElementById('togglePasswordLogin');
+
+    togglePassword?.addEventListener('click', () => {
+        const mostrar = inputPassword.type === 'password';
+        inputPassword.type = mostrar ? 'text' : 'password';
+        togglePassword.setAttribute('aria-pressed', mostrar ? 'true' : 'false');
+        togglePassword.setAttribute('aria-label', mostrar ? 'Ocultar contraseña' : 'Mostrar contraseña');
+        togglePassword.querySelector('[data-icono-mostrar]')?.classList.toggle('hidden', mostrar);
+        togglePassword.querySelector('[data-icono-ocultar]')?.classList.toggle('hidden', !mostrar);
+    });
 
     loginForm.addEventListener('submit', async (e) => {
         e.preventDefault(); // Evita que la página se recargue

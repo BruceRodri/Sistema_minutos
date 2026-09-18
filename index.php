@@ -58,8 +58,23 @@ if (isset($_SESSION['usuario_id'])) {
             
             <div class="mb-6">
                 <label for="password" class="block text-gray-700 text-sm font-bold mb-2">Contraseña</label>
-                <input type="password" id="password" name="password" required 
-                    class="w-full px-3 py-2 bg-gray-50 border border-gray-300 text-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <div class="relative">
+                    <input type="password" id="password" name="password" required autocomplete="current-password"
+                        class="w-full bg-gray-50 border border-gray-300 py-2 pl-3 pr-12 text-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <button id="togglePasswordLogin" type="button" aria-label="Mostrar contraseña" aria-pressed="false"
+                        class="absolute inset-y-0 right-0 flex w-12 items-center justify-center rounded-r-lg text-gray-500 hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500">
+                        <svg data-icono-mostrar aria-hidden="true" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"></path>
+                            <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                        <svg data-icono-ocultar aria-hidden="true" class="hidden h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="m3 3 18 18"></path>
+                            <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8"></path>
+                            <path d="M9.9 4.2A10.8 10.8 0 0 1 12 4c6.5 0 10 8 10 8a18 18 0 0 1-2.1 3.2"></path>
+                            <path d="M6.6 6.6C3.6 8.5 2 12 2 12s3.5 8 10 8a9.8 9.8 0 0 0 4.1-.9"></path>
+                        </svg>
+                    </button>
+                </div>
             </div>
             
             <button type="submit" id="btnSubmit"
