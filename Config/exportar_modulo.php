@@ -3,6 +3,7 @@
 if (($_GET['exportar'] ?? '') !== '1') return;
 require_once __DIR__ . '/exportar_excel.php';
 $moduloExportacion = basename($_SERVER['SCRIPT_NAME'], '.php');
+$celdasCombinadas = [];
 $estadoExcel = static fn($e) => ['en_espera'=>'En espera','aprobado'=>'Aprobado','anulado'=>'Anulado','incompleto'=>'Incompleto'][$e] ?? ucfirst((string)$e);
 $seleccionExcel = static function ($id): bool {
     if (!isset($_POST['ids_filtrados'])) return true;
@@ -48,7 +49,7 @@ switch ($moduloExportacion) {
         };
         if ($manual) {
             $moduloExportacion = 'pagos-manuales';
-            $cabecera = ['Código de ingreso','Disco','Fecha de obligación','Ruta','Valor del día','Fecha de registro','Estado','Motivo'];
+            $cabecera = ['Código de ingreso','Disco','Fecha de obligación','Ruta','Valor del día','Valor total','Fecha de registro','Estado','Motivo'];
             foreach ($pagosManuales as $p) {
                 $valoresDia = [];
                 foreach ($p['valores_individuales'] ?? [] as $v) {
@@ -57,7 +58,11 @@ switch ($moduloExportacion) {
                 }
                 $filasDetalle = $p['detalle_filas'] ?? [];
                 if (empty($filasDetalle)) $filasDetalle = [['fecha' => '', 'disco' => '', 'ruta' => '']];
-                foreach ($filasDetalle as $fila) {
+                $primeraFilaExcel = count($datos) + 2;
+                if (count($filasDetalle) > 1) {
+                    $celdasCombinadas[] = 'F'.$primeraFilaExcel.':F'.($primeraFilaExcel + count($filasDetalle) - 1);
+                }
+                foreach ($filasDetalle as $i => $fila) {
                     $fecha = (string)($fila['fecha'] ?? '');
                     $valor = isset($valoresDia[$fecha]) ? $valoresDia[$fecha] : round((float)$p['monto_total'], 2);
                     $datos[] = [
@@ -66,6 +71,7 @@ switch ($moduloExportacion) {
                         $fecha,
                         (string)($fila['ruta'] ?? ''),
                         (float)$valor,
+                        $i === 0 ? round((float)$p['monto_total'], 2) : '',
                         $p['fecha_pago'],
                         $estadoExcel($p['estado']),
                         $p['motivo_rechazo'] ?? ''
@@ -73,7 +79,7 @@ switch ($moduloExportacion) {
                 }
             }
         } else {
-            $cabecera = ['Conductor','Código','Disco','Fecha de obligación','Ruta','Valor del día','Fecha de registro','Estado','N.º de comprobante','Motivo'];
+            $cabecera = ['Conductor','Código','Disco','Fecha de obligación','Ruta','Valor del día','Valor total','Fecha de registro','Estado','N.º de comprobante','Motivo'];
             foreach ($pagos as $p) {
                 $valoresDia = [];
                 foreach ($p['valores_individuales'] ?? [] as $v) {
@@ -85,6 +91,10 @@ switch ($moduloExportacion) {
                 if (empty($filasDetalle)) $filasDetalle = [['fecha' => '', 'disco' => '', 'ruta' => '']];
                 $cantidadNros = count($nros);
                 $cantidadFilas = count($filasDetalle);
+                $primeraFilaExcel = count($datos) + 2;
+                if ($cantidadFilas > 1) {
+                    $celdasCombinadas[] = 'G'.$primeraFilaExcel.':G'.($primeraFilaExcel + $cantidadFilas - 1);
+                }
                 $conductor = trim(($p['nombres'] ?? '').' '.($p['apellidos'] ?? ''));
                 foreach ($filasDetalle as $i => $fila) {
                     $fecha = (string)($fila['fecha'] ?? '');
@@ -98,6 +108,7 @@ switch ($moduloExportacion) {
                         $fecha,
                         (string)($fila['ruta'] ?? ''),
                         (float)$valor,
+                        $i === 0 ? round((float)$p['monto_total'], 2) : '',
                         $p['fecha_pago'],
                         $estadoExcel($p['estado']),
                         $nro,
@@ -114,4 +125,4 @@ switch ($moduloExportacion) {
         break;
     default: http_response_code(400); exit('Módulo no válido.');
 }
-descargarExcel($moduloExportacion, $cabecera, $datos);
+descargarExcel($moduloExportacion, $cabecera, $datos, $celdasCombinadas);

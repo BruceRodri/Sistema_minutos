@@ -1,6 +1,6 @@
 <?php
 // XLSX nativo sin dependencias externas; los textos siempre son celdas de texto (no fórmulas).
-function crearExcelFiltrado(array $encabezados, array $filas): string {
+function crearExcelFiltrado(array $encabezados, array $filas, array $celdasCombinadas = []): string {
     $xml = static fn($v) => htmlspecialchars(preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F]/u', '', (string)$v), ENT_XML1 | ENT_QUOTES, 'UTF-8');
     $columna = static function (int $n): string {
         $nombre = '';
@@ -33,14 +33,21 @@ function crearExcelFiltrado(array $encabezados, array $filas): string {
             }
             $sheet .= '</row>';
         }
-        $sheet .= '</sheetData><autoFilter ref="A1:'.$columna(count($encabezados)-1).(count($filas)+1).'"/></worksheet>';
+        $sheet .= '</sheetData>';
+        $sheet .= '<autoFilter ref="A1:'.$columna(count($encabezados)-1).(count($filas)+1).'"/>';
+        if ($celdasCombinadas) {
+            $sheet .= '<mergeCells count="'.count($celdasCombinadas).'">';
+            foreach ($celdasCombinadas as $rango) $sheet .= '<mergeCell ref="'.$xml($rango).'"/>';
+            $sheet .= '</mergeCells>';
+        }
+        $sheet .= '</worksheet>';
         $zip->addFromString('xl/worksheets/sheet1.xml', $sheet);
         $zip->close();
         return $ruta;
     } catch (Throwable $e) { $zip->close(); @unlink($ruta); throw $e; }
 }
-function descargarExcel(string $nombre, array $encabezados, array $filas): never {
-    $ruta = crearExcelFiltrado($encabezados, $filas);
+function descargarExcel(string $nombre, array $encabezados, array $filas, array $celdasCombinadas = []): never {
+    $ruta = crearExcelFiltrado($encabezados, $filas, $celdasCombinadas);
     header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     header('Content-Disposition: attachment; filename="'.$nombre.'-'.date('Y-m-d').'.xlsx"');
     header('Cache-Control: no-store');
