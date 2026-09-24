@@ -436,7 +436,16 @@ document.addEventListener('DOMContentLoaded', () => {
             rango.textContent = '';
             rango.classList.add('hidden');
         } else {
-            tabla.innerHTML = filasValidas.map((fila) => `
+            tabla.innerHTML = filasValidas.map((fila, indice) => `
+                ${indice === 0 || Number(fila.archivo_id) !== Number(filasValidas[indice - 1].archivo_id) ? `
+                <tr style="background-color: ${escapar(fila.archivo_color || '#ffffff')}">
+                    <td colspan="6" class="px-6 py-3 text-sm text-gray-700">
+                        <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+                            <span class="min-w-0 break-words font-bold"><i class="fas fa-file-excel mr-2" aria-hidden="true"></i>${escapar(fila.archivo_nombre || 'Registros sin archivo asociado')}</span>
+                            ${fila.archivo_fecha_subida ? `<span class="text-xs">Subido el ${escapar(fila.archivo_fecha_subida)}</span>` : ''}
+                        </div>
+                    </td>
+                </tr>` : ''}
                 <tr class="transition-colors" style="background-color: ${escapar(fila.archivo_color || '#ffffff')}">
                     <td class="px-6 py-4 whitespace-nowrap text-center font-mono font-bold text-blue-800">${escapar(fila.disco)}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-700">${escapar(formatearFecha(fila.fecha))}</td>

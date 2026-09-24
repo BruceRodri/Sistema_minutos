@@ -166,7 +166,8 @@ class ValoresDao {
         $valorNumerico = str_replace(',', '.', $valor);
 
         $sql = "SELECT o.id, o.disco, o.fecha, o.valor, o.ruta, o.pagado,
-                       a.id AS archivo_id, a.nombre AS archivo_nombre
+                       a.id AS archivo_id, a.nombre AS archivo_nombre,
+                       DATE_FORMAT(a.creado_en, '%d/%m/%Y a las %H:%i') AS archivo_fecha_subida
                 FROM obligacion_pago o
                 LEFT JOIN archivo_valores_registro r ON r.obligacion_id=o.id
                 LEFT JOIN archivo_valores a ON a.id=r.archivo_id

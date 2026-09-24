@@ -77,19 +77,7 @@ require __DIR__ . '/../../Config/exportar_modulo.php';
                 <h2 class="text-xl md:text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-700 to-gray-800">Valores Diarios</h2>
                 <p class="text-xs text-gray-500">Datos financieros cargados desde Excel</p>
             </div>
-        </header>
-
-        <div class="p-4 md:p-8 w-full max-w-7xl mx-auto">
-            <div id="alerta" class="hidden mb-5 rounded-xl border p-4 text-sm font-bold text-center" role="alert"></div>
-
-            <section class="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
-                <div class="grid grid-cols-1 items-center gap-4 border-b border-gray-100 px-5 py-4 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
-                    <div>
-                        <p class="text-sm text-gray-500">Registros encontrados</p>
-                        <p id="totalValores" class="text-3xl font-bold text-blue-700"><?php echo $totalFilas; ?></p>
-                        <p class="mt-1 text-xs text-gray-500">Últimos Excel primero · Un color pastel por archivo</p>
-                    </div>
-                    <div class="flex min-w-0 flex-wrap items-center justify-center gap-2" aria-label="Acciones de valores diarios">
+            <div class="flex min-w-0 flex-wrap items-center gap-2" aria-label="Acciones de valores diarios">
                 <button id="btnAgregarRegistro" type="button" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-bold text-blue-700 transition-colors hover:bg-blue-100">
                     <i class="fas fa-plus shrink-0"></i>Agregar nuevo registro
                 </button>
@@ -100,6 +88,18 @@ require __DIR__ . '/../../Config/exportar_modulo.php';
                     <i class="fas fa-file-arrow-up shrink-0"></i>Cargar archivos
                 </button>
             </div>
+        </header>
+
+        <div class="p-4 md:p-8 w-full max-w-7xl mx-auto">
+            <div id="alerta" class="hidden mb-5 rounded-xl border p-4 text-sm font-bold text-center" role="alert"></div>
+
+            <section class="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
+                <div class="grid grid-cols-1 items-center gap-4 border-b border-gray-100 px-5 py-4 lg:grid-cols-2">
+                    <div>
+                        <p class="text-sm text-gray-500">Registros encontrados</p>
+                        <p id="totalValores" class="text-3xl font-bold text-blue-700"><?php echo $totalFilas; ?></p>
+                        <p class="mt-1 text-xs text-gray-500">Últimos Excel primero · Un color pastel por archivo</p>
+                    </div>
                     <div class="min-w-0 text-sm lg:text-right">
                         <p id="estadoArchivo" class="font-bold <?php echo $existeArchivo ? 'text-green-700' : 'text-amber-700'; ?>">
                             <i class="fas <?php echo $existeArchivo ? 'fa-circle-check' : 'fa-circle-exclamation'; ?> mr-1"></i>
@@ -163,7 +163,21 @@ require __DIR__ . '/../../Config/exportar_modulo.php';
                                     </td>
                                 </tr>
                             <?php else: ?>
+                                <?php $archivoAnterior = -1; ?>
                                 <?php foreach ($filasPagina as $fila): ?>
+                                    <?php if ((int)$fila['archivo_id'] !== $archivoAnterior): ?>
+                                        <tr style="background-color: <?php echo htmlspecialchars($fila['archivo_color']); ?>">
+                                            <td colspan="6" class="px-6 py-3 text-sm text-gray-700">
+                                                <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+                                                    <span class="min-w-0 break-words font-bold"><i class="fas fa-file-excel mr-2" aria-hidden="true"></i><?php echo htmlspecialchars($fila['archivo_nombre'] ?? 'Registros sin archivo asociado'); ?></span>
+                                                    <?php if (!empty($fila['archivo_fecha_subida'])): ?>
+                                                        <span class="text-xs">Subido el <?php echo htmlspecialchars($fila['archivo_fecha_subida']); ?></span>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        <?php $archivoAnterior = (int)$fila['archivo_id']; ?>
+                                    <?php endif; ?>
                                     <tr style="background-color: <?php echo htmlspecialchars($fila['archivo_color']); ?>" class="transition-colors">
                                         <td class="px-6 py-4 whitespace-nowrap text-center font-mono font-bold text-blue-800"><?php echo htmlspecialchars($fila['disco']); ?></td>
                                         <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-700"><?php echo htmlspecialchars(date('d/m/Y', strtotime($fila['fecha']))); ?></td>
