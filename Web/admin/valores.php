@@ -72,18 +72,10 @@ require __DIR__ . '/../../Config/exportar_modulo.php';
     <?php include 'components/sidebar.php'; ?>
 
     <main class="flex-1 flex flex-col overflow-y-auto mt-16 md:mt-0 w-full">
-        <header class="min-h-16 bg-white shadow-sm flex flex-wrap items-center gap-4 px-4 py-3 md:px-8 justify-between border-b border-gray-200">
+        <header class="shrink-0 min-h-16 bg-white shadow-sm flex flex-wrap items-center gap-4 px-4 py-3 md:px-8 justify-between border-b border-gray-200">
             <div>
                 <h2 class="text-xl md:text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-700 to-gray-800">Valores Diarios</h2>
                 <p class="text-xs text-gray-500">Datos financieros cargados desde Excel</p>
-            </div>
-            <div class="flex flex-wrap items-center gap-3">
-                <button id="btnGestionArchivos" type="button" class="inline-flex items-center rounded-lg border border-blue-200 bg-white px-4 py-2.5 text-sm font-bold text-blue-700 hover:bg-blue-50">
-                    <i class="fas fa-folder-open mr-2"></i>Gestión Archivos
-                </button>
-                <button id="btnAbrirCarga" type="button" class="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow hover:bg-blue-700 transition-colors">
-                    <i class="fas fa-file-arrow-up mr-2"></i>Cargar archivos
-                </button>
             </div>
         </header>
 
@@ -91,12 +83,24 @@ require __DIR__ . '/../../Config/exportar_modulo.php';
             <div id="alerta" class="hidden mb-5 rounded-xl border p-4 text-sm font-bold text-center" role="alert"></div>
 
             <section class="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
-                <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-5 py-4">
+                <div class="grid grid-cols-1 items-center gap-4 border-b border-gray-100 px-5 py-4 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
                     <div>
                         <p class="text-sm text-gray-500">Registros encontrados</p>
                         <p id="totalValores" class="text-3xl font-bold text-blue-700"><?php echo $totalFilas; ?></p>
+                        <p class="mt-1 text-xs text-gray-500">Últimos Excel primero · Un color pastel por archivo</p>
                     </div>
-                    <div class="text-right text-sm">
+                    <div class="flex min-w-0 flex-wrap items-center justify-center gap-2" aria-label="Acciones de valores diarios">
+                <button id="btnAgregarRegistro" type="button" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-bold text-blue-700 transition-colors hover:bg-blue-100">
+                    <i class="fas fa-plus shrink-0"></i>Agregar nuevo registro
+                </button>
+                <button id="btnGestionArchivos" type="button" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-blue-200 bg-white px-4 py-2.5 text-sm font-bold text-blue-700 transition-colors hover:bg-blue-50">
+                    <i class="fas fa-folder-open shrink-0"></i>Gestión Archivos
+                </button>
+                <button id="btnAbrirCarga" type="button" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-blue-600 bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow transition-colors hover:bg-blue-700">
+                    <i class="fas fa-file-arrow-up shrink-0"></i>Cargar archivos
+                </button>
+            </div>
+                    <div class="min-w-0 text-sm lg:text-right">
                         <p id="estadoArchivo" class="font-bold <?php echo $existeArchivo ? 'text-green-700' : 'text-amber-700'; ?>">
                             <i class="fas <?php echo $existeArchivo ? 'fa-circle-check' : 'fa-circle-exclamation'; ?> mr-1"></i>
                             <?php echo $existeArchivo ? 'Archivo cargado' : 'Sin archivo cargado'; ?>
@@ -160,11 +164,11 @@ require __DIR__ . '/../../Config/exportar_modulo.php';
                                 </tr>
                             <?php else: ?>
                                 <?php foreach ($filasPagina as $fila): ?>
-                                    <tr class="hover:bg-gray-50 transition-colors">
+                                    <tr style="background-color: <?php echo htmlspecialchars($fila['archivo_color']); ?>" class="transition-colors">
                                         <td class="px-6 py-4 whitespace-nowrap text-center font-mono font-bold text-blue-800"><?php echo htmlspecialchars($fila['disco']); ?></td>
                                         <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-700"><?php echo htmlspecialchars(date('d/m/Y', strtotime($fila['fecha']))); ?></td>
                                         <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-bold text-gray-800">$ <?php echo number_format((float)$fila['valor'], 2, '.', ','); ?></td>
-                                        <td class="px-6 py-4 text-sm text-gray-700"><?php echo htmlspecialchars($fila['ruta'] ?: '—'); ?></td>
+                                        <td class="px-6 py-4 text-sm text-gray-700"><?php echo htmlspecialchars($fila['ruta'] ?: '—'); ?><span class="mt-1 block max-w-xs truncate text-xs text-gray-500" title="<?php echo htmlspecialchars($fila['archivo_nombre'] ?? 'Sin archivo asociado'); ?>"><i class="fas fa-file-excel mr-1"></i><?php echo htmlspecialchars($fila['archivo_nombre'] ?? 'Sin archivo asociado'); ?></span></td>
                                         <td class="px-6 py-4 text-center"><span class="inline-flex rounded-full px-3 py-1 text-xs font-bold <?php echo (int)$fila['pagado'] === 1 ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'; ?>"><?php echo (int)$fila['pagado'] === 1 ? 'Pagado' : 'No pagado'; ?></span></td>
                                         <td class="px-6 py-4 text-center">
                                             <details class="inline-block text-left">
@@ -244,6 +248,36 @@ require __DIR__ . '/../../Config/exportar_modulo.php';
             <button id="cancelarBorradoValores" type="button" autofocus class="flex-1 rounded-xl border border-gray-200 px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50">Cancelar</button>
             <button id="aceptarBorradoValores" type="button" class="flex-1 rounded-xl bg-red-600 px-4 py-3 text-sm font-bold text-white hover:bg-red-700 disabled:opacity-50">Sí, eliminar</button>
         </div>
+    </dialog>
+
+    <dialog id="opcionesTrasBorrado" aria-labelledby="tituloTrasBorrado" class="w-[calc(100%_-_2rem)] max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+        <div class="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-green-100 text-2xl text-green-600"><i class="fas fa-check"></i></div>
+        <h3 id="tituloTrasBorrado" class="text-xl font-bold text-gray-900">Registro eliminado</h3>
+        <p class="mt-2 text-sm leading-6 text-gray-500">¿Quieres modificar sus datos y volver a guardarlo, o crear otro registro?</p>
+        <div class="mt-5 space-y-3">
+            <button id="modificarTrasBorrado" type="button" class="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white hover:bg-blue-700"><i class="fas fa-pen mr-2"></i>Modificar y volver a guardar</button>
+            <button id="crearTrasBorrado" type="button" class="w-full rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-700 hover:bg-blue-100"><i class="fas fa-plus mr-2"></i>Crear otro registro</button>
+            <button id="terminarTrasBorrado" type="button" autofocus class="w-full rounded-xl px-4 py-3 text-sm font-bold text-gray-500 hover:bg-gray-100">No, terminar</button>
+        </div>
+    </dialog>
+
+    <dialog id="editorRegistroValores" aria-labelledby="tituloEditorValores" class="w-[calc(100%_-_2rem)] max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+        <h3 id="tituloEditorValores" class="text-xl font-bold text-gray-900">Crear registro</h3>
+        <p class="mt-2 text-sm text-gray-500">Se guardará como no pagado. Revisa los datos antes de confirmar.</p>
+        <form id="formRegistroValores" class="mt-5 space-y-4">
+            <input type="hidden" name="archivo_id" value="0">
+            <div class="grid grid-cols-2 gap-4">
+                <label class="text-sm font-bold text-gray-600">Disco<input name="disco" required maxlength="20" class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 font-normal focus:border-blue-500"></label>
+                <label class="text-sm font-bold text-gray-600">Fecha<input name="fecha" type="date" required class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 font-normal focus:border-blue-500"></label>
+            </div>
+            <label class="block text-sm font-bold text-gray-600">Valor ($)<input name="valor" type="number" min="0.01" max="99999999.99" step="0.01" required class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 font-normal focus:border-blue-500"></label>
+            <label class="block text-sm font-bold text-gray-600">Ruta<input name="ruta" maxlength="100" class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 font-normal focus:border-blue-500"></label>
+            <p id="errorEditorValores" role="alert" class="hidden rounded-lg bg-red-50 p-3 text-sm text-red-700"></p>
+            <div class="flex gap-3 pt-2">
+                <button id="cancelarEditorValores" type="button" class="flex-1 rounded-xl border border-gray-200 px-4 py-3 text-sm font-bold text-gray-600 disabled:opacity-50">Volver</button>
+                <button id="guardarRegistroValores" type="submit" class="flex-1 rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-50">Guardar registro</button>
+            </div>
+        </form>
     </dialog>
 
     <script src="../../Assets/js/valores.js?v=<?php echo filemtime('../../Assets/js/valores.js'); ?>"></script>

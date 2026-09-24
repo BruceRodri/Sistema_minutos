@@ -7,6 +7,10 @@ class ValoresDao {
 
     const RUTA_XLSX = __DIR__ . '/../data/valores_diarios.xlsx';
 
+    public static function colorArchivo($id) {
+        return (int)$id > 0 ? 'hsl(' . number_format(fmod((int)$id * 137.507764, 360), 4, '.', '') . ', 65%, 94%)' : '#ffffff';
+    }
+
     public function __construct($conexion) {
         $this->conexion = $conexion;
         $this->conexion->exec("CREATE TABLE IF NOT EXISTS archivo_valores (
@@ -161,9 +165,12 @@ class ValoresDao {
         $ruta = trim((string)$ruta);
         $valorNumerico = str_replace(',', '.', $valor);
 
-        $sql = "SELECT id, disco, fecha, valor, ruta, pagado
-                FROM obligacion_pago
-                WHERE activo = 1";
+        $sql = "SELECT o.id, o.disco, o.fecha, o.valor, o.ruta, o.pagado,
+                       a.id AS archivo_id, a.nombre AS archivo_nombre
+                FROM obligacion_pago o
+                LEFT JOIN archivo_valores_registro r ON r.obligacion_id=o.id
+                LEFT JOIN archivo_valores a ON a.id=r.archivo_id
+                WHERE o.activo = 1";
         $parametros = [];
         if ($disco !== '') {
             $sql .= " AND disco LIKE :disco";
@@ -181,10 +188,13 @@ class ValoresDao {
             $sql .= " AND ruta LIKE :ruta";
             $parametros[':ruta'] = '%' . $ruta . '%';
         }
-        $sql .= " ORDER BY fecha DESC, CAST(disco AS UNSIGNED), id DESC";
+        $sql .= " ORDER BY a.id DESC, o.id DESC";
         $stmt = $this->conexion->prepare($sql);
         $stmt->execute($parametros);
-        return $stmt->fetchAll();
+        $filas = $stmt->fetchAll();
+        foreach ($filas as &$fila) $fila['archivo_color'] = self::colorArchivo($fila['archivo_id']);
+        unset($fila);
+        return $filas;
     }
 
     public function firmaArchivo() {

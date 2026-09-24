@@ -46,6 +46,8 @@ try {
             DATE_FORMAT(a.creado_en, "%d/%m/%Y %H:%i") AS fecha,
             (SELECT COUNT(*) FROM archivo_valores_registro r WHERE r.archivo_id=a.id) AS registros
             FROM archivo_valores a ORDER BY a.id DESC')->fetchAll();
+        foreach ($archivos as &$archivoListado) $archivoListado['color'] = ValoresDao::colorArchivo($archivoListado['id']);
+        unset($archivoListado);
         if (is_file(ValoresDao::RUTA_XLSX)) {
             $archivos[] = ['id' => 'anterior', 'nombre' => 'valores_diarios.xlsx (archivo anterior)',
                 'tamano' => filesize(ValoresDao::RUTA_XLSX), 'fecha' => date('d/m/Y H:i', filemtime(ValoresDao::RUTA_XLSX)),
@@ -162,10 +164,53 @@ try {
     }
 
     if ($metodo === 'POST' && $accion === 'eliminar_registro') {
+        $conexion->beginTransaction();
+        $stmt = $conexion->prepare('SELECT o.disco, o.fecha, o.valor, o.ruta, r.archivo_id
+            FROM obligacion_pago o LEFT JOIN archivo_valores_registro r ON r.obligacion_id=o.id
+            WHERE o.id=? AND o.activo=1 FOR UPDATE');
+        $stmt->execute([(int)$id]);
+        $registro = $stmt->fetch();
+        if (!$registro) throw new RuntimeException('El registro ya no existe. Actualice la tabla.');
         $stmt = $conexion->prepare('DELETE FROM obligacion_pago WHERE id=? AND activo=1');
         $stmt->execute([(int)$id]);
         if (!$stmt->rowCount()) throw new RuntimeException('El registro ya no existe. Actualice la tabla.');
-        responderValores(['status' => 'success', 'message' => 'Registro eliminado correctamente.']);
+        $conexion->commit();
+        responderValores(['status' => 'success', 'message' => 'Registro eliminado correctamente.', 'registro' => $registro]);
+    }
+
+    if ($metodo === 'POST' && $accion === 'crear_registro') {
+        $campo = static fn($nombre) => is_string($_POST[$nombre] ?? null) ? trim($_POST[$nombre]) : '';
+        $disco = $dao->normalizarDisco($campo('disco'));
+        $fecha = $campo('fecha');
+        $valor = $campo('valor');
+        $ruta = $campo('ruta');
+        $archivoId = filter_var($_POST['archivo_id'] ?? 0, FILTER_VALIDATE_INT);
+        $fechaValidada = DateTime::createFromFormat('!Y-m-d', $fecha);
+        if ($campo('disco') === '' || strlen($disco) > 20) throw new RuntimeException('Ingrese un disco válido de hasta 20 caracteres.');
+        if (!$fechaValidada || $fechaValidada->format('Y-m-d') !== $fecha) throw new RuntimeException('Ingrese una fecha válida.');
+        if (!preg_match('/^\d{1,8}(\.\d{1,2})?$/', $valor) || (float)$valor <= 0) throw new RuntimeException('Ingrese un valor mayor que cero, con máximo dos decimales.');
+        if (strlen($ruta) > 100) throw new RuntimeException('La ruta debe tener como máximo 100 caracteres.');
+        if ($archivoId === false || $archivoId < 0) throw new RuntimeException('El archivo asociado no es válido.');
+        $conexion->beginTransaction();
+        if ($archivoId > 0) {
+            $stmt = $conexion->prepare('SELECT id FROM archivo_valores WHERE id=? FOR UPDATE');
+            $stmt->execute([$archivoId]);
+            if (!$stmt->fetch()) throw new RuntimeException('El Excel asociado ya fue eliminado. Elija Crear otro registro para guardarlo sin archivo.');
+        }
+        try {
+            $stmt = $conexion->prepare('INSERT INTO obligacion_pago (disco, fecha, valor, ruta, pagado, activo) VALUES (?, ?, ?, ?, 0, 1)');
+            $stmt->execute([$disco, $fecha, $valor, $ruta ?: null]);
+        } catch (PDOException $e) {
+            if (($e->errorInfo[1] ?? null) === 1062) throw new RuntimeException('Ya existe un registro para ese disco y fecha. Cambie los datos antes de guardar.');
+            throw $e;
+        }
+        $registroId = (int)$conexion->lastInsertId();
+        if ($archivoId > 0) {
+            $stmt = $conexion->prepare('INSERT INTO archivo_valores_registro (archivo_id, obligacion_id) VALUES (?, ?)');
+            $stmt->execute([$archivoId, $registroId]);
+        }
+        $conexion->commit();
+        responderValores(['status' => 'success', 'message' => 'Registro guardado como no pagado.']);
     }
     throw new RuntimeException('Solicitud no válida.');
 } catch (Throwable $e) {

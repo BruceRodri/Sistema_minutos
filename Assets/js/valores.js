@@ -19,6 +19,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const aceptarBorrado = document.getElementById('aceptarBorradoValores');
     const errorBorrado = document.getElementById('errorBorradoValores');
     const csrf = document.querySelector('meta[name="csrf-valores"]')?.content || '';
+    const opcionesTrasBorrado = document.getElementById('opcionesTrasBorrado');
+    const editorRegistro = document.getElementById('editorRegistroValores');
+    const formRegistro = document.getElementById('formRegistroValores');
+    const errorEditor = document.getElementById('errorEditorValores');
+    const guardarRegistro = document.getElementById('guardarRegistroValores');
+    const cancelarEditor = document.getElementById('cancelarEditorValores');
+    let registroEliminado = null;
+    let editorDesdeBorrado = false;
+    let guardandoRegistro = false;
     let borradoPendiente = null;
     let borrando = false;
     let archivosDisponibles = [];
@@ -78,7 +87,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const datos = await solicitarValores('../../Controllers/ValoresController.php?accion=archivos');
             archivosDisponibles = datos.archivos;
             listaArchivos.innerHTML = archivosDisponibles.length ? archivosDisponibles.map((archivo) => `
-                <article class="rounded-xl border border-gray-200 p-4">
+                <article class="rounded-xl border border-gray-200 p-4" style="background-color: ${escapar(archivo.color || '#ffffff')}">
                     <div class="flex items-start gap-3">
                         <i class="fas ${archivo.sin_archivo ? 'fa-table-list text-amber-600' : 'fa-file-excel text-green-600'} mt-1 text-2xl"></i>
                         <div class="min-w-0 flex-1">
@@ -108,7 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('cerrarGestionArchivos').addEventListener('click', () => gestionArchivos.close());
 
     function pedirBorrado(accion, id, titulo, descripcion, ids = []) {
-        if (subiendo || borrando) return;
+        if (subiendo || borrando || guardandoRegistro) return;
         borradoPendiente = { accion, id, ids };
         document.getElementById('tituloBorradoValores').textContent = titulo;
         document.getElementById('detalleBorradoValores').textContent = descripcion;
@@ -158,6 +167,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const datos = await solicitarValores('../../Controllers/ValoresController.php', { method: 'POST', body: cuerpo });
             confirmacion.close();
             mostrarAlerta('success', datos.message);
+            if (borradoPendiente.accion === 'eliminar_registro' && datos.registro) {
+                registroEliminado = datos.registro;
+                opcionesTrasBorrado.showModal();
+            }
             if (gestionArchivos.open) {
                 await cargarArchivos();
                 listaArchivos.insertAdjacentHTML('afterbegin', `<p role="status" class="rounded-xl bg-green-50 p-3 text-sm font-bold text-green-800">${escapar(datos.message)}</p>`);
@@ -170,6 +183,75 @@ document.addEventListener('DOMContentLoaded', () => {
             borrando = false;
             aceptarBorrado.disabled = cancelarBorrado.disabled = false;
             aceptarBorrado.textContent = 'Sí, eliminar';
+            conectarEventos(true);
+        }
+    });
+
+    function abrirEditorRegistro(modificar) {
+        if (guardandoRegistro || borrando || subiendo) return;
+        if (modificar && !registroEliminado) return;
+        editorDesdeBorrado = opcionesTrasBorrado.open;
+        formRegistro.reset();
+        formRegistro.elements.namedItem('archivo_id').value = '0';
+        errorEditor.classList.add('hidden');
+        document.getElementById('tituloEditorValores').textContent = modificar ? 'Modificar y volver a guardar' : 'Agregar nuevo registro';
+        cancelarEditor.textContent = editorDesdeBorrado ? 'Volver' : 'Cancelar';
+        if (modificar) {
+            for (const campo of ['disco', 'fecha', 'valor', 'ruta', 'archivo_id']) {
+                formRegistro.elements.namedItem(campo).value = registroEliminado[campo] ?? (campo === 'archivo_id' ? 0 : '');
+            }
+        }
+        opcionesTrasBorrado.close();
+        editorRegistro.showModal();
+        formRegistro.elements.namedItem('disco').focus();
+    }
+    document.getElementById('btnAgregarRegistro').addEventListener('click', () => abrirEditorRegistro(false));
+    document.getElementById('modificarTrasBorrado').addEventListener('click', () => abrirEditorRegistro(true));
+    document.getElementById('crearTrasBorrado').addEventListener('click', () => abrirEditorRegistro(false));
+    document.getElementById('terminarTrasBorrado').addEventListener('click', () => opcionesTrasBorrado.close());
+    cancelarEditor.addEventListener('click', () => {
+        if (guardandoRegistro) return;
+        editorRegistro.close();
+        if (editorDesdeBorrado) opcionesTrasBorrado.showModal();
+    });
+    editorRegistro.addEventListener('cancel', (evento) => {
+        evento.preventDefault();
+        if (!guardandoRegistro) cancelarEditor.click();
+    });
+    formRegistro.addEventListener('submit', async (evento) => {
+        evento.preventDefault();
+        if (guardandoRegistro || borrando || subiendo) return;
+        guardandoRegistro = true;
+        const cuerpo = new FormData(formRegistro);
+        cuerpo.append('accion', 'crear_registro');
+        cuerpo.append('csrf', csrf);
+        guardarRegistro.disabled = cancelarEditor.disabled = true;
+        guardarRegistro.textContent = 'Guardando...';
+        errorEditor.classList.add('hidden');
+        eventos?.close();
+        eventos = null;
+        consultaActual?.abort();
+        try {
+            const datos = await solicitarValores('../../Controllers/ValoresController.php', { method: 'POST', body: cuerpo });
+            editorRegistro.close();
+            registroEliminado = null;
+            mostrarAlerta('success', datos.message);
+            // Volver a la primera página de la tabla completa después de guardar.
+            const filtros = document.querySelector('form[action="valores.php"]');
+            const url = new URL(window.location.href);
+            for (const campo of ['disco', 'fecha', 'valor', 'ruta', 'pagina']) url.searchParams.delete(campo);
+            for (const campo of ['disco', 'fecha', 'valor', 'ruta']) {
+                if (filtros) filtros.elements.namedItem(campo).value = '';
+            }
+            window.history.replaceState({}, '', url.pathname + url.search);
+            actualizarTabla();
+        } catch (error) {
+            errorEditor.textContent = error.message;
+            errorEditor.classList.remove('hidden');
+        } finally {
+            guardandoRegistro = false;
+            guardarRegistro.disabled = cancelarEditor.disabled = false;
+            guardarRegistro.textContent = 'Guardar registro';
             conectarEventos(true);
         }
     });
@@ -190,7 +272,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     form.addEventListener('submit', async (evento) => {
         evento.preventDefault();
-        if (subiendo || borrando) return;
+        if (subiendo || borrando || guardandoRegistro) return;
         alerta.classList.add('hidden');
 
         const archivos = Array.from(inputArchivo.files);
@@ -245,6 +327,17 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!errores.length) {
                 form.reset();
                 nombreArchivo.textContent = 'Seleccione uno o varios archivos .xlsx';
+            }
+            if (cargados > 0) {
+                const url = new URL(window.location.href);
+                // Una carga nueva se muestra desde el inicio, sin filtros que oculten sus filas.
+                const filtros = document.querySelector('form[action="valores.php"]');
+                for (const campo of ['disco', 'fecha', 'valor', 'ruta', 'pagina']) {
+                    url.searchParams.delete(campo);
+                    const control = filtros?.elements.namedItem(campo);
+                    if (control) control.value = '';
+                }
+                window.history.replaceState({}, '', url.pathname + url.search);
             }
             actualizarTabla();
         } finally {
@@ -344,11 +437,11 @@ document.addEventListener('DOMContentLoaded', () => {
             rango.classList.add('hidden');
         } else {
             tabla.innerHTML = filasValidas.map((fila) => `
-                <tr class="hover:bg-gray-50 transition-colors">
+                <tr class="transition-colors" style="background-color: ${escapar(fila.archivo_color || '#ffffff')}">
                     <td class="px-6 py-4 whitespace-nowrap text-center font-mono font-bold text-blue-800">${escapar(fila.disco)}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-700">${escapar(formatearFecha(fila.fecha))}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-bold text-gray-800">$ ${Number(fila.valor).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                    <td class="px-6 py-4 text-sm text-gray-700">${escapar(fila.ruta || '—')}</td>
+                    <td class="px-6 py-4 text-sm text-gray-700">${escapar(fila.ruta || '—')}<span class="mt-1 block max-w-xs truncate text-xs text-gray-500" title="${escapar(fila.archivo_nombre || 'Sin archivo asociado')}"><i class="fas fa-file-excel mr-1"></i>${escapar(fila.archivo_nombre || 'Sin archivo asociado')}</span></td>
                     <td class="px-6 py-4 text-center"><span class="inline-flex rounded-full px-3 py-1 text-xs font-bold ${Number(fila.pagado) === 1 ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}">${Number(fila.pagado) === 1 ? 'Pagado' : 'No pagado'}</span></td>
                     <td class="px-6 py-4 text-center">
                         <details class="inline-block text-left">
@@ -406,7 +499,7 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 if (typeof evento.data !== 'string' || evento.data.trim() === '') return;
                 const datos = JSON.parse(evento.data);
-                if (datos && Array.isArray(datos.filas) && !subiendo && !borrando) actualizarTabla();
+                if (datos && Array.isArray(datos.filas) && !subiendo && !borrando && !guardandoRegistro) actualizarTabla();
             } catch (error) {
                 console.error('No se pudo actualizar la tabla de valores.', error);
             }
