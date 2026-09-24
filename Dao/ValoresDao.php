@@ -9,16 +9,31 @@ class ValoresDao {
 
     public function __construct($conexion) {
         $this->conexion = $conexion;
+        $this->conexion->exec("CREATE TABLE IF NOT EXISTS archivo_valores (
+            id INT AUTO_INCREMENT PRIMARY KEY, nombre VARCHAR(255) NOT NULL,
+            contenido MEDIUMBLOB NOT NULL, tamano INT NOT NULL,
+            insertadas INT NOT NULL DEFAULT 0, omitidas INT NOT NULL DEFAULT 0,
+            creado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        $this->conexion->exec("CREATE TABLE IF NOT EXISTS archivo_valores_registro (
+            archivo_id INT NOT NULL, obligacion_id INT NOT NULL,
+            PRIMARY KEY (archivo_id, obligacion_id), UNIQUE KEY (obligacion_id),
+            FOREIGN KEY (archivo_id) REFERENCES archivo_valores(id) ON DELETE CASCADE,
+            FOREIGN KEY (obligacion_id) REFERENCES obligacion_pago(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
     }
 
     public function archivoExiste() {
         clearstatcache(true, self::RUTA_XLSX . '.subido');
         $marca = self::RUTA_XLSX . '.subido';
-        return is_file($marca);
+        return is_file($marca) || (bool)$this->conexion->query('SELECT EXISTS(SELECT 1 FROM archivo_valores)')->fetchColumn();
     }
 
     public function fechaSubida() {
-        return $this->archivoExiste() ? date('d/m/Y H:i', filemtime(self::RUTA_XLSX . '.subido')) : null;
+        $fecha = $this->conexion->query('SELECT MAX(creado_en) FROM archivo_valores')->fetchColumn();
+        $marca = self::RUTA_XLSX . '.subido';
+        $tiempo = max($fecha ? strtotime($fecha) : 0, is_file($marca) ? filemtime($marca) : 0);
+        return $tiempo ? date('d/m/Y H:i', $tiempo) : null;
     }
 
     private function colIndex($letra) {
@@ -30,19 +45,22 @@ class ValoresDao {
         return $idx;
     }
 
-    public function leerFilas() {
-        if (!is_file(self::RUTA_XLSX)) return [];
+    public function leerFilas($ruta = self::RUTA_XLSX) {
+        if (!is_file($ruta)) return [];
+        if (!class_exists('ZipArchive') || !class_exists('SimpleXMLElement')) {
+            throw new RuntimeException('El servidor necesita las extensiones ZIP y SimpleXML para leer Excel.');
+        }
 
         $zip = new ZipArchive();
-        if ($zip->open(self::RUTA_XLSX) !== true) return [];
+        if ($zip->open($ruta) !== true) throw new RuntimeException('El archivo no es un Excel .xlsx válido.');
 
         $shared = [];
         $ss = $zip->getFromName('xl/sharedStrings.xml');
         if ($ss !== false) {
-            $xmlShared = new SimpleXMLElement($ss);
-            foreach ($xmlShared->si as $si) {
+            $xmlShared = new SimpleXMLElement($ss, LIBXML_NONET);
+            foreach ($xmlShared->xpath('/*[local-name()="sst"]/*[local-name()="si"]') as $si) {
                 $texto = '';
-                foreach ($si->t as $t) {
+                foreach ($si->xpath('.//*[local-name()="t"]') as $t) {
                     $texto .= (string)$t;
                 }
                 $shared[] = trim($texto);
@@ -54,22 +72,23 @@ class ValoresDao {
 
         if ($sheet === false) return [];
 
-        $xml = new SimpleXMLElement($sheet);
+        $xml = new SimpleXMLElement($sheet, LIBXML_NONET);
         $filasCrudas = [];
 
-        foreach ($xml->sheetData->row as $row) {
+        foreach ($xml->xpath('/*[local-name()="worksheet"]/*[local-name()="sheetData"]/*[local-name()="row"]') as $row) {
             $fila = [];
-            foreach ($row->c as $c) {
+            foreach ($row->xpath('./*[local-name()="c"]') as $c) {
                 $ref = (string)$c['r'];
                 $letra = preg_replace('/[0-9]+/', '', $ref);
                 $col = $this->colIndex($letra) - 1;
                 $t = (string)$c['t'];
-                $v = (string)$c->v;
+                $valores = $c->xpath('./*[local-name()="v"]');
+                $v = isset($valores[0]) ? (string)$valores[0] : '';
                 $valor = '';
                 if ($t === 's') {
                     $valor = $shared[(int)$v] ?? '';
                 } elseif ($t === 'inlineStr') {
-                    $valor = (string)$c->is->t;
+                    $valor = implode('', array_map('strval', $c->xpath('./*[local-name()="is"]//*[local-name()="t"]')));
                 } else {
                     $valor = $v;
                 }
@@ -89,6 +108,9 @@ class ValoresDao {
             if (in_array($nombreKey, ['fecha', 'dia', 'date'])) $idx['fecha'] = $col;
             if (in_array($nombreKey, ['valor', 'value', 'monto', 'costo'])) $idx['valor'] = $col;
             if (in_array($nombreKey, ['ruta', 'linea', 'recorrido'])) $idx['ruta'] = $col;
+        }
+        if (in_array(null, $idx, true)) {
+            throw new RuntimeException('Verifique que la primera fila tenga las columnas DISCO, FECHA, VALOR y RUTA.');
         }
 
         $filas = [];
@@ -133,7 +155,6 @@ class ValoresDao {
     }
 
     public function obtenerFilasFiltradas($disco = '', $fecha = '', $valor = '', $ruta = '') {
-        if (!$this->archivoExiste()) return [];
         $disco = trim((string)$disco);
         $fecha = trim((string)$fecha);
         $valor = trim((string)$valor);
@@ -219,12 +240,13 @@ class ValoresDao {
         return $this->actualizarTurnosDesdeFilas($this->leerFilas());
     }
 
-    public function sincronizarObligacionesDesdeFilas(array $filas) {
+    public function sincronizarObligacionesDesdeFilas(array $filas, $archivoId = null) {
         $insertadas = 0;
         $omitidas = 0;
         $sql = "INSERT IGNORE INTO obligacion_pago (disco, fecha, valor, ruta, pagado, activo)
                 VALUES (:disco, :fecha, :valor, :ruta, 0, 1)";
         $stmt = $this->conexion->prepare($sql);
+        $vincular = $this->conexion->prepare('INSERT INTO archivo_valores_registro (archivo_id, obligacion_id) VALUES (?, ?)');
 
         foreach ($filas as $fila) {
             if (empty($fila['disco']) || empty($fila['fecha']) || (float)$fila['valor'] <= 0) {
@@ -237,6 +259,7 @@ class ValoresDao {
                 ':ruta' => $fila['ruta'] ?: null
             ]);
             if ($stmt->rowCount() === 1) {
+                if ($archivoId !== null) $vincular->execute([$archivoId, $this->conexion->lastInsertId()]);
                 $insertadas++;
             } else {
                 $omitidas++;

@@ -9,6 +9,7 @@ if (!isset($_SESSION['usuario_id'])) {
 require_once '../../Config/conexion.php';
 require_once '../../Config/permisos.php';
 exigirPermisoModulo($conexion, 'web_valores', 'dashboard.php');
+if (empty($_SESSION['csrf_valores'])) $_SESSION['csrf_valores'] = bin2hex(random_bytes(32));
 require_once '../../Dao/ValoresDao.php';
 
 function parametroVistaValores($nombre) {
@@ -57,6 +58,7 @@ require __DIR__ . '/../../Config/exportar_modulo.php';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-valores" content="<?php echo htmlspecialchars($_SESSION['csrf_valores']); ?>">
     <title>Valores Diarios - Ejecuttrans</title>
     <link rel="icon" href="../../Assets/icons/icon-192x192.png" type="image/png">
     <link rel="manifest" href="/manifest.json">
@@ -64,6 +66,7 @@ require __DIR__ . '/../../Config/exportar_modulo.php';
     <link rel="apple-touch-icon" href="/Assets/icons/icon-192x192.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>dialog::backdrop { background: rgb(3 7 18 / 60%); backdrop-filter: blur(4px); } dialog { margin: auto; } summary::-webkit-details-marker { display: none; }</style>
 </head>
 <body class="bg-gray-100 flex h-screen overflow-hidden">
     <?php include 'components/sidebar.php'; ?>
@@ -74,10 +77,12 @@ require __DIR__ . '/../../Config/exportar_modulo.php';
                 <h2 class="text-xl md:text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-700 to-gray-800">Valores Diarios</h2>
                 <p class="text-xs text-gray-500">Datos financieros cargados desde Excel</p>
             </div>
-            <div class="flex items-center gap-3">
-                <span class="text-sm font-bold text-gray-600">Cargar datos</span>
+            <div class="flex flex-wrap items-center gap-3">
+                <button id="btnGestionArchivos" type="button" class="inline-flex items-center rounded-lg border border-blue-200 bg-white px-4 py-2.5 text-sm font-bold text-blue-700 hover:bg-blue-50">
+                    <i class="fas fa-folder-open mr-2"></i>Gestión Archivos
+                </button>
                 <button id="btnAbrirCarga" type="button" class="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow hover:bg-blue-700 transition-colors">
-                    <i class="fas fa-file-arrow-up mr-2"></i>Cargar archivo
+                    <i class="fas fa-file-arrow-up mr-2"></i>Cargar archivos
                 </button>
             </div>
         </header>
@@ -142,12 +147,13 @@ require __DIR__ . '/../../Config/exportar_modulo.php';
                                 <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Valor</th>
                                 <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Ruta</th>
                                 <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Estado</th>
+                                <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Acciones</th>
                             </tr>
                         </thead>
                         <tbody id="tablaValores" class="bg-white divide-y divide-gray-200">
                             <?php if (empty($filasPagina)): ?>
                                 <tr>
-                                    <td colspan="5" class="px-6 py-14 text-center text-gray-500">
+                                    <td colspan="6" class="px-6 py-14 text-center text-gray-500">
                                         <i class="fas fa-table-list text-3xl text-gray-300 mb-3"></i>
                                         <p><?php echo $existeArchivo ? 'No se encontraron datos con los filtros seleccionados.' : 'Aún no se ha cargado un archivo de valores.'; ?></p>
                                     </td>
@@ -160,6 +166,12 @@ require __DIR__ . '/../../Config/exportar_modulo.php';
                                         <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-bold text-gray-800">$ <?php echo number_format((float)$fila['valor'], 2, '.', ','); ?></td>
                                         <td class="px-6 py-4 text-sm text-gray-700"><?php echo htmlspecialchars($fila['ruta'] ?: '—'); ?></td>
                                         <td class="px-6 py-4 text-center"><span class="inline-flex rounded-full px-3 py-1 text-xs font-bold <?php echo (int)$fila['pagado'] === 1 ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'; ?>"><?php echo (int)$fila['pagado'] === 1 ? 'Pagado' : 'No pagado'; ?></span></td>
+                                        <td class="px-6 py-4 text-center">
+                                            <details class="inline-block text-left">
+                                                <summary class="list-none cursor-pointer whitespace-nowrap rounded-lg border border-gray-200 px-3 py-2 text-sm font-bold text-gray-600 hover:bg-gray-50">Acciones <i class="fas fa-chevron-down ml-2 text-xs"></i></summary>
+                                                <button type="button" data-borrar-registro="<?php echo (int)$fila['id']; ?>" data-descripcion="<?php echo htmlspecialchars('Disco ' . $fila['disco'] . ' · ' . date('d/m/Y', strtotime($fila['fecha'])) . ' · $ ' . number_format((float)$fila['valor'], 2), ENT_QUOTES); ?>" class="mt-1 w-full whitespace-nowrap rounded-lg bg-red-50 px-3 py-2 text-sm font-bold text-red-600 hover:bg-red-100"><i class="fas fa-trash-can mr-2"></i>Borrar registro</button>
+                                            </details>
+                                        </td>
                                     </tr>
                                 <?php endforeach; ?>
                             <?php endif; ?>
@@ -194,16 +206,16 @@ require __DIR__ . '/../../Config/exportar_modulo.php';
             <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4">
                 <div>
                     <h3 class="text-lg font-bold text-gray-800">Cargar datos</h3>
-                    <p class="text-xs text-gray-500">Archivo Excel con DISCO, FECHA, VALOR y RUTA</p>
+                    <p class="text-xs text-gray-500">Archivos Excel con DISCO, FECHA, VALOR y RUTA</p>
                 </div>
                 <button id="btnCerrarCarga" type="button" class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-red-600"><i class="fas fa-times"></i></button>
             </div>
             <form id="formSubirValores" class="p-6">
                 <label class="block w-full cursor-pointer rounded-xl border-2 border-dashed border-gray-300 p-8 text-center hover:border-blue-400 hover:bg-blue-50 transition-colors">
                     <i class="fas fa-file-excel block text-5xl text-green-600 mb-3"></i>
-                    <span id="nombreArchivo" class="block text-sm font-bold text-gray-700">Seleccione un archivo .xlsx</span>
-                    <span class="block text-xs text-gray-400 mt-2">Tamaño máximo: 10 MB</span>
-                    <input id="inputArchivo" name="archivo" type="file" accept=".xlsx" class="hidden" required>
+                    <span id="nombreArchivo" class="block max-h-40 overflow-y-auto break-words whitespace-pre-line text-sm font-bold text-gray-700">Seleccione uno o varios archivos .xlsx</span>
+                    <span class="block text-xs text-gray-400 mt-2">Puede seleccionar varios archivos. Máximo: 10 MB por archivo</span>
+                    <input id="inputArchivo" name="archivo" type="file" accept=".xlsx" class="hidden" multiple required>
                 </label>
                 <div class="mt-6 flex gap-3">
                     <button id="btnCancelarCarga" type="button" class="flex-1 rounded-lg bg-gray-100 px-4 py-2.5 font-bold text-gray-700 hover:bg-gray-200">Cancelar</button>
@@ -212,6 +224,27 @@ require __DIR__ . '/../../Config/exportar_modulo.php';
             </form>
         </div>
     </div>
+
+    <dialog id="gestionArchivosValores" aria-labelledby="tituloGestionArchivos" class="w-[calc(100%_-_2rem)] max-w-3xl max-h-[85vh] rounded-2xl bg-white p-0 shadow-2xl">
+        <div class="flex items-center justify-between gap-4 border-b border-gray-100 px-6 py-5">
+            <div><h3 id="tituloGestionArchivos" class="text-xl font-bold text-gray-800"><i class="fas fa-folder-open mr-2 text-blue-600"></i>Gestión Archivos</h3><p class="mt-1 text-sm text-gray-500">Consulta, descarga o elimina tus archivos Excel.</p></div>
+            <button id="cerrarGestionArchivos" type="button" aria-label="Cerrar gestión de archivos" class="rounded-lg px-3 py-2 text-gray-400 hover:bg-gray-100"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="px-6 py-4 text-sm text-blue-800 bg-blue-50">Cada Excel conserva los registros nuevos que importó. Los repetidos pertenecen al archivo que los cargó primero.</div>
+        <div id="listaArchivosValores" class="space-y-3 p-6" aria-live="polite"></div>
+    </dialog>
+
+    <dialog id="confirmarBorradoValores" aria-labelledby="tituloBorradoValores" aria-describedby="detalleBorradoValores" class="w-[calc(100%_-_2rem)] max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+        <div class="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-red-100 text-2xl text-red-600"><i class="fas fa-trash-can"></i></div>
+        <h3 id="tituloBorradoValores" class="text-xl font-bold text-gray-900">¿Eliminar registro?</h3>
+        <p id="detalleBorradoValores" class="mt-3 whitespace-pre-line break-words text-sm leading-6 text-gray-600"></p>
+        <p class="mt-3 text-xs font-bold text-red-600">Esta acción no se puede deshacer.</p>
+        <p id="errorBorradoValores" role="alert" class="hidden mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700"></p>
+        <div class="mt-6 flex gap-3">
+            <button id="cancelarBorradoValores" type="button" autofocus class="flex-1 rounded-xl border border-gray-200 px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50">Cancelar</button>
+            <button id="aceptarBorradoValores" type="button" class="flex-1 rounded-xl bg-red-600 px-4 py-3 text-sm font-bold text-white hover:bg-red-700 disabled:opacity-50">Sí, eliminar</button>
+        </div>
+    </dialog>
 
     <script src="../../Assets/js/valores.js?v=<?php echo filemtime('../../Assets/js/valores.js'); ?>"></script>
 <script>
