@@ -230,7 +230,7 @@ require __DIR__ . '/../../Config/exportar_modulo.php';
             <div><h3 id="tituloGestionArchivos" class="text-xl font-bold text-gray-800"><i class="fas fa-folder-open mr-2 text-blue-600"></i>Gestión Archivos</h3><p class="mt-1 text-sm text-gray-500">Consulta, descarga o elimina tus archivos Excel.</p></div>
             <button id="cerrarGestionArchivos" type="button" aria-label="Cerrar gestión de archivos" class="rounded-lg px-3 py-2 text-gray-400 hover:bg-gray-100"><i class="fas fa-times"></i></button>
         </div>
-        <div class="px-6 py-4 text-sm text-blue-800 bg-blue-50">Cada Excel conserva los registros nuevos que importó. Los repetidos pertenecen al archivo que los cargó primero.</div>
+        <div class="px-6 py-4 text-sm text-blue-800 bg-blue-50">Al eliminar un Excel se borran sus registros vinculados. Si vuelve a subir datos antiguos idénticos sin archivo, quedarán vinculados a esa carga. Los datos que ya pertenecen a otro Excel conservan su vínculo.</div>
         <div id="listaArchivosValores" class="space-y-3 p-6" aria-live="polite"></div>
     </dialog>
 

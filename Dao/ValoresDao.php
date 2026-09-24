@@ -247,6 +247,14 @@ class ValoresDao {
                 VALUES (:disco, :fecha, :valor, :ruta, 0, 1)";
         $stmt = $this->conexion->prepare($sql);
         $vincular = $this->conexion->prepare('INSERT INTO archivo_valores_registro (archivo_id, obligacion_id) VALUES (?, ?)');
+        // Recuperar el vínculo de registros antiguos sin apropiarse de datos de otro Excel.
+        $vincularExistente = $this->conexion->prepare(
+            "INSERT IGNORE INTO archivo_valores_registro (archivo_id, obligacion_id)
+             SELECT :archivo, o.id FROM obligacion_pago o
+             WHERE o.disco = :disco AND o.fecha = :fecha AND o.valor = :valor
+               AND COALESCE(o.ruta, '') = :ruta AND o.activo = 1
+               AND NOT EXISTS (SELECT 1 FROM archivo_valores_registro r WHERE r.obligacion_id = o.id)"
+        );
 
         foreach ($filas as $fila) {
             if (empty($fila['disco']) || empty($fila['fecha']) || (float)$fila['valor'] <= 0) {
@@ -263,6 +271,15 @@ class ValoresDao {
                 $insertadas++;
             } else {
                 $omitidas++;
+                if ($archivoId !== null) {
+                    $vincularExistente->execute([
+                        ':archivo' => $archivoId,
+                        ':disco' => $this->normalizarDisco($fila['disco']),
+                        ':fecha' => $fila['fecha'],
+                        ':valor' => $fila['valor'],
+                        ':ruta' => $fila['ruta'] ?: ''
+                    ]);
+                }
             }
         }
 

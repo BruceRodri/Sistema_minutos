@@ -51,6 +51,13 @@ try {
                 'tamano' => filesize(ValoresDao::RUTA_XLSX), 'fecha' => date('d/m/Y H:i', filemtime(ValoresDao::RUTA_XLSX)),
                 'registros' => 0, 'anterior' => true];
         }
+        $sinArchivo = $conexion->query('SELECT o.id FROM obligacion_pago o
+            WHERE o.activo=1 AND NOT EXISTS (SELECT 1 FROM archivo_valores_registro r WHERE r.obligacion_id=o.id)
+            ORDER BY o.id')->fetchAll(PDO::FETCH_COLUMN);
+        if ($sinArchivo) {
+            $archivos[] = ['id' => 'sin_archivo', 'nombre' => 'Registros sin archivo asociado',
+                'sin_archivo' => true, 'registros' => count($sinArchivo), 'ids' => array_map('intval', $sinArchivo)];
+        }
         responderValores(['status' => 'success', 'archivos' => $archivos]);
     }
 
@@ -117,7 +124,7 @@ try {
             // El sistema anterior no registraba procedencia: no atribuirle filas por coincidencia.
             if (is_file(ValoresDao::RUTA_XLSX) && !unlink(ValoresDao::RUTA_XLSX)) throw new RuntimeException('No se pudo eliminar el archivo anterior. Revise los permisos de la carpeta data.');
             if (is_file(ValoresDao::RUTA_XLSX . '.subido') && !unlink(ValoresDao::RUTA_XLSX . '.subido')) throw new RuntimeException('El archivo se eliminó, pero no se pudo quitar su fecha de carga.');
-            responderValores(['status' => 'success', 'message' => 'Archivo anterior eliminado. Los registros antiguos pueden borrarse desde la tabla principal.']);
+            responderValores(['status' => 'success', 'message' => 'Archivo anterior eliminado. Para borrar los datos antiguos, use Registros sin archivo asociado en Gestión Archivos.']);
         }
         $conexion->beginTransaction();
         $stmt = $conexion->prepare('SELECT id FROM archivo_valores WHERE id=? FOR UPDATE');
@@ -130,6 +137,28 @@ try {
         $stmt->execute([(int)$id]);
         $conexion->commit();
         responderValores(['status' => 'success', 'message' => 'Excel eliminado junto con ' . $eliminadas . ' registro(s).']);
+    }
+
+    if ($metodo === 'POST' && $accion === 'eliminar_sin_archivo') {
+        $ids = json_decode(is_string($_POST['ids'] ?? null) ? $_POST['ids'] : '', true);
+        if (!is_array($ids) || !$ids) throw new RuntimeException('Actualice Gestión Archivos antes de eliminar los registros.');
+        foreach ($ids as $registroId) {
+            if (!is_int($registroId) || $registroId <= 0) throw new RuntimeException('La selección de registros no es válida.');
+        }
+        $ids = array_values(array_unique($ids));
+        $conexion->beginTransaction();
+        $eliminadas = 0;
+        // Solo los IDs mostrados en la confirmación; excluir los que hayan adquirido un vínculo.
+        foreach (array_chunk($ids, 500) as $grupo) {
+            $marcadores = implode(',', array_fill(0, count($grupo), '?'));
+            $stmt = $conexion->prepare("DELETE o FROM obligacion_pago o
+                LEFT JOIN archivo_valores_registro r ON r.obligacion_id=o.id
+                WHERE o.id IN ($marcadores) AND o.activo=1 AND r.obligacion_id IS NULL");
+            $stmt->execute($grupo);
+            $eliminadas += $stmt->rowCount();
+        }
+        $conexion->commit();
+        responderValores(['status' => 'success', 'message' => $eliminadas . ' registro(s) sin archivo eliminado(s).']);
     }
 
     if ($metodo === 'POST' && $accion === 'eliminar_registro') {

@@ -80,18 +80,20 @@ document.addEventListener('DOMContentLoaded', () => {
             listaArchivos.innerHTML = archivosDisponibles.length ? archivosDisponibles.map((archivo) => `
                 <article class="rounded-xl border border-gray-200 p-4">
                     <div class="flex items-start gap-3">
-                        <i class="fas fa-file-excel mt-1 text-2xl text-green-600"></i>
+                        <i class="fas ${archivo.sin_archivo ? 'fa-table-list text-amber-600' : 'fa-file-excel text-green-600'} mt-1 text-2xl"></i>
                         <div class="min-w-0 flex-1">
                             <p class="break-words font-bold text-gray-800">${escapar(archivo.nombre)}</p>
-                            <p class="mt-1 text-xs text-gray-500">${escapar(archivo.fecha)} · ${(Number(archivo.tamano) / 1024).toFixed(1)} KB</p>
-                            <p class="mt-2 text-sm text-gray-600">${archivo.anterior
-                                ? 'Archivo antiguo sin vínculo con registros. Al eliminarlo, los datos anteriores permanecen en la tabla para borrarlos individualmente.'
+                            ${archivo.sin_archivo ? '' : `<p class="mt-1 text-xs text-gray-500">${escapar(archivo.fecha)} · ${(Number(archivo.tamano) / 1024).toFixed(1)} KB</p>`}
+                            <p class="mt-2 text-sm text-gray-600">${archivo.sin_archivo
+                                ? `${Number(archivo.registros)} registro(s) permanecen en la tabla sin un Excel vinculado. Puede eliminarlos juntos o borrar filas individualmente desde la tabla principal.`
+                                : archivo.anterior
+                                ? 'Archivo antiguo sin vínculo con registros. Sus datos se gestionan en Registros sin archivo asociado, en esta misma ventana.'
                                 : `${Number(archivo.registros)} registro(s) vinculado(s) · ${Number(archivo.omitidas)} repetido(s) omitido(s)`}</p>
                         </div>
                     </div>
                     <div class="mt-4 flex flex-wrap justify-end gap-2">
-                        <a href="../../Controllers/ValoresController.php?accion=descargar&id=${encodeURIComponent(archivo.id)}" class="rounded-lg border border-gray-200 px-3 py-2 text-sm font-bold text-gray-600 hover:bg-gray-50"><i class="fas fa-download mr-2"></i>Descargar Excel</a>
-                        <button type="button" data-borrar-archivo="${escapar(archivo.id)}" class="rounded-lg bg-red-50 px-3 py-2 text-sm font-bold text-red-600 hover:bg-red-100"><i class="fas fa-trash-can mr-2"></i>${archivo.anterior ? 'Eliminar archivo' : 'Eliminar Excel y datos'}</button>
+                        ${archivo.sin_archivo ? '' : `<a href="../../Controllers/ValoresController.php?accion=descargar&id=${encodeURIComponent(archivo.id)}" class="rounded-lg border border-gray-200 px-3 py-2 text-sm font-bold text-gray-600 hover:bg-gray-50"><i class="fas fa-download mr-2"></i>Descargar Excel</a>`}
+                        <button type="button" data-borrar-archivo="${escapar(archivo.id)}" class="rounded-lg bg-red-50 px-3 py-2 text-sm font-bold text-red-600 hover:bg-red-100"><i class="fas fa-trash-can mr-2"></i>${archivo.sin_archivo ? 'Eliminar registros sin archivo' : archivo.anterior ? 'Eliminar archivo' : 'Eliminar Excel y datos'}</button>
                     </div>
                 </article>`).join('') : '<p class="py-8 text-center text-gray-500">No hay archivos Excel guardados.</p>';
         } catch (error) {
@@ -105,9 +107,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     document.getElementById('cerrarGestionArchivos').addEventListener('click', () => gestionArchivos.close());
 
-    function pedirBorrado(accion, id, titulo, descripcion) {
+    function pedirBorrado(accion, id, titulo, descripcion, ids = []) {
         if (subiendo || borrando) return;
-        borradoPendiente = { accion, id };
+        borradoPendiente = { accion, id, ids };
         document.getElementById('tituloBorradoValores').textContent = titulo;
         document.getElementById('detalleBorradoValores').textContent = descripcion;
         errorBorrado.classList.add('hidden');
@@ -120,8 +122,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!boton) return;
         const archivo = archivosDisponibles.find((item) => String(item.id) === boton.dataset.borrarArchivo);
         if (!archivo) return;
+        if (archivo.sin_archivo) {
+            pedirBorrado('eliminar_sin_archivo', archivo.id, '¿Eliminar registros sin archivo?',
+                `Se eliminarán ${Number(archivo.registros)} registro(s) sin archivo asociado, incluidos los pagados.\nLa selección incluye todos los registros sin archivo, aunque no aparezcan con los filtros actuales de la tabla.`, archivo.ids);
+            return;
+        }
         pedirBorrado('eliminar_archivo', archivo.id, '¿Eliminar este Excel?', archivo.anterior
-            ? `${archivo.nombre}\nSe eliminará solo este archivo antiguo. Sus registros no tienen un vínculo guardado y deberán borrarse desde la tabla principal.`
+            ? `${archivo.nombre}\nSe eliminará solo este archivo antiguo. Para borrar los datos, use Registros sin archivo asociado en Gestión Archivos.`
             : `${archivo.nombre}\nSe eliminarán el Excel y todos sus registros vinculados (${Number(archivo.registros)} actualmente), incluidos los pagados.`);
     });
 
@@ -146,6 +153,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const cuerpo = new FormData();
             cuerpo.append('accion', borradoPendiente.accion);
             cuerpo.append('id', borradoPendiente.id);
+            if (borradoPendiente.accion === 'eliminar_sin_archivo') cuerpo.append('ids', JSON.stringify(borradoPendiente.ids));
             cuerpo.append('csrf', csrf);
             const datos = await solicitarValores('../../Controllers/ValoresController.php', { method: 'POST', body: cuerpo });
             confirmacion.close();
