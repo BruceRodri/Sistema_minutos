@@ -158,35 +158,37 @@ class ValoresDao {
         return $this->obtenerParaDiscoFecha($disco, date('Y-m-d'));
     }
 
-    public function obtenerFilasFiltradas($disco = '', $fecha = '', $valor = '', $ruta = '') {
+    public function obtenerFilasFiltradas($disco = '', $fecha = '', $valor = '', $ruta = '', $estado = 'activos') {
         $disco = trim((string)$disco);
         $fecha = trim((string)$fecha);
         $valor = trim((string)$valor);
         $ruta = trim((string)$ruta);
         $valorNumerico = str_replace(',', '.', $valor);
 
-        $sql = "SELECT o.id, o.disco, o.fecha, o.valor, o.ruta, o.pagado,
+        $sql = "SELECT o.id, o.disco, o.fecha, o.valor, o.ruta, o.pagado, o.activo,
+                       o.registro_anterior_id,
+                       DATE_FORMAT(o.deshabilitado_en, '%d/%m/%Y %H:%i') AS deshabilitado_en,
                        a.id AS archivo_id, a.nombre AS archivo_nombre,
                        DATE_FORMAT(a.creado_en, '%d/%m/%Y a las %H:%i') AS archivo_fecha_subida
                 FROM obligacion_pago o
                 LEFT JOIN archivo_valores_registro r ON r.obligacion_id=o.id
                 LEFT JOIN archivo_valores a ON a.id=r.archivo_id
-                WHERE o.activo = 1";
+                WHERE " . ($estado === 'todos' ? '1=1' : ($estado === 'inactivos' ? 'o.activo=0' : 'o.activo=1'));
         $parametros = [];
         if ($disco !== '') {
-            $sql .= " AND disco LIKE :disco";
+            $sql .= " AND o.disco LIKE :disco";
             $parametros[':disco'] = '%' . $this->normalizarDisco($disco) . '%';
         }
         if ($fecha !== '') {
-            $sql .= " AND fecha = :fecha";
+            $sql .= " AND o.fecha = :fecha";
             $parametros[':fecha'] = $fecha;
         }
         if ($valor !== '' && is_numeric($valorNumerico)) {
-            $sql .= " AND valor = :valor";
+            $sql .= " AND o.valor = :valor";
             $parametros[':valor'] = (float)$valorNumerico;
         }
         if ($ruta !== '') {
-            $sql .= " AND ruta LIKE :ruta";
+            $sql .= " AND o.ruta LIKE :ruta";
             $parametros[':ruta'] = '%' . $ruta . '%';
         }
         $sql .= " ORDER BY a.id DESC, o.id DESC";
@@ -201,11 +203,70 @@ class ValoresDao {
     public function firmaArchivo() {
         $stmt = $this->conexion->query(
             "SELECT COUNT(*) AS total, COALESCE(MAX(id), 0) AS ultimo,
-                    COALESCE(SUM(pagado), 0) AS pagados
-             FROM obligacion_pago WHERE activo = 1"
+                    COALESCE(SUM(pagado), 0) AS pagados,
+                    COALESCE(SUM(activo), 0) AS activos
+             FROM obligacion_pago"
         );
         $firma = $stmt->fetch();
-        return $firma['total'] . ':' . $firma['ultimo'] . ':' . $firma['pagados'] . ':' . (int)$this->archivoExiste() . ':' . $this->fechaSubida();
+        return $firma['total'] . ':' . $firma['ultimo'] . ':' . $firma['pagados'] . ':' . $firma['activos'] . ':' . (int)$this->archivoExiste() . ':' . $this->fechaSubida();
+    }
+
+    public function deshabilitarRegistro(int $id): array {
+        $this->conexion->beginTransaction();
+        try {
+            $stmt = $this->conexion->prepare('SELECT o.id, o.disco, o.fecha, o.valor, o.ruta, r.archivo_id
+                FROM obligacion_pago o LEFT JOIN archivo_valores_registro r ON r.obligacion_id=o.id
+                WHERE o.id=? AND o.activo=1 FOR UPDATE');
+            $stmt->execute([$id]);
+            $registro = $stmt->fetch();
+            if (!$registro) throw new RuntimeException('El registro ya está deshabilitado o no existe. Actualice la tabla.');
+            $stmt = $this->conexion->prepare('UPDATE obligacion_pago SET activo=0, deshabilitado_en=NOW() WHERE id=? AND activo=1');
+            $stmt->execute([$id]);
+            $this->conexion->commit();
+            return $registro;
+        } catch (Throwable $e) {
+            if ($this->conexion->inTransaction()) $this->conexion->rollBack();
+            throw $e;
+        }
+    }
+
+    public function crearRegistro(string $disco, string $fecha, string $valor, string $ruta, int $archivoId, int $anteriorId = 0): int {
+        $this->conexion->beginTransaction();
+        try {
+            if ($anteriorId > 0) {
+                $stmt = $this->conexion->prepare('SELECT o.activo, r.archivo_id
+                    FROM obligacion_pago o LEFT JOIN archivo_valores_registro r ON r.obligacion_id=o.id
+                    WHERE o.id=? FOR UPDATE');
+                $stmt->execute([$anteriorId]);
+                $anterior = $stmt->fetch();
+                if (!$anterior || (int)$anterior['activo'] !== 0) {
+                    throw new RuntimeException('El registro anterior debe estar deshabilitado antes de guardar una nueva versión.');
+                }
+                // La procedencia se obtiene de la base, no del formulario.
+                $archivoId = (int)$anterior['archivo_id'];
+            }
+            if ($archivoId > 0) {
+                $stmt = $this->conexion->prepare('SELECT id FROM archivo_valores WHERE id=? FOR UPDATE');
+                $stmt->execute([$archivoId]);
+                if (!$stmt->fetch()) throw new RuntimeException('El Excel asociado ya no existe.');
+            }
+            $stmt = $this->conexion->prepare('INSERT INTO obligacion_pago
+                (disco, fecha, valor, ruta, pagado, activo, registro_anterior_id) VALUES (?, ?, ?, ?, 0, 1, ?)');
+            $stmt->execute([$disco, $fecha, $valor, $ruta ?: null, $anteriorId ?: null]);
+            $id = (int)$this->conexion->lastInsertId();
+            if ($archivoId > 0) {
+                $stmt = $this->conexion->prepare('INSERT INTO archivo_valores_registro (archivo_id, obligacion_id) VALUES (?, ?)');
+                $stmt->execute([$archivoId, $id]);
+            }
+            $this->conexion->commit();
+            return $id;
+        } catch (Throwable $e) {
+            if ($this->conexion->inTransaction()) $this->conexion->rollBack();
+            if ($e instanceof PDOException && ($e->errorInfo[1] ?? null) === 1062) {
+                throw new RuntimeException('Ya existe un registro activo para ese disco y fecha, o el registro anterior ya tiene una nueva versión.');
+            }
+            throw $e;
+        }
     }
 
     public function actualizarTurnosDesdeFilas(array $filas) {

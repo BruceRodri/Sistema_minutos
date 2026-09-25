@@ -35,6 +35,7 @@ $filtroDisco = parametroValores('disco');
 $filtroFecha = parametroValores('fecha');
 $filtroValor = parametroValores('valor');
 $filtroRuta = parametroValores('ruta');
+$filtroEstado = parametroValores('estado');
 $paginaSolicitada = max(1, (int)parametroValores('pagina'));
 $registrosPorPagina = 20;
 
@@ -58,7 +59,7 @@ do {
     $firma = $valoresDao->firmaArchivo();
 
     if ($firma !== $ultimaFirma) {
-        $filas = $valoresDao->obtenerFilasFiltradas($filtroDisco, $filtroFecha, $filtroValor, $filtroRuta);
+        $filas = $valoresDao->obtenerFilasFiltradas($filtroDisco, $filtroFecha, $filtroValor, $filtroRuta, $filtroEstado);
         $total = count($filas);
         $totalPaginas = max(1, (int)ceil($total / $registrosPorPagina));
         $pagina = min($paginaSolicitada, $totalPaginas);

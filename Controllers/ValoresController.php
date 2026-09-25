@@ -44,7 +44,7 @@ try {
     if ($metodo === 'GET' && $accion === 'archivos') {
         $archivos = $conexion->query('SELECT a.id, a.nombre, a.tamano, a.insertadas, a.omitidas,
             DATE_FORMAT(a.creado_en, "%d/%m/%Y %H:%i") AS fecha,
-            (SELECT COUNT(*) FROM archivo_valores_registro r WHERE r.archivo_id=a.id) AS registros
+            (SELECT COUNT(*) FROM archivo_valores_registro r INNER JOIN obligacion_pago o ON o.id=r.obligacion_id WHERE r.archivo_id=a.id AND o.activo=1) AS registros
             FROM archivo_valores a ORDER BY a.id DESC')->fetchAll();
         foreach ($archivos as &$archivoListado) $archivoListado['color'] = ValoresDao::colorArchivo($archivoListado['id']);
         unset($archivoListado);
@@ -132,13 +132,11 @@ try {
         $stmt = $conexion->prepare('SELECT id FROM archivo_valores WHERE id=? FOR UPDATE');
         $stmt->execute([(int)$id]);
         if (!$stmt->fetch()) throw new RuntimeException('El archivo ya no existe.');
-        $stmt = $conexion->prepare('DELETE o FROM obligacion_pago o INNER JOIN archivo_valores_registro r ON r.obligacion_id=o.id WHERE r.archivo_id=?');
+        $stmt = $conexion->prepare('UPDATE obligacion_pago o INNER JOIN archivo_valores_registro r ON r.obligacion_id=o.id SET o.activo=0, o.deshabilitado_en=NOW() WHERE r.archivo_id=? AND o.activo=1');
         $stmt->execute([(int)$id]);
         $eliminadas = $stmt->rowCount();
-        $stmt = $conexion->prepare('DELETE FROM archivo_valores WHERE id=?');
-        $stmt->execute([(int)$id]);
         $conexion->commit();
-        responderValores(['status' => 'success', 'message' => 'Excel eliminado junto con ' . $eliminadas . ' registro(s).']);
+        responderValores(['status' => 'success', 'message' => $eliminadas . ' registro(s) deshabilitado(s). El Excel y el historial se conservan.']);
     }
 
     if ($metodo === 'POST' && $accion === 'eliminar_sin_archivo') {
@@ -153,29 +151,20 @@ try {
         // Solo los IDs mostrados en la confirmación; excluir los que hayan adquirido un vínculo.
         foreach (array_chunk($ids, 500) as $grupo) {
             $marcadores = implode(',', array_fill(0, count($grupo), '?'));
-            $stmt = $conexion->prepare("DELETE o FROM obligacion_pago o
+            $stmt = $conexion->prepare("UPDATE obligacion_pago o
                 LEFT JOIN archivo_valores_registro r ON r.obligacion_id=o.id
+                SET o.activo=0, o.deshabilitado_en=NOW()
                 WHERE o.id IN ($marcadores) AND o.activo=1 AND r.obligacion_id IS NULL");
             $stmt->execute($grupo);
             $eliminadas += $stmt->rowCount();
         }
         $conexion->commit();
-        responderValores(['status' => 'success', 'message' => $eliminadas . ' registro(s) sin archivo eliminado(s).']);
+        responderValores(['status' => 'success', 'message' => $eliminadas . ' registro(s) sin archivo deshabilitado(s). Se conservan en el historial.']);
     }
 
     if ($metodo === 'POST' && $accion === 'eliminar_registro') {
-        $conexion->beginTransaction();
-        $stmt = $conexion->prepare('SELECT o.disco, o.fecha, o.valor, o.ruta, r.archivo_id
-            FROM obligacion_pago o LEFT JOIN archivo_valores_registro r ON r.obligacion_id=o.id
-            WHERE o.id=? AND o.activo=1 FOR UPDATE');
-        $stmt->execute([(int)$id]);
-        $registro = $stmt->fetch();
-        if (!$registro) throw new RuntimeException('El registro ya no existe. Actualice la tabla.');
-        $stmt = $conexion->prepare('DELETE FROM obligacion_pago WHERE id=? AND activo=1');
-        $stmt->execute([(int)$id]);
-        if (!$stmt->rowCount()) throw new RuntimeException('El registro ya no existe. Actualice la tabla.');
-        $conexion->commit();
-        responderValores(['status' => 'success', 'message' => 'Registro eliminado correctamente.', 'registro' => $registro]);
+        $registro = $dao->deshabilitarRegistro((int)$id);
+        responderValores(['status' => 'success', 'message' => 'Registro deshabilitado. El valor original se conserva en el historial.', 'registro' => $registro]);
     }
 
     if ($metodo === 'POST' && $accion === 'crear_registro') {
@@ -185,32 +174,18 @@ try {
         $valor = $campo('valor');
         $ruta = $campo('ruta');
         $archivoId = filter_var($_POST['archivo_id'] ?? 0, FILTER_VALIDATE_INT);
+        $anteriorId = filter_var($_POST['registro_anterior_id'] ?? 0, FILTER_VALIDATE_INT);
         $fechaValidada = DateTime::createFromFormat('!Y-m-d', $fecha);
         if ($campo('disco') === '' || strlen($disco) > 20) throw new RuntimeException('Ingrese un disco válido de hasta 20 caracteres.');
         if (!$fechaValidada || $fechaValidada->format('Y-m-d') !== $fecha) throw new RuntimeException('Ingrese una fecha válida.');
         if (!preg_match('/^\d{1,8}(\.\d{1,2})?$/', $valor) || (float)$valor <= 0) throw new RuntimeException('Ingrese un valor mayor que cero, con máximo dos decimales.');
         if (strlen($ruta) > 100) throw new RuntimeException('La ruta debe tener como máximo 100 caracteres.');
         if ($archivoId === false || $archivoId < 0) throw new RuntimeException('El archivo asociado no es válido.');
-        $conexion->beginTransaction();
-        if ($archivoId > 0) {
-            $stmt = $conexion->prepare('SELECT id FROM archivo_valores WHERE id=? FOR UPDATE');
-            $stmt->execute([$archivoId]);
-            if (!$stmt->fetch()) throw new RuntimeException('El Excel asociado ya fue eliminado. Elija Crear otro registro para guardarlo sin archivo.');
-        }
-        try {
-            $stmt = $conexion->prepare('INSERT INTO obligacion_pago (disco, fecha, valor, ruta, pagado, activo) VALUES (?, ?, ?, ?, 0, 1)');
-            $stmt->execute([$disco, $fecha, $valor, $ruta ?: null]);
-        } catch (PDOException $e) {
-            if (($e->errorInfo[1] ?? null) === 1062) throw new RuntimeException('Ya existe un registro para ese disco y fecha. Cambie los datos antes de guardar.');
-            throw $e;
-        }
-        $registroId = (int)$conexion->lastInsertId();
-        if ($archivoId > 0) {
-            $stmt = $conexion->prepare('INSERT INTO archivo_valores_registro (archivo_id, obligacion_id) VALUES (?, ?)');
-            $stmt->execute([$archivoId, $registroId]);
-        }
-        $conexion->commit();
-        responderValores(['status' => 'success', 'message' => 'Registro guardado como no pagado.']);
+        if ($anteriorId === false || $anteriorId < 0) throw new RuntimeException('El registro anterior no es válido.');
+        $dao->crearRegistro($disco, $fecha, $valor, $ruta, $archivoId, $anteriorId);
+        responderValores(['status' => 'success', 'message' => $anteriorId > 0
+            ? 'Nueva versión guardada como no pagada. El valor anterior permanece en el historial.'
+            : 'Registro guardado como no pagado.']);
     }
     throw new RuntimeException('Solicitud no válida.');
 } catch (Throwable $e) {

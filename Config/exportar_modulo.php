@@ -31,8 +31,13 @@ switch ($moduloExportacion) {
         $datos = array_map(static fn($t) => [$t['fecha'],$t['disco'],$t['codigo_conductor'],$t['nombre_conductor'],$t['hora_apertura'],$t['hora_cierre'],$t['estado'],$t['motivo'] ?? ''], $turnos);
         break;
     case 'valores':
-        $cabecera = ['Disco','Fecha','Valor','Ruta','Estado'];
-        $datos = array_map(static fn($v) => [$v['disco'],$v['fecha'],(float)$v['valor'],$v['ruta'],$v['pagado'] ? 'Pagado':'Pendiente'], $filas);
+        $cabecera = ['Disco','Fecha','Valor','Ruta','Pago','Estado'];
+        $filasExcel = $filas;
+        usort($filasExcel, static fn($a, $b) => strcmp($a['fecha'], $b['fecha'])
+            ?: strnatcmp($a['disco'], $b['disco']) ?: ((int)$a['id'] <=> (int)$b['id']));
+        $datos = array_map(static fn($v) => [$v['disco'],$v['fecha'],(float)$v['valor'],$v['ruta'],
+            $v['pagado'] ? 'Pagado':'Pendiente',
+            (int)$v['activo'] === 1 ? 'Activo':'Deshabilitado'], $filasExcel);
         break;
     case 'pagos':
         $manual = ($_GET['seccion_exp'] ?? '') === 'manuales';

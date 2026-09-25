@@ -29,7 +29,8 @@ $filtros = [
     'disco' => parametroVistaValores('disco'),
     'fecha' => parametroVistaValores('fecha'),
     'valor' => parametroVistaValores('valor'),
-    'ruta' => parametroVistaValores('ruta')
+    'ruta' => parametroVistaValores('ruta'),
+    'estado' => in_array(parametroVistaValores('estado'), ['inactivos', 'todos'], true) ? parametroVistaValores('estado') : 'activos'
 ];
 
 if ($filtros['fecha'] !== '') {
@@ -40,7 +41,7 @@ if ($filtros['fecha'] !== '') {
 }
 
 $valoresDao = new ValoresDao($conexion);
-$filas = $valoresDao->obtenerFilasFiltradas($filtros['disco'], $filtros['fecha'], $filtros['valor'], $filtros['ruta']);
+$filas = $valoresDao->obtenerFilasFiltradas($filtros['disco'], $filtros['fecha'], $filtros['valor'], $filtros['ruta'], $filtros['estado']);
 $registrosPorPagina = 20;
 $totalFilas = count($filas);
 $totalPaginas = max(1, (int)ceil($totalFilas / $registrosPorPagina));
@@ -133,6 +134,13 @@ require __DIR__ . '/../../Config/exportar_modulo.php';
                         </div>
                     </div>
                     <div class="mt-3 flex flex-wrap justify-end gap-2">
+                        <label class="mr-auto flex flex-wrap items-center gap-2 text-sm font-bold text-gray-600" for="filtroEstadoValor">Ver registros
+                            <select id="filtroEstadoValor" name="estado" class="rounded-lg border border-gray-300 bg-white px-3 py-2">
+                                <?php foreach (['activos' => 'Activos', 'inactivos' => 'Deshabilitados (historial)', 'todos' => 'Todos (incluye historial)'] as $estado => $etiqueta): ?>
+                                    <option value="<?php echo $estado; ?>" <?php echo $filtros['estado'] === $estado ? 'selected' : ''; ?>><?php echo $etiqueta; ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </label>
                         <a href="valores.php" class="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-bold text-gray-700 hover:bg-gray-50">
                             <i class="fas fa-eraser mr-2"></i>Limpiar
                         </a>
@@ -183,12 +191,21 @@ require __DIR__ . '/../../Config/exportar_modulo.php';
                                         <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-700"><?php echo htmlspecialchars(date('d/m/Y', strtotime($fila['fecha']))); ?></td>
                                         <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-bold text-gray-800">$ <?php echo number_format((float)$fila['valor'], 2, '.', ','); ?></td>
                                         <td class="px-6 py-4 text-sm text-gray-700"><?php echo htmlspecialchars($fila['ruta'] ?: '—'); ?><span class="mt-1 block max-w-xs truncate text-xs text-gray-500" title="<?php echo htmlspecialchars($fila['archivo_nombre'] ?? 'Sin archivo asociado'); ?>"><i class="fas fa-file-excel mr-1"></i><?php echo htmlspecialchars($fila['archivo_nombre'] ?? 'Sin archivo asociado'); ?></span></td>
-                                        <td class="px-6 py-4 text-center"><span class="inline-flex rounded-full px-3 py-1 text-xs font-bold <?php echo (int)$fila['pagado'] === 1 ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'; ?>"><?php echo (int)$fila['pagado'] === 1 ? 'Pagado' : 'No pagado'; ?></span></td>
+                                        <td class="px-6 py-4 text-center"><span class="inline-flex rounded-full px-3 py-1 text-xs font-bold <?php echo (int)$fila['pagado'] === 1 ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'; ?>"><?php echo (int)$fila['pagado'] === 1 ? 'Pagado' : 'No pagado'; ?></span>
+                                            <?php if (!(int)$fila['activo']): ?>
+                                                <span class="mt-2 block text-xs font-bold text-red-700">Deshabilitado</span>
+                                                <span class="block text-xs text-gray-500"><?php echo htmlspecialchars($fila['deshabilitado_en'] ?? ''); ?></span>
+                                            <?php endif; ?>
+                                        </td>
                                         <td class="px-6 py-4 text-center">
+                                            <?php if ((int)$fila['activo']): ?>
                                             <details class="inline-block text-left">
                                                 <summary class="list-none cursor-pointer whitespace-nowrap rounded-lg border border-gray-200 px-3 py-2 text-sm font-bold text-gray-600 hover:bg-gray-50">Acciones <i class="fas fa-chevron-down ml-2 text-xs"></i></summary>
                                                 <button type="button" data-borrar-registro="<?php echo (int)$fila['id']; ?>" data-descripcion="<?php echo htmlspecialchars('Disco ' . $fila['disco'] . ' · ' . date('d/m/Y', strtotime($fila['fecha'])) . ' · $ ' . number_format((float)$fila['valor'], 2), ENT_QUOTES); ?>" class="mt-1 w-full whitespace-nowrap rounded-lg bg-red-50 px-3 py-2 text-sm font-bold text-red-600 hover:bg-red-100"><i class="fas fa-trash-can mr-2"></i>Borrar registro</button>
                                             </details>
+                                            <?php else: ?>
+                                                <span class="text-xs text-gray-500">Conservado en historial</span>
+                                            <?php endif; ?>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>
@@ -260,14 +277,14 @@ require __DIR__ . '/../../Config/exportar_modulo.php';
         <p id="errorBorradoValores" role="alert" class="hidden mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700"></p>
         <div class="mt-6 flex gap-3">
             <button id="cancelarBorradoValores" type="button" autofocus class="flex-1 rounded-xl border border-gray-200 px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50">Cancelar</button>
-            <button id="aceptarBorradoValores" type="button" class="flex-1 rounded-xl bg-red-600 px-4 py-3 text-sm font-bold text-white hover:bg-red-700 disabled:opacity-50">Sí, eliminar</button>
+            <button id="aceptarBorradoValores" type="button" class="flex-1 rounded-xl bg-red-600 px-4 py-3 text-sm font-bold text-white hover:bg-red-700 disabled:opacity-50">Confirmar</button>
         </div>
     </dialog>
 
     <dialog id="opcionesTrasBorrado" aria-labelledby="tituloTrasBorrado" class="w-[calc(100%_-_2rem)] max-w-md rounded-2xl bg-white p-6 shadow-2xl">
         <div class="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-green-100 text-2xl text-green-600"><i class="fas fa-check"></i></div>
-        <h3 id="tituloTrasBorrado" class="text-xl font-bold text-gray-900">Registro eliminado</h3>
-        <p class="mt-2 text-sm leading-6 text-gray-500">¿Quieres modificar sus datos y volver a guardarlo, o crear otro registro?</p>
+        <h3 id="tituloTrasBorrado" class="text-xl font-bold text-gray-900">Registro deshabilitado</h3>
+        <p class="mt-2 text-sm leading-6 text-gray-500">El valor original queda en el historial. Puedes guardar una nueva versión con otros datos o crear otro registro.</p>
         <div class="mt-5 space-y-3">
             <button id="modificarTrasBorrado" type="button" class="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white hover:bg-blue-700"><i class="fas fa-pen mr-2"></i>Modificar y volver a guardar</button>
             <button id="crearTrasBorrado" type="button" class="w-full rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-700 hover:bg-blue-100"><i class="fas fa-plus mr-2"></i>Crear otro registro</button>
@@ -280,6 +297,7 @@ require __DIR__ . '/../../Config/exportar_modulo.php';
         <p class="mt-2 text-sm text-gray-500">Se guardará como no pagado. Revisa los datos antes de confirmar.</p>
         <form id="formRegistroValores" class="mt-5 space-y-4">
             <input type="hidden" name="archivo_id" value="0">
+            <input type="hidden" name="registro_anterior_id" value="0">
             <div class="grid grid-cols-2 gap-4">
                 <label class="text-sm font-bold text-gray-600">Disco<input name="disco" required maxlength="20" class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 font-normal focus:border-blue-500"></label>
                 <label class="text-sm font-bold text-gray-600">Fecha<input name="fecha" type="date" required class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 font-normal focus:border-blue-500"></label>

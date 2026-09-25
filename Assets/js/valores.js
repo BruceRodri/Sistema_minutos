@@ -94,15 +94,15 @@ document.addEventListener('DOMContentLoaded', () => {
                             <p class="break-words font-bold text-gray-800">${escapar(archivo.nombre)}</p>
                             ${archivo.sin_archivo ? '' : `<p class="mt-1 text-xs text-gray-500">${escapar(archivo.fecha)} · ${(Number(archivo.tamano) / 1024).toFixed(1)} KB</p>`}
                             <p class="mt-2 text-sm text-gray-600">${archivo.sin_archivo
-                                ? `${Number(archivo.registros)} registro(s) permanecen en la tabla sin un Excel vinculado. Puede eliminarlos juntos o borrar filas individualmente desde la tabla principal.`
+                                ? `${Number(archivo.registros)} registro(s) activos sin un Excel vinculado. Puede deshabilitarlos juntos o individualmente conservando el historial.`
                                 : archivo.anterior
                                 ? 'Archivo antiguo sin vínculo con registros. Sus datos se gestionan en Registros sin archivo asociado, en esta misma ventana.'
-                                : `${Number(archivo.registros)} registro(s) vinculado(s) · ${Number(archivo.omitidas)} repetido(s) omitido(s)`}</p>
+                                : `${Number(archivo.registros)} registro(s) activo(s) · ${Number(archivo.omitidas)} repetido(s) omitido(s). Los deshabilitados se conservan en el historial.`}</p>
                         </div>
                     </div>
                     <div class="mt-4 flex flex-wrap justify-end gap-2">
                         ${archivo.sin_archivo ? '' : `<a href="../../Controllers/ValoresController.php?accion=descargar&id=${encodeURIComponent(archivo.id)}" class="rounded-lg border border-gray-200 px-3 py-2 text-sm font-bold text-gray-600 hover:bg-gray-50"><i class="fas fa-download mr-2"></i>Descargar Excel</a>`}
-                        <button type="button" data-borrar-archivo="${escapar(archivo.id)}" class="rounded-lg bg-red-50 px-3 py-2 text-sm font-bold text-red-600 hover:bg-red-100"><i class="fas fa-trash-can mr-2"></i>${archivo.sin_archivo ? 'Eliminar registros sin archivo' : archivo.anterior ? 'Eliminar archivo' : 'Eliminar Excel y datos'}</button>
+                        <button type="button" data-borrar-archivo="${escapar(archivo.id)}" class="rounded-lg bg-red-50 px-3 py-2 text-sm font-bold text-red-600 hover:bg-red-100"><i class="fas fa-trash-can mr-2"></i>${archivo.sin_archivo ? 'Deshabilitar registros sin archivo' : archivo.anterior ? 'Eliminar archivo' : 'Deshabilitar registros del Excel'}</button>
                     </div>
                 </article>`).join('') : '<p class="py-8 text-center text-gray-500">No hay archivos Excel guardados.</p>';
         } catch (error) {
@@ -132,20 +132,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const archivo = archivosDisponibles.find((item) => String(item.id) === boton.dataset.borrarArchivo);
         if (!archivo) return;
         if (archivo.sin_archivo) {
-            pedirBorrado('eliminar_sin_archivo', archivo.id, '¿Eliminar registros sin archivo?',
-                `Se eliminarán ${Number(archivo.registros)} registro(s) sin archivo asociado, incluidos los pagados.\nLa selección incluye todos los registros sin archivo, aunque no aparezcan con los filtros actuales de la tabla.`, archivo.ids);
+            pedirBorrado('eliminar_sin_archivo', archivo.id, '¿Deshabilitar registros sin archivo?',
+                `Se deshabilitarán ${Number(archivo.registros)} registro(s) sin archivo asociado, incluidos los pagados. Sus valores y pagos se conservarán en el historial.\nLa selección incluye todos los registros activos sin archivo, aunque no aparezcan con los filtros actuales de la tabla.`, archivo.ids);
             return;
         }
-        pedirBorrado('eliminar_archivo', archivo.id, '¿Eliminar este Excel?', archivo.anterior
+        pedirBorrado('eliminar_archivo', archivo.id, archivo.anterior ? '¿Eliminar este Excel?' : '¿Deshabilitar registros de este Excel?', archivo.anterior
             ? `${archivo.nombre}\nSe eliminará solo este archivo antiguo. Para borrar los datos, use Registros sin archivo asociado en Gestión Archivos.`
-            : `${archivo.nombre}\nSe eliminarán el Excel y todos sus registros vinculados (${Number(archivo.registros)} actualmente), incluidos los pagados.`);
+            : `${archivo.nombre}\nSe deshabilitarán ${Number(archivo.registros)} registro(s) activos, incluidos los pagados. Se conservan el archivo original, los valores y los pagos en el historial.`);
     });
 
     tabla.addEventListener('click', (evento) => {
         const boton = evento.target.closest('[data-borrar-registro]');
         if (!boton) return;
         boton.closest('details').open = false;
-        pedirBorrado('eliminar_registro', boton.dataset.borrarRegistro, '¿Borrar este registro?', `${boton.dataset.descripcion}\n¿Está seguro de que desea eliminar este registro de Valores Diarios?`);
+        pedirBorrado('eliminar_registro', boton.dataset.borrarRegistro, '¿Deshabilitar este registro?', `${boton.dataset.descripcion}\nEl registro dejará de estar activo. El valor original se conservará en el historial.`);
     });
     cancelarBorrado.addEventListener('click', () => confirmacion.close());
     confirmacion.addEventListener('cancel', (evento) => { if (borrando) evento.preventDefault(); });
@@ -153,7 +153,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!borradoPendiente || borrando) return;
         borrando = true;
         aceptarBorrado.disabled = cancelarBorrado.disabled = true;
-        aceptarBorrado.textContent = 'Eliminando...';
+        aceptarBorrado.textContent = 'Procesando...';
         errorBorrado.classList.add('hidden');
         eventos?.close();
         eventos = null;
@@ -182,7 +182,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } finally {
             borrando = false;
             aceptarBorrado.disabled = cancelarBorrado.disabled = false;
-            aceptarBorrado.textContent = 'Sí, eliminar';
+            aceptarBorrado.textContent = 'Confirmar';
             conectarEventos(true);
         }
     });
@@ -193,6 +193,7 @@ document.addEventListener('DOMContentLoaded', () => {
         editorDesdeBorrado = opcionesTrasBorrado.open;
         formRegistro.reset();
         formRegistro.elements.namedItem('archivo_id').value = '0';
+        formRegistro.elements.namedItem('registro_anterior_id').value = modificar ? registroEliminado.id : '0';
         errorEditor.classList.add('hidden');
         document.getElementById('tituloEditorValores').textContent = modificar ? 'Modificar y volver a guardar' : 'Agregar nuevo registro';
         cancelarEditor.textContent = editorDesdeBorrado ? 'Volver' : 'Cancelar';
@@ -239,7 +240,8 @@ document.addEventListener('DOMContentLoaded', () => {
             // Volver a la primera página de la tabla completa después de guardar.
             const filtros = document.querySelector('form[action="valores.php"]');
             const url = new URL(window.location.href);
-            for (const campo of ['disco', 'fecha', 'valor', 'ruta', 'pagina']) url.searchParams.delete(campo);
+            for (const campo of ['disco', 'fecha', 'valor', 'ruta', 'estado', 'pagina']) url.searchParams.delete(campo);
+            if (filtros) filtros.elements.namedItem('estado').value = 'activos';
             for (const campo of ['disco', 'fecha', 'valor', 'ruta']) {
                 if (filtros) filtros.elements.namedItem(campo).value = '';
             }
@@ -451,12 +453,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-700">${escapar(formatearFecha(fila.fecha))}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-bold text-gray-800">$ ${Number(fila.valor).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td class="px-6 py-4 text-sm text-gray-700">${escapar(fila.ruta || '—')}<span class="mt-1 block max-w-xs truncate text-xs text-gray-500" title="${escapar(fila.archivo_nombre || 'Sin archivo asociado')}"><i class="fas fa-file-excel mr-1"></i>${escapar(fila.archivo_nombre || 'Sin archivo asociado')}</span></td>
-                    <td class="px-6 py-4 text-center"><span class="inline-flex rounded-full px-3 py-1 text-xs font-bold ${Number(fila.pagado) === 1 ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}">${Number(fila.pagado) === 1 ? 'Pagado' : 'No pagado'}</span></td>
+                    <td class="px-6 py-4 text-center"><span class="inline-flex rounded-full px-3 py-1 text-xs font-bold ${Number(fila.pagado) === 1 ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}">${Number(fila.pagado) === 1 ? 'Pagado' : 'No pagado'}</span>
+                        ${Number(fila.activo) === 0 ? `<span class="mt-2 block text-xs font-bold text-red-700">Deshabilitado</span><span class="block text-xs text-gray-500">${escapar(fila.deshabilitado_en)}</span>` : ''}
+                    </td>
                     <td class="px-6 py-4 text-center">
+                        ${Number(fila.activo) === 1 ? `
                         <details class="inline-block text-left">
                             <summary class="list-none cursor-pointer whitespace-nowrap rounded-lg border border-gray-200 px-3 py-2 text-sm font-bold text-gray-600 hover:bg-gray-50">Acciones <i class="fas fa-chevron-down ml-2 text-xs"></i></summary>
                             <button type="button" data-borrar-registro="${Number(fila.id)}" data-descripcion="${escapar(`Disco ${fila.disco} · ${formatearFecha(fila.fecha)} · $ ${Number(fila.valor).toFixed(2)}`)}" class="mt-1 w-full whitespace-nowrap rounded-lg bg-red-50 px-3 py-2 text-sm font-bold text-red-600 hover:bg-red-100"><i class="fas fa-trash-can mr-2"></i>Borrar registro</button>
-                        </details>
+                        </details>` : '<span class="text-xs text-gray-500">Conservado en historial</span>'}
                     </td>
                 </tr>`).join('');
             const primero = Math.max(1, Number.parseInt(datos.primero, 10) || 1);
